@@ -1,0 +1,1399 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JFK Internacional · Conecta tu estilo</title>
+<meta name="description" content="JFK Internacional S.A. — Importadora y distribuidora mayorista en Panamá desde 2012. Iluminación, marca Vida de Perro (con Vida de Gato) y sábanas.">
+<meta name="theme-color" content="#0E1016">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Fraunces:ital,wght@0,400;0,500;0,600;1,400;1,600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --ink-900: #0E1016;
+  --ink-800: #1A1D22;
+  --ink-600: #34363B;
+  --ink-400: #6E7178;
+  --ink-200: #98999B;
+  --ink-100: #D4D6DA;
+  --cream:    #FFFBF2;
+  --vanilla:  #FFF4D6;
+  --honey:    #FCE9B0;
+  --sun:      #FFB627;
+  --punch:    #FF6B35;
+  --fire:     #E94734;
+  --berry:    #C2185B;
+  --electric: #009FE3;
+  --ocean:    #0069A7;
+  --nebula:   #5D5DA5;
+  --neon:     #00D4D0;
+  --jade:     #00B0AD;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-serif: 'Fraunces', Georgia, serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+body {
+  font-family: var(--font-sans);
+  background: var(--cream);
+  color: var(--ink-900);
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+img, svg { max-width: 100%; display: block; }
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; border: none; background: none; }
+
+/* NAVBAR */
+.navbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 1000;
+  padding: 1rem 2rem;
+  background: rgba(14, 16, 22, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  transition: padding 0.3s;
+}
+.navbar.scrolled { padding: 0.7rem 2rem; }
+.nav-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+}
+.nav-logo { height: 28px; width: auto; transition: transform 0.3s; }
+.nav-logo:hover { transform: scale(1.05); }
+.nav-links {
+  display: flex;
+  gap: 2.5rem;
+  list-style: none;
+  align-items: center;
+  margin: 0;
+}
+.nav-links a {
+  color: rgba(255,255,255,0.7);
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  position: relative;
+  transition: color 0.2s;
+}
+.nav-links a:hover { color: white; }
+.nav-links a::after {
+  content: '';
+  position: absolute;
+  bottom: -6px; left: 0;
+  width: 0; height: 1px;
+  background: var(--punch);
+  transition: width 0.3s ease;
+}
+.nav-links a:hover::after { width: 100%; }
+.btn-nav {
+  background: var(--punch);
+  color: white !important;
+  padding: 0.6rem 1.2rem;
+  border-radius: 50px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.btn-nav:hover {
+  background: var(--fire);
+  transform: translateY(-1px);
+}
+.btn-nav::after { display: none !important; }
+.menu-toggle { display: none; color: white; font-size: 1.5rem; }
+
+/* HERO */
+.hero {
+  min-height: 100vh;
+  background: var(--ink-900);
+  color: white;
+  padding: 9rem 2rem 4rem;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+.hero-bg-shape {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 16px;
+  filter: blur(20px);
+}
+.shape-1 {
+  top: -10%; right: -5%;
+  width: 600px; height: 600px;
+  background: linear-gradient(135deg, var(--punch) 0%, var(--sun) 100%);
+  transform: rotate(-64deg);
+  opacity: 0.15;
+}
+.shape-2 {
+  bottom: -20%; left: -10%;
+  width: 500px; height: 500px;
+  background: linear-gradient(135deg, var(--electric) 0%, var(--neon) 100%);
+  transform: rotate(-64deg);
+  opacity: 0.18;
+}
+.shape-3 {
+  top: 40%; left: 30%;
+  width: 300px; height: 300px;
+  background: var(--berry);
+  transform: rotate(-64deg);
+  opacity: 0.08;
+  filter: blur(40px);
+}
+.hero-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 4rem;
+  align-items: center;
+}
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  color: var(--punch);
+  margin-bottom: 1.5rem;
+  text-transform: uppercase;
+}
+.hero-eyebrow .pulse {
+  width: 8px; height: 8px;
+  background: var(--neon);
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 var(--neon); }
+  50% { opacity: 0.6; transform: scale(1.2); box-shadow: 0 0 0 8px transparent; }
+}
+.hero h1 {
+  font-family: var(--font-sans);
+  font-size: clamp(3rem, 8vw, 7rem);
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  margin-bottom: 1.5rem;
+  color: #fff;
+}
+.hero h1 .gradient-text {
+  background: linear-gradient(135deg, var(--punch) 0%, var(--sun) 50%, var(--neon) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: var(--sun);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+}
+.hero-lead {
+  font-size: 1.15rem;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 2.5rem;
+  max-width: 540px;
+  line-height: 1.6;
+}
+.hero-lead strong { color: white; font-weight: 600; }
+.hero-cta {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 3rem;
+}
+.btn-primary, .btn-secondary {
+  padding: 1rem 1.8rem;
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+.btn-primary {
+  background: var(--punch);
+  color: white;
+}
+.btn-primary:hover {
+  background: var(--fire);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px -5px rgba(255, 107, 53, 0.5);
+}
+.btn-secondary {
+  background: transparent;
+  color: white;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+.btn-secondary:hover {
+  border-color: var(--neon);
+  color: var(--neon);
+  transform: translateY(-2px);
+}
+.btn-arrow { display: inline-block; transition: transform 0.3s; }
+.btn-primary:hover .btn-arrow,
+.btn-secondary:hover .btn-arrow { transform: translateX(4px); }
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  max-width: 540px;
+}
+.stat-num {
+  font-family: var(--font-sans);
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  background: linear-gradient(135deg, var(--sun) 0%, var(--punch) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: var(--sun);
+}
+.stat-label {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.5);
+  margin-top: 0.3rem;
+  letter-spacing: 0.05em;
+}
+
+/* Hero Visual */
+.hero-visual {
+  position: relative;
+  height: 520px;
+  perspective: 1000px;
+}
+.float-card {
+  position: absolute;
+  padding: 1.5rem;
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.1);
+  animation: float 6s ease-in-out infinite;
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+.fc-lights {
+  top: 0; right: 20px;
+  width: 240px;
+  background: linear-gradient(135deg, rgba(255, 182, 39, 0.25) 0%, rgba(255, 107, 53, 0.15) 100%);
+  border-color: rgba(255, 182, 39, 0.3);
+  animation-delay: 0s;
+}
+.fc-pets {
+  top: 180px; right: 180px;
+  width: 240px;
+  background: linear-gradient(135deg, rgba(255, 107, 53, 0.25) 0%, rgba(194, 24, 91, 0.15) 100%);
+  border-color: rgba(255, 107, 53, 0.3);
+  animation-delay: 2s;
+}
+.fc-stock {
+  top: 340px; right: 40px;
+  width: 240px;
+  background: linear-gradient(135deg, rgba(0, 159, 227, 0.2) 0%, rgba(0, 212, 208, 0.15) 100%);
+  border-color: rgba(0, 212, 208, 0.3);
+  animation-delay: 4s;
+}
+.fc-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin-bottom: 0.8rem;
+}
+.fc-lights .fc-icon { background: var(--sun); color: var(--ink-900); }
+.fc-pets .fc-icon { background: var(--punch); color: white; }
+.fc-stock .fc-icon { background: var(--neon); color: var(--ink-900); }
+.fc-tag {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  color: rgba(255,255,255,0.5);
+  margin-bottom: 0.3rem;
+  text-transform: uppercase;
+}
+.fc-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 0.2rem;
+}
+.fc-sub {
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.6);
+}
+
+/* MARQUEE */
+.marquee {
+  background: var(--ink-900);
+  padding: 1.5rem 0;
+  overflow: hidden;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.marquee-track {
+  display: flex;
+  gap: 4rem;
+  animation: scroll 35s linear infinite;
+  white-space: nowrap;
+  width: max-content;
+}
+@keyframes scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.marquee-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: rgba(255,255,255,0.5);
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.marquee-item .dot {
+  color: var(--punch);
+  font-size: 0.8rem;
+}
+.marquee-item.accent { color: white; }
+
+/* SECTIONS */
+section { padding: 7rem 2rem; }
+.section-inner { max-width: 1400px; margin: 0 auto; }
+.section-header { text-align: center; margin-bottom: 4rem; }
+.section-eyebrow {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  color: var(--punch);
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.section-title {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  max-width: 720px;
+  margin: 0 auto 1rem;
+}
+.section-title em {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  color: var(--punch);
+}
+.section-sub {
+  font-size: 1.1rem;
+  color: var(--ink-400);
+  max-width: 580px;
+  margin: 0 auto;
+}
+
+/* LÍNEAS */
+.lineas { background: var(--cream); position: relative; }
+.lineas-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+.linea {
+  position: relative;
+  padding: 2.5rem;
+  border-radius: 24px;
+  overflow: hidden;
+  min-height: 460px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.linea:hover { transform: translateY(-8px); }
+.linea-1 { background: var(--ink-900); color: white; }
+.linea-2 {
+  background: linear-gradient(135deg, var(--punch) 0%, var(--berry) 100%);
+  color: white;
+}
+.linea-3 {
+  background: linear-gradient(135deg, var(--electric) 0%, var(--ocean) 100%);
+  color: white;
+}
+.linea-bg-shape {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  border-radius: 12px;
+  opacity: 0.1;
+  transform: rotate(-64deg);
+  pointer-events: none;
+}
+.linea-1 .linea-bg-shape {
+  background: var(--sun);
+  top: -50px; right: -50px;
+  opacity: 0.15;
+}
+.linea-2 .linea-bg-shape {
+  background: white;
+  bottom: -80px; left: -50px;
+  opacity: 0.1;
+}
+.linea-3 .linea-bg-shape {
+  background: var(--neon);
+  bottom: -80px; right: -50px;
+  opacity: 0.15;
+}
+.linea-num {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  opacity: 0.6;
+  margin-bottom: 1rem;
+}
+.linea-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  margin-bottom: 1.5rem;
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.linea-1 .linea-icon { background: var(--sun); color: var(--ink-900); }
+.linea-tag {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  padding: 0.3rem 0.7rem;
+  background: rgba(255,255,255,0.2);
+  border-radius: 50px;
+  margin-bottom: 1rem;
+  width: fit-content;
+  text-transform: uppercase;
+}
+.linea-1 .linea-tag { background: var(--sun); color: var(--ink-900); }
+.linea h3 {
+  font-size: 2.2rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  margin-bottom: 1rem;
+}
+.linea h3 .sub-brand {
+  display: block;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.2rem;
+  font-weight: 400;
+  opacity: 0.8;
+  margin-top: 0.3rem;
+}
+.linea-desc {
+  font-size: 0.95rem;
+  opacity: 0.9;
+  margin-bottom: 1.5rem;
+  flex-grow: 1;
+  line-height: 1.6;
+}
+.linea-features {
+  list-style: none;
+  margin-bottom: 1.5rem;
+}
+.linea-features li {
+  padding: 0.4rem 0;
+  font-size: 0.875rem;
+  opacity: 0.9;
+}
+.linea-features li::before {
+  content: '→ ';
+  font-weight: 700;
+  opacity: 0.7;
+}
+.linea-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.2rem;
+  background: rgba(255,255,255,0.15);
+  border-radius: 50px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  width: fit-content;
+  transition: all 0.2s;
+  backdrop-filter: blur(10px);
+}
+.linea-1 .linea-cta { background: var(--sun); color: var(--ink-900); }
+.linea-cta:hover {
+  background: rgba(255,255,255,0.25);
+  gap: 0.8rem;
+}
+.linea-1 .linea-cta:hover { background: white; }
+
+/* NOSOTROS */
+.nosotros {
+  background: var(--ink-900);
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+.nosotros::before {
+  content: '';
+  position: absolute;
+  top: 20%; left: -10%;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(255,107,53,0.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+.nosotros::after {
+  content: '';
+  position: absolute;
+  bottom: -10%; right: -10%;
+  width: 700px; height: 700px;
+  background: radial-gradient(circle, rgba(0,212,208,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+.nosotros .section-header { text-align: left; }
+.nosotros .section-eyebrow { color: var(--neon); }
+.nosotros .section-title em { color: var(--sun); }
+.nosotros-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: flex-start;
+  position: relative;
+  z-index: 1;
+}
+.about-text p {
+  color: rgba(255,255,255,0.75);
+  font-size: 1.05rem;
+  line-height: 1.7;
+  margin-bottom: 1.2rem;
+}
+.about-text p strong { color: white; font-weight: 600; }
+.values-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+.value-card {
+  padding: 1.5rem;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: all 0.3s;
+}
+.value-card:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,107,53,0.4);
+  transform: translateY(-3px);
+}
+.value-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  margin-bottom: 0.8rem;
+}
+.value-card:nth-child(1) .value-icon { background: var(--punch); color: white; }
+.value-card:nth-child(2) .value-icon { background: var(--electric); color: white; }
+.value-card:nth-child(3) .value-icon { background: var(--nebula); color: white; }
+.value-card:nth-child(4) .value-icon { background: var(--neon); color: var(--ink-900); }
+.value-card h4 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+  color: white;
+}
+.value-card p {
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.65);
+  line-height: 1.5;
+}
+
+/* MAYORISTAS */
+.mayoristas { background: var(--vanilla); position: relative; }
+.mayoristas-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: 4rem;
+  align-items: start;
+}
+.mayoristas-info h2 {
+  font-size: clamp(2rem, 4.5vw, 3.5rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  margin-bottom: 1.5rem;
+}
+.mayoristas-info h2 em {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  color: var(--punch);
+}
+.mayoristas-info p {
+  font-size: 1.05rem;
+  color: var(--ink-600);
+  line-height: 1.7;
+  margin-bottom: 2rem;
+}
+.benefits { list-style: none; }
+.benefits li {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.8rem 0;
+  font-weight: 500;
+  font-size: 0.95rem;
+  border-bottom: 1px dashed rgba(0,0,0,0.1);
+}
+.benefit-check {
+  width: 24px; height: 24px;
+  background: var(--punch);
+  border-radius: 50%;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+.form-card {
+  background: white;
+  border-radius: 24px;
+  padding: 2.5rem;
+  box-shadow: 0 20px 60px -20px rgba(14, 16, 22, 0.15);
+  position: sticky;
+  top: 100px;
+}
+.form-card h3 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.02em;
+}
+.form-card .form-sub {
+  color: var(--ink-400);
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+}
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.form-field { margin-bottom: 1rem; }
+.form-field label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-400);
+  margin-bottom: 0.4rem;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.form-field input,
+.form-field select,
+.form-field textarea {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1.5px solid var(--ink-100);
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  background: var(--cream);
+  transition: all 0.2s;
+}
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+  outline: none;
+  border-color: var(--punch);
+  background: white;
+  box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+}
+.form-field textarea { resize: vertical; min-height: 80px; }
+.btn-submit {
+  width: 100%;
+  background: var(--ink-900);
+  color: white;
+  padding: 1rem;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-top: 0.5rem;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.btn-submit:hover {
+  background: var(--punch);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(255, 107, 53, 0.4);
+}
+
+/* CONTACTO */
+.contacto { background: var(--cream); }
+.contacto-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+.contact-card {
+  background: white;
+  border: 1px solid var(--ink-100);
+  border-radius: 20px;
+  padding: 2rem;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+.contact-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--punch);
+  box-shadow: 0 20px 40px -15px rgba(14,16,22,0.1);
+}
+.contact-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--ink-100);
+  transition: background 0.3s;
+}
+.contact-card:hover::before { background: var(--punch); }
+.contact-icon {
+  width: 52px; height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+.contact-card:nth-child(1) .contact-icon { background: var(--punch); color: white; }
+.contact-card:nth-child(2) .contact-icon { background: var(--electric); color: white; }
+.contact-card:nth-child(3) .contact-icon { background: var(--neon); color: var(--ink-900); }
+.contact-tag {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-400);
+  text-transform: uppercase;
+  margin-bottom: 0.3rem;
+}
+.contact-card h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 0.6rem;
+  letter-spacing: -0.01em;
+}
+.contact-card p {
+  color: var(--ink-600);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+.contact-card a {
+  color: var(--punch);
+  font-weight: 600;
+  transition: color 0.2s;
+}
+.contact-card a:hover { color: var(--fire); }
+
+/* FOOTER */
+.footer {
+  background: var(--ink-900);
+  color: rgba(255,255,255,0.6);
+  padding: 4rem 2rem 2rem;
+  position: relative;
+  overflow: hidden;
+}
+.footer::before {
+  content: '';
+  position: absolute;
+  top: -100px; right: -100px;
+  width: 400px; height: 400px;
+  background: var(--punch);
+  border-radius: 16px;
+  transform: rotate(-64deg);
+  opacity: 0.05;
+}
+.footer-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+.footer-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 3rem;
+  margin-bottom: 3rem;
+}
+.footer-logo { height: 32px; width: auto; margin-bottom: 1rem; }
+.footer-brand p {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+  max-width: 320px;
+}
+.footer-tagline {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.2rem;
+  color: var(--sun) !important;
+  margin-bottom: 1.5rem !important;
+}
+.footer h4 {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  color: var(--punch);
+  text-transform: uppercase;
+  margin-bottom: 1.2rem;
+  font-weight: 500;
+}
+.footer ul { list-style: none; }
+.footer ul li { margin-bottom: 0.6rem; }
+.footer ul a {
+  color: rgba(255,255,255,0.6);
+  font-size: 0.9rem;
+  transition: color 0.2s;
+}
+.footer ul a:hover { color: var(--neon); }
+.socials {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1.5rem;
+}
+.social-link {
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  color: white;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.social-link:hover {
+  background: var(--punch);
+  border-color: var(--punch);
+  transform: translateY(-3px);
+}
+.footer-bottom {
+  padding-top: 2rem;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.4);
+}
+.sap-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  color: var(--neon);
+}
+.sap-tag .pulse-mini {
+  width: 6px; height: 6px;
+  background: var(--neon);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+/* WHATSAPP */
+.wa-float {
+  position: fixed;
+  bottom: 25px; right: 25px;
+  background: #25D366;
+  color: white;
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  z-index: 999;
+  box-shadow: 0 8px 25px -5px rgba(37, 211, 102, 0.5);
+  transition: transform 0.3s;
+}
+.wa-float:hover {
+  transform: scale(1.1);
+  box-shadow: 0 12px 35px -5px rgba(37, 211, 102, 0.7);
+}
+.wa-float::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 2px solid #25D366;
+  animation: ripple 2s infinite;
+}
+@keyframes ripple {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+/* RESPONSIVE */
+@media (max-width: 968px) {
+  .nav-links {
+    position: fixed;
+    top: 64px; left: 0; right: 0;
+    background: var(--ink-900);
+    flex-direction: column;
+    padding: 2rem;
+    transform: translateY(-150%);
+    transition: transform 0.3s;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .nav-links.open { transform: translateY(0); }
+  .menu-toggle { display: block; }
+  .hero-inner, .nosotros-grid, .mayoristas-grid { grid-template-columns: 1fr; gap: 3rem; }
+  .lineas-grid { grid-template-columns: 1fr; }
+  .contacto-grid { grid-template-columns: 1fr; }
+  .footer-grid { grid-template-columns: 1fr 1fr; }
+  .values-grid { grid-template-columns: 1fr 1fr; }
+  .hero-visual { height: 400px; }
+  .form-row { grid-template-columns: 1fr; }
+  .form-card { position: static; }
+}
+@media (max-width: 480px) {
+  section { padding: 4rem 1rem; }
+  .hero { padding: 7rem 1rem 3rem; }
+  .navbar { padding: 0.8rem 1rem; }
+  .footer-grid { grid-template-columns: 1fr; }
+  .values-grid { grid-template-columns: 1fr; }
+  .form-card { padding: 1.5rem; }
+  .hero-stats { grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .hero-visual { display: none; }
+}
+</style>
+</head>
+<body>
+
+<nav class="navbar" id="navbar">
+  <div class="nav-inner">
+    <a href="#top" aria-label="JFK Internacional">
+      <svg class="nav-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 626.95 462.68"><path fill="#fff" d="M154.22,309.52V269.37A29.85,29.85,0,0,0,184,239.56V154.23h40.15v85.33A70,70,0,0,1,154.22,309.52Z"/><polygon fill="#fff" points="328.91 191.88 328.91 154.24 243.86 154.22 243.86 308.45 284.01 308.45 284.01 253.03 323.7 253.03 323.7 215.39 284.01 215.39 284.01 191.88 328.91 191.88"/><polygon fill="#fff" points="435.72 231.36 472.73 154.22 430.98 154.22 393.96 231.37 430.97 308.45 472.73 308.45 435.72 231.36"/><rect fill="#fff" x="348.99" y="154.23" width="40.15" height="154.23"/><path fill="#fff" d="M496.91,177.38A11.42,11.42,0,1,1,505.1,174,11.17,11.17,0,0,1,496.91,177.38Zm0-2a9.07,9.07,0,0,0,6.75-2.79,9.84,9.84,0,0,0-.07-13.66,9.07,9.07,0,0,0-6.78-2.72A9.32,9.32,0,0,0,490,159a10,10,0,0,0,.07,13.66A9.32,9.32,0,0,0,496.9,175.41Zm-4.08-2.61L492.75,159l4.26,0c3.35,0,5,1.35,5,4.11,0,2.1-1.1,3.42-3.39,4l3.11,5.7h-2.1l-3-5.63h-2l0,5.64Zm1.8-7.36h2.49c2,0,3.08-.8,3.07-2.38s-1.06-2.49-3.09-2.48h-2.5Z"/></svg>
+    </a>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="#lineas">Líneas</a></li>
+      <li><a href="#nosotros">Nosotros</a></li>
+      <li><a href="#mayoristas">Mayoristas</a></li>
+      <li><a href="#contacto">Contacto</a></li>
+      <li><a href="#mayoristas" class="btn-nav">Solicitar acceso</a></li>
+    </ul>
+    <button class="menu-toggle" id="menuToggle" aria-label="Menú">☰</button>
+  </div>
+</nav>
+
+<section class="hero" id="top">
+  <div class="hero-bg-shape shape-1"></div>
+  <div class="hero-bg-shape shape-2"></div>
+  <div class="hero-bg-shape shape-3"></div>
+  
+  <div class="hero-inner">
+    <div class="hero-content">
+      <div class="hero-eyebrow">
+        <span class="pulse"></span>
+        DISTRIBUIDORA MAYORISTA · PANAMÁ
+      </div>
+      <h1>Conecta<br>tu <span class="gradient-text">estilo</span>.</h1>
+      <p class="hero-lead">
+        <strong>JFK Internacional S.A.</strong> importa y distribuye al por mayor en Panamá: 
+        iluminación, la marca <strong>Vida de Perro</strong> (con <strong>Vida de Gato</strong>) 
+        y stock de sábanas. Abastecemos a tiendas, comercios y distribuidores en toda Centroamérica.
+      </p>
+      <div class="hero-cta">
+        <a href="#mayoristas" class="btn-primary">Soy mayorista <span class="btn-arrow">→</span></a>
+        <a href="#lineas" class="btn-secondary">Ver líneas <span class="btn-arrow">↓</span></a>
+      </div>
+      <div class="hero-stats">
+        <div>
+          <div class="stat-num">2012</div>
+          <div class="stat-label">DESDE EL AÑO</div>
+        </div>
+        <div>
+          <div class="stat-num">3</div>
+          <div class="stat-label">LÍNEAS DE PRODUCTO</div>
+        </div>
+        <div>
+          <div class="stat-num">B2B</div>
+          <div class="stat-label">VENTA AL POR MAYOR</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="hero-visual">
+      <div class="float-card fc-lights">
+        <div class="fc-icon">💡</div>
+        <div class="fc-tag">LÍNEA 01</div>
+        <div class="fc-title">Iluminación</div>
+        <div class="fc-sub">LED · Decorativa · Técnica</div>
+      </div>
+      <div class="float-card fc-pets">
+        <div class="fc-icon">🐕</div>
+        <div class="fc-tag">LÍNEA 02</div>
+        <div class="fc-title">Vida de Perro</div>
+        <div class="fc-sub">+ Vida de Gato</div>
+      </div>
+      <div class="float-card fc-stock">
+        <div class="fc-icon">📦</div>
+        <div class="fc-tag">LÍNEA 03</div>
+        <div class="fc-title">Sábanas + Stock</div>
+        <div class="fc-sub">Textil y varios</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="marquee">
+  <div class="marquee-track">
+    <span class="marquee-item"><span class="dot">●</span> CONECTA TU ESTILO</span>
+    <span class="marquee-item accent"><span class="dot">●</span> IMPORTADORA DESDE 2012</span>
+    <span class="marquee-item"><span class="dot">●</span> ZONA LIBRE COLÓN</span>
+    <span class="marquee-item accent"><span class="dot">●</span> VENTA AL POR MAYOR</span>
+    <span class="marquee-item"><span class="dot">●</span> SAP BUSINESS ONE</span>
+    <span class="marquee-item accent"><span class="dot">●</span> COBERTURA REGIONAL</span>
+    <span class="marquee-item"><span class="dot">●</span> CONECTA TU ESTILO</span>
+    <span class="marquee-item accent"><span class="dot">●</span> IMPORTADORA DESDE 2012</span>
+    <span class="marquee-item"><span class="dot">●</span> ZONA LIBRE COLÓN</span>
+    <span class="marquee-item accent"><span class="dot">●</span> VENTA AL POR MAYOR</span>
+    <span class="marquee-item"><span class="dot">●</span> SAP BUSINESS ONE</span>
+    <span class="marquee-item accent"><span class="dot">●</span> COBERTURA REGIONAL</span>
+  </div>
+</div>
+
+<section class="lineas" id="lineas">
+  <div class="section-inner">
+    <div class="section-header">
+      <div class="section-eyebrow">NUESTRAS LÍNEAS</div>
+      <h2 class="section-title">Tres líneas. <em>Un solo</em> proveedor.</h2>
+      <p class="section-sub">Especialistas en distribución mayorista para tiendas, distribuidores y comercios en Centroamérica.</p>
+    </div>
+    <div class="lineas-grid">
+      <article class="linea linea-1">
+        <div class="linea-bg-shape"></div>
+        <div class="linea-num">LÍNEA / 01</div>
+        <div class="linea-icon">💡</div>
+        <span class="linea-tag">Línea principal</span>
+        <h3>Iluminación</h3>
+        <p class="linea-desc">Soluciones de iluminación para distribuidores, ferreterías, eléctricos y tiendas. Importación directa con precios mayoristas competitivos.</p>
+        <ul class="linea-features">
+          <li>Iluminación LED</li>
+          <li>Lámparas decorativas</li>
+          <li>Luminarias técnicas</li>
+          <li>Iluminación para hogar y negocio</li>
+        </ul>
+        <a href="#mayoristas" class="linea-cta">Solicitar catálogo →</a>
+      </article>
+      <article class="linea linea-2">
+        <div class="linea-bg-shape"></div>
+        <div class="linea-num">LÍNEA / 02</div>
+        <div class="linea-icon">🐕</div>
+        <span class="linea-tag">Marca representada</span>
+        <h3>Vida de Perro<span class="sub-brand">+ Vida de Gato</span></h3>
+        <p class="linea-desc">Marca especializada en mascotas con sublínea para felinos. Distribuimos todo el catálogo a tiendas de mascotas, veterinarias y pet shops.</p>
+        <ul class="linea-features">
+          <li>Comida y snacks</li>
+          <li>Juguetes y accesorios</li>
+          <li>Camas, correas, arneses</li>
+          <li>Higiene y cuidado</li>
+        </ul>
+        <a href="#mayoristas" class="linea-cta">Solicitar catálogo →</a>
+      </article>
+      <article class="linea linea-3">
+        <div class="linea-bg-shape"></div>
+        <div class="linea-num">LÍNEA / 03</div>
+        <div class="linea-icon">📦</div>
+        <span class="linea-tag">Stock permanente</span>
+        <h3>Sábanas + Varios</h3>
+        <p class="linea-desc">Stock disponible de sábanas, textiles del hogar y artículos varios. Ideal para tiendas, distribuidores y hoteles con buena rotación.</p>
+        <ul class="linea-features">
+          <li>Juegos de sábanas</li>
+          <li>Textiles para el hogar</li>
+          <li>Artículos varios en stock</li>
+          <li>Lotes y ofertas especiales</li>
+        </ul>
+        <a href="#mayoristas" class="linea-cta">Solicitar catálogo →</a>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="nosotros" id="nosotros">
+  <div class="section-inner">
+    <div class="nosotros-grid">
+      <div class="about-text">
+        <div class="section-header">
+          <div class="section-eyebrow">SOBRE NOSOTROS</div>
+          <h2 class="section-title">Más de una década <em>conectando</em> Panamá.</h2>
+        </div>
+        <p><strong>JFK Internacional S.A.</strong> es una sociedad panameña dedicada a la importación y distribución mayorista. Desde 2012 abastecemos al mercado regional con productos de calidad a través de tres líneas estratégicas.</p>
+        <p>Trabajamos exclusivamente con clientes comerciales: distribuidores, tiendas, veterinarias, ferreterías, eléctricos, hoteles y cadenas de retail que necesitan un proveedor mayorista confiable, con experiencia logística y stock permanente.</p>
+        <p>Operamos con tecnología empresarial <strong>SAP Business One</strong> para garantizar precisión en pedidos, control de inventario y trazabilidad completa.</p>
+      </div>
+      <div class="values-grid">
+        <div class="value-card">
+          <div class="value-icon">⚡</div>
+          <h4>Accesibilidad</h4>
+          <p>Productos de fácil alcance económico para nuestros clientes.</p>
+        </div>
+        <div class="value-card">
+          <div class="value-icon">🚀</div>
+          <h4>Innovación</h4>
+          <p>Simplificamos vidas, haciendo eficientes las actividades diarias.</p>
+        </div>
+        <div class="value-card">
+          <div class="value-icon">🎨</div>
+          <h4>Diseño</h4>
+          <p>Buen gusto en productos auténticos y funcionales.</p>
+        </div>
+        <div class="value-card">
+          <div class="value-icon">✨</div>
+          <h4>Experiencia</h4>
+          <p>Inolvidable en cada punto de contacto con la marca.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="mayoristas" id="mayoristas">
+  <div class="section-inner">
+    <div class="mayoristas-grid">
+      <div>
+        <div class="section-eyebrow">MAYORISTAS</div>
+        <h2>¿Tienes un negocio? <em>Hagamos crecer</em> tus ventas.</h2>
+        <p>JFK Internacional vende exclusivamente al por mayor. Si eres distribuidor, tienda, veterinaria, hotel, ferretería o comercio, abre tu cuenta y accede a las tres líneas con condiciones especiales.</p>
+        <ul class="benefits">
+          <li><span class="benefit-check">✓</span> Precios mayoristas escalonados por volumen</li>
+          <li><span class="benefit-check">✓</span> Crédito comercial sujeto a evaluación</li>
+          <li><span class="benefit-check">✓</span> Asesor comercial dedicado</li>
+          <li><span class="benefit-check">✓</span> Entregas programadas en Panamá y región</li>
+          <li><span class="benefit-check">✓</span> Catálogo completo de las 3 líneas</li>
+          <li><span class="benefit-check">✓</span> Gestión profesional con SAP Business One</li>
+        </ul>
+      </div>
+      <div class="form-card">
+        <h3>Solicita tu cuenta mayorista</h3>
+        <p class="form-sub">Te contactamos en menos de 24 horas hábiles.</p>
+        <form id="formMayorista" onsubmit="enviarFormulario(event)">
+          <div class="form-row">
+            <div class="form-field">
+              <label>Nombre*</label>
+              <input type="text" name="nombre" required placeholder="Tu nombre completo">
+            </div>
+            <div class="form-field">
+              <label>Empresa*</label>
+              <input type="text" name="empresa" required placeholder="Razón social">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-field">
+              <label>RUC*</label>
+              <input type="text" name="ruc" required placeholder="Ej: 1234567-1-123456">
+            </div>
+            <div class="form-field">
+              <label>Teléfono*</label>
+              <input type="tel" name="telefono" required placeholder="+507 0000-0000">
+            </div>
+          </div>
+          <div class="form-field">
+            <label>Email comercial*</label>
+            <input type="email" name="email" required placeholder="tu@empresa.com">
+          </div>
+          <div class="form-field">
+            <label>Tipo de negocio*</label>
+            <select name="tipo" required>
+              <option value="">Selecciona una opción</option>
+              <option>Tienda / Comercio</option>
+              <option>Distribuidor</option>
+              <option>Veterinaria / Pet Shop</option>
+              <option>Hotel / Hospedaje</option>
+              <option>Ferretería / Eléctrico</option>
+              <option>Cadena de retail</option>
+              <option>Otro</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Línea de interés*</label>
+            <select name="linea" required>
+              <option value="">Selecciona una opción</option>
+              <option>Iluminación</option>
+              <option>Vida de Perro / Vida de Gato</option>
+              <option>Sábanas + Varios</option>
+              <option>Las 3 líneas</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Mensaje</label>
+            <textarea name="mensaje" placeholder="Cuéntanos sobre tu negocio..."></textarea>
+          </div>
+          <button type="submit" class="btn-submit">Enviar solicitud <span>→</span></button>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="contacto" id="contacto">
+  <div class="section-inner">
+    <div class="section-header">
+      <div class="section-eyebrow">CONTACTO</div>
+      <h2 class="section-title">Hablemos de <em>negocios</em>.</h2>
+      <p class="section-sub">Atención exclusiva a clientes comerciales y mayoristas.</p>
+    </div>
+    <div class="contacto-grid">
+      <div class="contact-card">
+        <div class="contact-icon">📞</div>
+        <div class="contact-tag">TELÉFONO</div>
+        <h3>Línea comercial</h3>
+        <p><a href="tel:+5074415267">+507 441-5267</a><br>Lun-Vie · 8:00 AM – 6:00 PM</p>
+      </div>
+      <div class="contact-card">
+        <div class="contact-icon">✉️</div>
+        <div class="contact-tag">EMAIL</div>
+        <h3>Ventas y cotizaciones</h3>
+        <p><a href="mailto:sales@jfkintl.com">sales@jfkintl.com</a><br><a href="mailto:info@jfkpanama.com">info@jfkpanama.com</a></p>
+      </div>
+      <div class="contact-card">
+        <div class="contact-icon">📍</div>
+        <div class="contact-tag">OFICINAS</div>
+        <h3>Dos ubicaciones</h3>
+        <p>Calle 15 y Av. Santa Isabel<br>Zona Libre, Colón · Panamá<br><span style="opacity: 0.7;">+ Oficinas en Ciudad de Panamá</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <svg class="footer-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 626.95 462.68"><path fill="#fff" d="M154.22,309.52V269.37A29.85,29.85,0,0,0,184,239.56V154.23h40.15v85.33A70,70,0,0,1,154.22,309.52Z"/><polygon fill="#fff" points="328.91 191.88 328.91 154.24 243.86 154.22 243.86 308.45 284.01 308.45 284.01 253.03 323.7 253.03 323.7 215.39 284.01 215.39 284.01 191.88 328.91 191.88"/><polygon fill="#fff" points="435.72 231.36 472.73 154.22 430.98 154.22 393.96 231.37 430.97 308.45 472.73 308.45 435.72 231.36"/><rect fill="#fff" x="348.99" y="154.23" width="40.15" height="154.23"/><path fill="#fff" d="M496.91,177.38A11.42,11.42,0,1,1,505.1,174,11.17,11.17,0,0,1,496.91,177.38Zm0-2a9.07,9.07,0,0,0,6.75-2.79,9.84,9.84,0,0,0-.07-13.66,9.07,9.07,0,0,0-6.78-2.72A9.32,9.32,0,0,0,490,159a10,10,0,0,0,.07,13.66A9.32,9.32,0,0,0,496.9,175.41Zm-4.08-2.61L492.75,159l4.26,0c3.35,0,5,1.35,5,4.11,0,2.1-1.1,3.42-3.39,4l3.11,5.7h-2.1l-3-5.63h-2l0,5.64Zm1.8-7.36h2.49c2,0,3.08-.8,3.07-2.38s-1.06-2.49-3.09-2.48h-2.5Z"/></svg>
+        <p class="footer-tagline">Conecta tu estilo.</p>
+        <p>Importadora y distribuidora mayorista en Panamá desde 2012. Iluminación · Vida de Perro · Sábanas y artículos varios.</p>
+        <div class="socials">
+          <a href="#" class="social-link" aria-label="Facebook">f</a>
+          <a href="#" class="social-link" aria-label="Instagram">IG</a>
+          <a href="https://wa.me/5074415267" class="social-link" aria-label="WhatsApp">W</a>
+          <a href="#" class="social-link" aria-label="LinkedIn">in</a>
+        </div>
+      </div>
+      <div>
+        <h4>Líneas</h4>
+        <ul>
+          <li><a href="#lineas">Iluminación</a></li>
+          <li><a href="#lineas">Vida de Perro</a></li>
+          <li><a href="#lineas">Vida de Gato</a></li>
+          <li><a href="#lineas">Sábanas + Varios</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Empresa</h4>
+        <ul>
+          <li><a href="#nosotros">Nosotros</a></li>
+          <li><a href="#mayoristas">Mayoristas</a></li>
+          <li><a href="#contacto">Contacto</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Contacto</h4>
+        <ul>
+          <li><a href="mailto:sales@jfkintl.com">sales@jfkintl.com</a></li>
+          <li><a href="tel:+5074415267">+507 441-5267</a></li>
+          <li>Zona Libre, Colón · Panamá</li>
+          <li>Ciudad de Panamá</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 JFK Internacional S.A. · Todos los derechos reservados.</span>
+      <span class="sap-tag"><span class="pulse-mini"></span>POWERED BY SAP BUSINESS ONE</span>
+    </div>
+  </div>
+</footer>
+
+<a href="https://wa.me/5074415267?text=Hola%20JFK%20Internacional%2C%20soy%20cliente%20mayorista" target="_blank" class="wa-float" title="Chatea con nosotros">💬</a>
+
+<script>
+const menuToggle = document.getElementById('menuToggle');
+const navLinks = document.getElementById('navLinks');
+menuToggle.addEventListener('click', () => navLinks.classList.toggle('open'));
+document.querySelectorAll('.nav-links a').forEach(link => {
+  link.addEventListener('click', () => navLinks.classList.remove('open'));
+});
+window.addEventListener('scroll', () => {
+  const navbar = document.getElementById('navbar');
+  if (window.pageYOffset > 50) navbar.classList.add('scrolled');
+  else navbar.classList.remove('scrolled');
+});
+function enviarFormulario(e) {
+  e.preventDefault();
+  const data = new FormData(e.target);
+  let mensaje = '*Nueva solicitud mayorista - JFK Internacional*%0A%0A';
+  mensaje += '*Nombre:* ' + data.get('nombre') + '%0A';
+  mensaje += '*Empresa:* ' + data.get('empresa') + '%0A';
+  mensaje += '*RUC:* ' + data.get('ruc') + '%0A';
+  mensaje += '*Email:* ' + data.get('email') + '%0A';
+  mensaje += '*Telefono:* ' + data.get('telefono') + '%0A';
+  mensaje += '*Tipo:* ' + data.get('tipo') + '%0A';
+  mensaje += '*Linea:* ' + data.get('linea') + '%0A';
+  if (data.get('mensaje')) mensaje += '*Mensaje:* ' + data.get('mensaje');
+  window.open('https://wa.me/5074415267?text=' + mensaje, '_blank');
+  alert('Gracias! Te redirigimos a WhatsApp para completar tu solicitud.');
+  e.target.reset();
+}
+</script>
+
+</body>
+</html>
