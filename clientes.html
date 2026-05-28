@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0E1016">
+<title>JFK · Portal Clientes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink-900: #0E1016;
+  --punch: #FF6B35;
+  --fire: #E94734;
+  --electric: #009FE3;
+  --bg-base: #F5F3EE;
+  --bg-elevated: #FFFFFF;
+  --border-soft: #E5E3DD;
+  --border: #D5D2CA;
+  --text-strong: #0E1016;
+  --text: #2A2D34;
+  --text-muted: #6B6F77;
+  --text-subtle: #A8ACB3;
+  --surface-2: #F0EEE8;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg-base);
+  color: var(--text);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+button { font-family: inherit; cursor: pointer; border: none; background: none; padding: 0; color: inherit; }
+input { font-family: inherit; }
+input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+.screen { display: none; min-height: 100vh; }
+.screen.active { display: block; }
+
+/* ====== LOGIN / REGISTRO ====== */
+.login-wrap {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(160deg, var(--ink-900) 0%, #1a1d24 60%, #2a1a14 100%);
+  color: #fff;
+  padding: 2rem 1.5rem;
+}
+.login-logo {
+  font-family: 'Fraunces', serif;
+  font-weight: 700;
+  font-size: 2.5rem;
+  letter-spacing: -0.04em;
+  text-align: center;
+  margin: 3rem 0 0.5rem;
+}
+.login-logo sup { font-size: 0.9rem; opacity: 0.6; }
+.login-sub { text-align: center; color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-bottom: 3rem; }
+.login-card {
+  max-width: 380px;
+  margin: 0 auto;
+  width: 100%;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 18px;
+  padding: 2rem 1.5rem;
+}
+.login-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 0.4rem; }
+.login-desc { font-size: 0.85rem; color: rgba(255,255,255,0.6); margin-bottom: 1.5rem; }
+.login-field { margin-bottom: 1rem; }
+.login-field label { display: block; font-size: 0.78rem; font-weight: 600; color: rgba(255,255,255,0.6); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+.login-field input {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 0.95rem;
+  outline: none;
+}
+.login-field input:focus { border-color: var(--punch); background: rgba(255,255,255,0.1); }
+.login-btn {
+  width: 100%;
+  padding: 0.95rem;
+  background: var(--punch);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border-radius: 12px;
+  margin-top: 0.5rem;
+}
+.login-btn:disabled { opacity: 0.5; }
+.login-link {
+  display: block;
+  text-align: center;
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.7);
+  margin-top: 1rem;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.login-error {
+  background: rgba(233,71,52,0.15);
+  border: 1px solid rgba(233,71,52,0.3);
+  color: #FF9882;
+  padding: 0.6rem 0.85rem;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  margin-bottom: 1rem;
+}
+.login-footer { text-align: center; color: rgba(255,255,255,0.4); font-size: 0.7rem; margin-top: 3rem; padding-bottom: 1rem; }
+
+/* ====== HEADER ====== */
+.app-header {
+  background: var(--ink-900);
+  color: #fff;
+  padding: 1rem 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.app-header__logo { font-family: 'Fraunces', serif; font-weight: 700; font-size: 1.5rem; letter-spacing: -0.03em; }
+.app-header__logo sup { font-size: 0.7rem; opacity: 0.5; }
+.app-header__user {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.82rem; cursor: pointer;
+}
+.app-header__avatar {
+  width: 32px; height: 32px;
+  background: var(--punch);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.85rem;
+}
+.app-subheader {
+  background: var(--ink-900);
+  color: #fff;
+  padding: 0 1.25rem 1rem;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.app-subheader__info { font-size: 0.78rem; color: rgba(255,255,255,0.5); }
+.app-subheader__count { font-size: 0.85rem; font-weight: 600; }
+
+/* ====== TOOLBAR ====== */
+.toolbar {
+  background: var(--bg-elevated);
+  padding: 0.75rem 1rem;
+  display: flex; gap: 0.5rem; align-items: center;
+  border-bottom: 1px solid var(--border-soft);
+  position: sticky; top: 0; z-index: 50;
+}
+.toolbar__search {
+  flex: 1;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  font-size: 0.88rem;
+  outline: none;
+}
+.toolbar__search:focus { border-color: var(--punch); }
+.toolbar__btn {
+  width: 38px; height: 38px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted);
+}
+.toolbar__btn.active { background: var(--punch); color: #fff; border-color: var(--punch); }
+
+/* ====== GRID DE PRODUCTOS ====== */
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1px;
+  background: var(--border-soft);
+  padding-bottom: 5rem;
+}
+.product-card {
+  background: var(--bg-elevated);
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  min-height: 290px;
+}
+.product-card.has-qty { background: #FFFBF7; }
+.product-card.no-stock { opacity: 0.7; }
+.product-card__photo-wrap {
+  aspect-ratio: 1;
+  background: var(--surface-2);
+  border-radius: 8px;
+  margin-bottom: 0.6rem;
+  overflow: hidden;
+  position: relative;
+  max-height: 110px;
+  display: flex; align-items: center; justify-content: center;
+}
+.product-card__photo { width: 100%; height: 100%; object-fit: cover; }
+.product-card__icon-fallback { width: 50%; height: 50%; opacity: 0.4; }
+.product-card__nostock-badge {
+  position: absolute; top: 6px; right: 6px;
+  background: #E24B4A; color: #fff;
+  font-size: 0.65rem; font-weight: 700;
+  padding: 2px 8px; border-radius: 12px;
+  text-transform: uppercase;
+}
+.product-card__code { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; }
+.product-card__name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-strong);
+  line-height: 1.25;
+  margin: 2px 0 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.product-card__last {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  padding: 4px 8px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+.product-card__last strong { color: var(--text-strong); font-weight: 700; }
+.product-card__price-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 0.5rem;
+}
+.product-card__price { font-size: 1.05rem; font-weight: 800; color: var(--punch); }
+.product-card__stock { font-size: 0.7rem; color: var(--text-muted); }
+.product-card__qty-row {
+  display: flex; gap: 6px; align-items: center;
+}
+.qty-btn {
+  width: 32px; height: 36px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  font-size: 1rem; font-weight: 700;
+  color: var(--text-muted);
+}
+.qty-btn.active { background: var(--punch); color: #fff; border-color: var(--punch); }
+.qty-input {
+  flex: 1;
+  height: 36px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  text-align: center;
+  outline: none;
+  font-weight: 600;
+}
+.qty-input.has-qty { border-color: var(--punch); background: #FFF7F3; }
+.product-card__repon-btn {
+  margin-top: 6px;
+  padding: 5px 8px;
+  background: var(--ink-900);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 6px;
+}
+.product-card__repon-btn:active { opacity: 0.85; }
+
+/* ====== FOOTER CARRITO ====== */
+.cart-footer {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  background: var(--ink-900); color: #fff;
+  padding: 0.85rem 1.25rem;
+  display: flex; justify-content: space-between; align-items: center;
+  z-index: 100;
+  box-shadow: 0 -2px 16px rgba(0,0,0,0.15);
+}
+.cart-footer__info { font-size: 0.78rem; }
+.cart-footer__total { font-size: 1.2rem; font-weight: 800; color: var(--punch); }
+.cart-footer__btn {
+  background: var(--punch);
+  color: #fff;
+  padding: 0.7rem 1.5rem;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.cart-footer__btn:disabled { opacity: 0.4; }
+
+/* ====== PANTALLA CARRITO ====== */
+.cart-screen { padding: 1rem 1rem 6rem; }
+.cart-screen__title { font-size: 1.5rem; font-weight: 800; margin: 0.5rem 0 1.5rem; }
+.cart-row {
+  display: flex; gap: 0.75rem; align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+.cart-row__img {
+  width: 50px; height: 50px;
+  border-radius: 8px; overflow: hidden;
+  background: var(--surface-2);
+  flex-shrink: 0;
+}
+.cart-row__img img { width: 100%; height: 100%; object-fit: cover; }
+.cart-row__info { flex: 1; min-width: 0; }
+.cart-row__name { font-size: 0.85rem; font-weight: 600; line-height: 1.3; }
+.cart-row__meta { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+.cart-row__qty {
+  width: 64px; height: 36px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.cart-row__total { font-weight: 800; color: var(--punch); width: 80px; text-align: right; font-size: 0.95rem; }
+.cart-row__del { color: #E24B4A; font-size: 1.1rem; }
+
+.cart-empty { text-align: center; padding: 4rem 1rem; color: var(--text-muted); }
+.cart-summary {
+  background: var(--bg-elevated);
+  border-radius: 14px;
+  padding: 1rem;
+  margin-top: 1.5rem;
+}
+.cart-summary__row { display: flex; justify-content: space-between; padding: 0.4rem 0; font-size: 0.88rem; }
+.cart-summary__row--total { border-top: 1px solid var(--border-soft); margin-top: 0.5rem; padding-top: 0.7rem; font-size: 1.1rem; font-weight: 800; }
+
+/* ====== BACK BTN ====== */
+.back-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+.back-btn:active { background: var(--surface-2); }
+
+/* ====== LOADING ====== */
+.loading-screen {
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 1rem;
+  color: var(--text-muted);
+}
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--border-soft);
+  border-top-color: var(--punch);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.toast {
+  position: fixed; top: 1rem; left: 50%; transform: translateX(-50%);
+  background: var(--ink-900); color: #fff;
+  padding: 0.7rem 1.2rem; border-radius: 10px;
+  font-size: 0.85rem; font-weight: 600;
+  z-index: 1000; opacity: 0; pointer-events: none;
+  transition: opacity 0.2s;
+}
+.toast.show { opacity: 1; }
+.toast.error { background: #E24B4A; }
+
+/* ====== MODAL CONFIRMACIÓN ====== */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: none; align-items: center; justify-content: center;
+  z-index: 200; padding: 1rem;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--bg-elevated);
+  border-radius: 16px;
+  max-width: 400px; width: 100%;
+  padding: 1.5rem;
+}
+.modal__title { font-size: 1.2rem; font-weight: 800; margin-bottom: 0.75rem; }
+.modal__desc { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1rem; }
+.modal__details { background: var(--surface-2); border-radius: 10px; padding: 0.75rem; margin-bottom: 1rem; font-size: 0.85rem; }
+.modal__details-row { display: flex; justify-content: space-between; padding: 3px 0; }
+.modal__actions { display: flex; gap: 0.5rem; }
+.modal__btn { flex: 1; padding: 0.75rem; border-radius: 10px; font-weight: 700; font-size: 0.88rem; }
+.modal__btn--cancel { background: var(--surface-2); color: var(--text); }
+.modal__btn--confirm { background: var(--punch); color: #fff; }
+.modal__btn:disabled { opacity: 0.5; }
+
+.footer-credits { text-align: center; padding: 2rem 1rem; color: var(--text-subtle); font-size: 0.72rem; }
+</style>
+</head>
+<body>
+
+<!-- ============= PANTALLA LOGIN ============= -->
+<div id="screen-login" class="screen active">
+  <div class="login-wrap">
+    <div class="login-logo">JFK<sup>®</sup></div>
+    <div class="login-sub">Portal de Clientes</div>
+
+    <div class="login-card">
+      <div id="login-error" class="login-error" style="display:none;"></div>
+
+      <!-- Vista 1: Login normal -->
+      <div id="login-view">
+        <div class="login-title">Iniciar sesión</div>
+        <div class="login-desc">Ingresa con tu correo y PIN</div>
+        <div class="login-field">
+          <label>Correo electrónico</label>
+          <input type="email" id="login-email" placeholder="tu@empresa.com" autocomplete="email">
+        </div>
+        <div class="login-field">
+          <label>PIN (4-6 dígitos)</label>
+          <input type="password" id="login-pin" inputmode="numeric" placeholder="••••" maxlength="6" autocomplete="current-password">
+        </div>
+        <button class="login-btn" onclick="iniciarSesion()">Entrar</button>
+        <a class="login-link" onclick="cambiarVista('register')">¿Primera vez? Registra tu PIN</a>
+      </div>
+
+      <!-- Vista 2: Registro de PIN (primera vez) -->
+      <div id="register-view" style="display:none;">
+        <div class="login-title">Crear tu PIN</div>
+        <div class="login-desc">Para entrar la primera vez, define tu PIN. Tu correo debe estar registrado como cliente de JFK.</div>
+        <div class="login-field">
+          <label>Correo electrónico</label>
+          <input type="email" id="reg-email" placeholder="tu@empresa.com" autocomplete="email">
+        </div>
+        <div class="login-field">
+          <label>Tu PIN nuevo (4-6 dígitos)</label>
+          <input type="password" id="reg-pin" inputmode="numeric" placeholder="••••" maxlength="6">
+        </div>
+        <div class="login-field">
+          <label>Confirma tu PIN</label>
+          <input type="password" id="reg-pin2" inputmode="numeric" placeholder="••••" maxlength="6">
+        </div>
+        <button class="login-btn" onclick="registrarPin()">Crear PIN y entrar</button>
+        <a class="login-link" onclick="cambiarVista('login')">Ya tengo PIN, iniciar sesión</a>
+      </div>
+    </div>
+
+    <div class="login-footer">© 2026 JFK Internacional · Desarrollado por Dan B.</div>
+  </div>
+</div>
+
+<!-- ============= PANTALLA CARGANDO ============= -->
+<div id="screen-loading" class="screen">
+  <div class="loading-screen">
+    <div class="spinner"></div>
+    <div id="loading-msg">Cargando tu historial...</div>
+  </div>
+</div>
+
+<!-- ============= PANTALLA CATÁLOGO ============= -->
+<div id="screen-catalog" class="screen">
+  <div class="app-header">
+    <div class="app-header__logo">JFK<sup>®</sup></div>
+    <div class="app-header__user" onclick="cerrarSesion()">
+      <div class="app-header__avatar" id="user-avatar">?</div>
+      <span>Salir</span>
+    </div>
+  </div>
+  <div class="app-subheader">
+    <div>
+      <div class="app-subheader__info">Cliente</div>
+      <div id="customer-name" style="font-weight:700">—</div>
+    </div>
+    <div style="text-align:right">
+      <div class="app-subheader__info">Productos comprados</div>
+      <div class="app-subheader__count" id="product-count">0</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <input type="text" class="toolbar__search" id="catalog-search" placeholder="Buscar producto...">
+    <button class="toolbar__btn" id="btn-only-cart" title="Ver solo agregados">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+    </button>
+  </div>
+
+  <div id="products-grid" class="products-grid">
+    <div style="grid-column:1/-1;padding:3rem 1rem;text-align:center;color:var(--text-muted);">Cargando productos...</div>
+  </div>
+
+  <div class="cart-footer" id="cart-footer" style="display:none;">
+    <div class="cart-footer__info">
+      <div id="cart-items-count">0 productos</div>
+      <div class="cart-footer__total" id="cart-total">$0.00</div>
+    </div>
+    <button class="cart-footer__btn" onclick="goToScreen('cart')">Ver pedido →</button>
+  </div>
+</div>
+
+<!-- ============= PANTALLA CARRITO ============= -->
+<div id="screen-cart" class="screen">
+  <div class="app-header">
+    <div class="app-header__logo">JFK<sup>®</sup></div>
+    <div class="app-header__user" onclick="cerrarSesion()">
+      <div class="app-header__avatar" id="user-avatar-2">?</div>
+      <span>Salir</span>
+    </div>
+  </div>
+  <div class="cart-screen">
+    <button class="back-btn" onclick="goToScreen('catalog')">← Volver al catálogo</button>
+    <div class="cart-screen__title">Tu pedido</div>
+    <div id="cart-list"></div>
+    <div id="cart-summary-wrap"></div>
+  </div>
+
+  <div class="cart-footer" id="cart-footer-2" style="display:none;">
+    <div class="cart-footer__info">
+      <div id="cart-items-count-2">0 productos</div>
+      <div class="cart-footer__total" id="cart-total-2">$0.00</div>
+    </div>
+    <button class="cart-footer__btn" onclick="abrirConfirmacion()" id="btn-enviar">Enviar pedido</button>
+  </div>
+</div>
+
+<!-- ============= MODAL CONFIRMACIÓN ============= -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal">
+    <div class="modal__title">Confirmar pedido</div>
+    <div class="modal__desc">Revisa los datos antes de enviar tu pedido a JFK.</div>
+    <div class="modal__details" id="confirm-details"></div>
+    <div class="modal__actions">
+      <button class="modal__btn modal__btn--cancel" onclick="cerrarConfirmacion()">Cancelar</button>
+      <button class="modal__btn modal__btn--confirm" onclick="enviarPedido()" id="btn-confirm">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
+<script>
+const SUPABASE_URL = 'https://gpighopguwafnxouejfb.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_FfCiha0_CJT0rJts1ifzqg_tmFzo0DC';
+const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const PRODUCT_IMG_BASE = `${SUPABASE_URL}/storage/v1/object/public/productos`;
+
+let currentUser = null;          // { id, sap_card_code, email, name }
+let allProducts = [];            // catálogo del cliente (de SAP + Supabase merge)
+let currentCart = {};            // { item_code: { qty, product } }
+let searchTerm = '';
+let showOnlyCart = false;
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => t.className = 'toast' + (isError ? ' error' : ''), 3000);
+}
+function goToScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  window.scrollTo({top: 0, behavior: 'instant'});
+  if (name === 'cart') renderCart();
+}
+function fmt(n) { return '$' + (parseFloat(n) || 0).toFixed(2); }
+function cambiarVista(v) {
+  document.getElementById('login-view').style.display = v === 'login' ? 'block' : 'none';
+  document.getElementById('register-view').style.display = v === 'register' ? 'block' : 'none';
+  document.getElementById('login-error').style.display = 'none';
+}
+function setError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// ============ LOGIN ============
+async function iniciarSesion() {
+  document.getElementById('login-error').style.display = 'none';
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
+  const pin = document.getElementById('login-pin').value.trim();
+  if (!email || !pin) { setError('Ingresa tu correo y PIN'); return; }
+  if (pin.length < 4) { setError('El PIN debe tener al menos 4 dígitos'); return; }
+
+  try {
+    const { data: user, error } = await supa
+      .from('customer_users')
+      .select('*')
+      .eq('email', email)
+      .eq('active', true)
+      .maybeSingle();
+
+    if (error || !user) { setError('Correo no registrado. Si es tu primera vez, registra tu PIN.'); return; }
+
+    const ok = dcodeIO.bcrypt.compareSync(pin, user.pin_hash);
+    if (!ok) { setError('PIN incorrecto'); return; }
+
+    // Actualizar último login
+    await supa.from('customer_users').update({ last_login: new Date().toISOString() }).eq('id', user.id);
+
+    currentUser = user;
+    localStorage.setItem('jfk_customer', JSON.stringify({ id: user.id, email: user.email }));
+    iniciarApp();
+  } catch (e) {
+    setError('Error: ' + e.message);
+  }
+}
+
+async function registrarPin() {
+  document.getElementById('login-error').style.display = 'none';
+  const email = document.getElementById('reg-email').value.trim().toLowerCase();
+  const pin = document.getElementById('reg-pin').value.trim();
+  const pin2 = document.getElementById('reg-pin2').value.trim();
+  if (!email || !pin || !pin2) { setError('Llena todos los campos'); return; }
+  if (pin.length < 4) { setError('El PIN debe tener al menos 4 dígitos'); return; }
+  if (pin !== pin2) { setError('Los PIN no coinciden'); return; }
+
+  try {
+    // Verificar que el correo esté en la tabla customers (clientes reales JFK)
+    const { data: cust, error: e1 } = await supa
+      .from('customers')
+      .select('sap_card_code, name, email')
+      .eq('email', email)
+      .eq('active', true)
+      .maybeSingle();
+
+    if (e1) { setError('Error: ' + e1.message); return; }
+    if (!cust) {
+      setError('Tu correo no está registrado como cliente JFK. Contacta a tu vendedor.');
+      return;
+    }
+
+    // Verificar si ya tiene PIN
+    const { data: existing } = await supa
+      .from('customer_users')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+    if (existing) { setError('Ya existe un PIN para este correo. Inicia sesión.'); cambiarVista('login'); return; }
+
+    // Crear el usuario
+    const hash = dcodeIO.bcrypt.hashSync(pin, 8);
+    const { data: newUser, error: e2 } = await supa.from('customer_users').insert({
+      sap_card_code: cust.sap_card_code,
+      email,
+      pin_hash: hash,
+      name: cust.name,
+      pin_set_at: new Date().toISOString(),
+      last_login: new Date().toISOString()
+    }).select().single();
+
+    if (e2) { setError('Error al crear PIN: ' + e2.message); return; }
+
+    currentUser = newUser;
+    localStorage.setItem('jfk_customer', JSON.stringify({ id: newUser.id, email: newUser.email }));
+    iniciarApp();
+  } catch (e) {
+    setError('Error: ' + e.message);
+  }
+}
+
+function cerrarSesion() {
+  if (!confirm('¿Cerrar sesión?')) return;
+  currentUser = null;
+  currentCart = {};
+  localStorage.removeItem('jfk_customer');
+  goToScreen('login');
+  document.getElementById('login-pin').value = '';
+}
+
+// Restaurar sesión al cargar
+async function restaurarSesion() {
+  const saved = localStorage.getItem('jfk_customer');
+  if (!saved) return;
+  try {
+    const { id } = JSON.parse(saved);
+    const { data, error } = await supa.from('customer_users').select('*').eq('id', id).eq('active', true).maybeSingle();
+    if (data && !error) {
+      currentUser = data;
+      iniciarApp();
+    }
+  } catch (e) {}
+}
+
+// ============ INICIAR APP ============
+async function iniciarApp() {
+  goToScreen('loading');
+  document.getElementById('loading-msg').textContent = 'Cargando tu historial de compras...';
+  document.getElementById('customer-name').textContent = `${currentUser.name || currentUser.email} (${currentUser.sap_card_code})`;
+  const avatar = (currentUser.name || currentUser.email).charAt(0).toUpperCase();
+  document.getElementById('user-avatar').textContent = avatar;
+  document.getElementById('user-avatar-2').textContent = avatar;
+
+  try {
+    // 1. Traer historial de SAP via Netlify Function
+    const r = await fetch('/.netlify/functions/historial-cliente', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cardCode: currentUser.sap_card_code })
+    });
+    if (!r.ok) throw new Error('No se pudo cargar historial de SAP');
+    const histData = await r.json();
+    if (!histData.ok) throw new Error(histData.error || 'Error al cargar historial');
+
+    const historial = histData.productos || [];
+    if (historial.length === 0) {
+      goToScreen('catalog');
+      document.getElementById('products-grid').innerHTML = `
+        <div style="grid-column:1/-1;padding:3rem 1rem;text-align:center;color:var(--text-muted);">
+          <div style="font-size:3rem;opacity:0.3;margin-bottom:1rem;">📦</div>
+          <strong>No hay historial de compras</strong><br>
+          <span style="font-size:0.85rem">Contacta a tu vendedor para hacer tu primer pedido.</span>
+        </div>`;
+      document.getElementById('product-count').textContent = '0';
+      return;
+    }
+
+    // 2. Traer stock e imagen de Supabase para los productos del historial
+    const codigos = historial.map(p => p.item_code);
+    const batches = [];
+    for (let i = 0; i < codigos.length; i += 100) batches.push(codigos.slice(i, i+100));
+    let stockData = [];
+    for (const b of batches) {
+      const { data } = await supa
+        .from('products')
+        .select('sap_item_code, name, stock, items_per_box, line_jfk')
+        .in('sap_item_code', b);
+      if (data) stockData = stockData.concat(data);
+    }
+    const stockMap = {};
+    stockData.forEach(p => { stockMap[p.sap_item_code] = p; });
+
+    // 3. Merge: combinar historial SAP con stock de Supabase
+    allProducts = historial.map(h => ({
+      ...h,
+      stock: stockMap[h.item_code]?.stock ?? 0,
+      items_per_box: stockMap[h.item_code]?.items_per_box || 1,
+      line_jfk: stockMap[h.item_code]?.line_jfk || 'Otros',
+      name_supabase: stockMap[h.item_code]?.name || ''
+    }));
+
+    document.getElementById('product-count').textContent = allProducts.length;
+    goToScreen('catalog');
+    renderProductos();
+  } catch (e) {
+    showToast('Error: ' + e.message, true);
+    goToScreen('catalog');
+    document.getElementById('products-grid').innerHTML = `
+      <div style="grid-column:1/-1;padding:3rem 1rem;text-align:center;color:#E24B4A;">
+        <strong>Error cargando historial</strong><br>
+        <span style="font-size:0.85rem">${escapeHtml(e.message)}</span>
+      </div>`;
+  }
+}
+
+// ============ CATÁLOGO ============
+function renderProductos() {
+  const grid = document.getElementById('products-grid');
+  let lista = allProducts;
+
+  if (searchTerm) {
+    const term = searchTerm.toLowerCase();
+    lista = lista.filter(p =>
+      (p.item_description || '').toLowerCase().includes(term) ||
+      (p.name_supabase || '').toLowerCase().includes(term) ||
+      p.item_code.toLowerCase().includes(term)
+    );
+  }
+  if (showOnlyCart) {
+    lista = lista.filter(p => currentCart[p.item_code]);
+  }
+
+  if (lista.length === 0) {
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:3rem 1rem;text-align:center;color:var(--text-muted);">Sin resultados</div>`;
+    return;
+  }
+
+  grid.innerHTML = lista.map(p => renderCard(p)).join('');
+
+  // Listeners de cantidad
+  grid.querySelectorAll('.product-card').forEach(card => {
+    const code = card.dataset.code;
+    const input = card.querySelector('.qty-input');
+    const plus = card.querySelector('.qty-plus');
+    const minus = card.querySelector('.qty-minus');
+    const repon = card.querySelector('.product-card__repon-btn');
+    const product = allProducts.find(p => p.item_code === code);
+    const step = product?.items_per_box || 1;
+
+    input.addEventListener('input', () => updateQty(code, parseInt(input.value) || 0));
+    plus.addEventListener('click', () => updateQty(code, (currentCart[code]?.qty || 0) + step));
+    minus.addEventListener('click', () => updateQty(code, Math.max(0, (currentCart[code]?.qty || 0) - step)));
+    if (repon) repon.addEventListener('click', () => updateQty(code, product.qty_ultima || step));
+  });
+}
+
+function renderCard(p) {
+  const desc = p.name_supabase || p.item_description || '';
+  const stock = p.stock || 0;
+  const noStock = stock === 0;
+  const qty = currentCart[p.item_code]?.qty || 0;
+  const precio = parseFloat(p.precio_ultimo || 0);
+  const fechaUlt = (p.fecha_ultima || '').slice(0, 10);
+
+  return `
+    <div class="product-card ${qty > 0 ? 'has-qty' : ''} ${noStock ? 'no-stock' : ''}" data-code="${escapeHtml(p.item_code)}">
+      <div class="product-card__photo-wrap">
+        <img class="product-card__photo" src="${PRODUCT_IMG_BASE}/${encodeURIComponent(p.item_code)}.jpg"
+             alt="" loading="lazy"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='block';">
+        <svg class="product-card__icon-fallback" style="display:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        ${noStock ? '<div class="product-card__nostock-badge">Sin stock</div>' : ''}
+      </div>
+      <div class="product-card__code">${escapeHtml(p.item_code)}</div>
+      <div class="product-card__name">${escapeHtml(desc)}</div>
+      <div class="product-card__last">Última: <strong>${p.qty_ultima || 0}</strong> · ${fechaUlt}</div>
+      <div class="product-card__price-row">
+        <div class="product-card__price">${fmt(precio)}</div>
+        <div class="product-card__stock">Stock: ${stock}</div>
+      </div>
+      <div class="product-card__qty-row">
+        <button class="qty-btn qty-minus ${qty>0?'active':''}" type="button">−</button>
+        <input type="number" class="qty-input ${qty>0?'has-qty':''}" value="${qty||''}" min="0" placeholder="0" inputmode="numeric">
+        <button class="qty-btn qty-plus ${qty>0?'active':''}" type="button">+</button>
+      </div>
+      ${p.qty_ultima > 0 ? `<button class="product-card__repon-btn" type="button">Reponer (${p.qty_ultima})</button>` : ''}
+    </div>
+  `;
+}
+
+function updateQty(code, qty) {
+  qty = Math.max(0, parseInt(qty) || 0);
+  const product = allProducts.find(p => p.item_code === code);
+  if (!product) return;
+  if (qty === 0) delete currentCart[code];
+  else currentCart[code] = { qty, product };
+
+  // Actualizar visual de la card
+  const card = document.querySelector(`.product-card[data-code="${CSS.escape(code)}"]`);
+  if (card) {
+    const input = card.querySelector('.qty-input');
+    input.value = qty || '';
+    input.classList.toggle('has-qty', qty > 0);
+    card.classList.toggle('has-qty', qty > 0);
+    card.querySelector('.qty-plus').classList.toggle('active', qty > 0);
+    card.querySelector('.qty-minus').classList.toggle('active', qty > 0);
+  }
+  updateFooter();
+}
+
+function updateFooter() {
+  const items = Object.values(currentCart);
+  let total = 0, count = 0;
+  items.forEach(({qty, product}) => {
+    total += qty * parseFloat(product.precio_ultimo || 0);
+    count += qty;
+  });
+  const footer = document.getElementById('cart-footer');
+  const footer2 = document.getElementById('cart-footer-2');
+  if (items.length > 0) {
+    footer.style.display = 'flex';
+    footer2.style.display = 'flex';
+    document.getElementById('cart-items-count').textContent = `${items.length} producto${items.length!==1?'s':''} · ${count} unid`;
+    document.getElementById('cart-items-count-2').textContent = `${items.length} producto${items.length!==1?'s':''} · ${count} unid`;
+    document.getElementById('cart-total').textContent = fmt(total);
+    document.getElementById('cart-total-2').textContent = fmt(total);
+  } else {
+    footer.style.display = 'none';
+    footer2.style.display = 'none';
+  }
+}
+
+// ============ CARRITO ============
+function renderCart() {
+  const list = document.getElementById('cart-list');
+  const summary = document.getElementById('cart-summary-wrap');
+  const items = Object.values(currentCart);
+  if (items.length === 0) {
+    list.innerHTML = '<div class="cart-empty"><strong>Tu pedido está vacío</strong><br><span style="font-size:0.85rem">Vuelve al catálogo y agrega productos</span></div>';
+    summary.innerHTML = '';
+    return;
+  }
+  let total = 0, units = 0;
+  list.innerHTML = items.map(({qty, product}) => {
+    const precio = parseFloat(product.precio_ultimo || 0);
+    const lineTotal = qty * precio;
+    total += lineTotal;
+    units += qty;
+    return `
+      <div class="cart-row">
+        <div class="cart-row__img">
+          <img src="${PRODUCT_IMG_BASE}/${encodeURIComponent(product.item_code)}.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        </div>
+        <div class="cart-row__info">
+          <div class="cart-row__name">${escapeHtml(product.name_supabase || product.item_description || '')}</div>
+          <div class="cart-row__meta">${escapeHtml(product.item_code)} · ${fmt(precio)} c/u · Stock: ${product.stock || 0}</div>
+        </div>
+        <input type="number" class="cart-row__qty" value="${qty}" min="1" onchange="updateQtyFromCart('${escapeHtml(product.item_code)}', this.value)">
+        <div class="cart-row__total">${fmt(lineTotal)}</div>
+        <button class="cart-row__del" onclick="if(confirm('¿Quitar este producto?')){updateQty('${escapeHtml(product.item_code)}',0);renderCart();}">✕</button>
+      </div>`;
+  }).join('');
+
+  summary.innerHTML = `
+    <div class="cart-summary">
+      <div class="cart-summary__row"><span>Productos</span><span>${items.length}</span></div>
+      <div class="cart-summary__row"><span>Unidades</span><span>${units}</span></div>
+      <div class="cart-summary__row cart-summary__row--total"><span>Total</span><span>${fmt(total)}</span></div>
+    </div>`;
+}
+
+function updateQtyFromCart(code, val) {
+  const qty = Math.max(0, parseInt(val) || 0);
+  if (qty === 0) { delete currentCart[code]; }
+  else if (currentCart[code]) currentCart[code].qty = qty;
+  renderCart();
+  updateFooter();
+  renderProductos();
+}
+
+// ============ ENVÍO ============
+function abrirConfirmacion() {
+  const items = Object.values(currentCart);
+  if (items.length === 0) return;
+  let total = 0, units = 0;
+  items.forEach(({qty, product}) => { total += qty * parseFloat(product.precio_ultimo || 0); units += qty; });
+  document.getElementById('confirm-details').innerHTML = `
+    <div class="modal__details-row"><span>Cliente</span><strong>${escapeHtml(currentUser.name || currentUser.email)}</strong></div>
+    <div class="modal__details-row"><span>Código</span><strong>${escapeHtml(currentUser.sap_card_code)}</strong></div>
+    <div class="modal__details-row"><span>Productos</span><strong>${items.length}</strong></div>
+    <div class="modal__details-row"><span>Unidades</span><strong>${units}</strong></div>
+    <div class="modal__details-row"><span>Total</span><strong style="color:var(--punch)">${fmt(total)}</strong></div>`;
+  document.getElementById('confirm-modal').classList.add('show');
+}
+function cerrarConfirmacion() {
+  document.getElementById('confirm-modal').classList.remove('show');
+}
+
+async function enviarPedido() {
+  const btn = document.getElementById('btn-confirm');
+  btn.disabled = true; btn.textContent = 'Enviando...';
+
+  try {
+    const items = Object.values(currentCart);
+    const orderNum = 'CL-' + Date.now();
+    let total = 0, totalItems = items.length;
+    const itemsForSAP = items.map(({qty, product}) => {
+      const precio = parseFloat(product.precio_ultimo || 0);
+      total += qty * precio;
+      return { ItemCode: product.item_code, Quantity: qty, Price: precio, DiscountPercent: 0 };
+    });
+
+    // 1. Guardar en Supabase
+    const { data: order, error } = await supa.from('customer_orders').insert({
+      order_number: orderNum,
+      customer_user_id: currentUser.id,
+      sap_card_code: currentUser.sap_card_code,
+      customer_name: currentUser.name,
+      items: itemsForSAP,
+      total_amount: total,
+      total_items: totalItems
+    }).select().single();
+    if (error) throw new Error('Supabase: ' + error.message);
+
+    // 2. Enviar a SAP via Netlify Function (reusamos la del portal vendedores)
+    const today = new Date().toISOString().slice(0,10);
+    const sapPayload = {
+      CardCode: currentUser.sap_card_code,
+      DocDate: today,
+      DocDueDate: today,
+      DocumentLines: itemsForSAP,
+      Comments: `Pedido portal cliente ${orderNum} - ${currentUser.email}`
+    };
+
+    const r = await fetch('/.netlify/functions/enviar-sap', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sapPayload)
+    });
+    const sapResp = await r.json();
+
+    let sapMsg = '';
+    if (sapResp.ok && sapResp.DocEntry) {
+      await supa.from('customer_orders').update({
+        sap_doc_entry: sapResp.DocEntry,
+        sap_doc_num: sapResp.DocNum,
+        status: 'sent'
+      }).eq('id', order.id);
+      sapMsg = ` (SAP #${sapResp.DocNum})`;
+    }
+
+    showToast(`✅ Pedido ${orderNum} enviado${sapMsg}`);
+    currentCart = {};
+    cerrarConfirmacion();
+    setTimeout(() => {
+      updateFooter();
+      renderProductos();
+      goToScreen('catalog');
+      btn.disabled = false; btn.textContent = 'Enviar';
+    }, 1500);
+  } catch (e) {
+    showToast('Error: ' + e.message, true);
+    btn.disabled = false; btn.textContent = 'Enviar';
+  }
+}
+
+// ============ BUSCADOR Y TOGGLES ============
+let searchTimer = null;
+document.getElementById('catalog-search').addEventListener('input', e => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { searchTerm = e.target.value.trim(); renderProductos(); }, 300);
+});
+document.getElementById('btn-only-cart').addEventListener('click', function() {
+  showOnlyCart = !showOnlyCart;
+  this.classList.toggle('active', showOnlyCart);
+  renderProductos();
+});
+
+// Iniciar
+restaurarSesion();
+</script>
+</body>
+</html>
