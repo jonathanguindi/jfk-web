@@ -1,0 +1,12 @@
+# JFK Internacional - Netlify redirects
+# Rutas bonitas sin .html
+
+/vendedores       /vendedores.html      200
+/clientes         /clientes.html        200
+
+# Atajos alternativos comunes
+/portal           /clientes.html        302
+/b2b              /clientes.html        302
+
+# 404 fallback a la home
+/*                /index.html           404
