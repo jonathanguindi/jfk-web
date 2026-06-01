@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>JFK · Portal Compras</title>
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<script>
+(function() {
+  var pref = localStorage.getItem('jfk-theme-pref') || 'auto';
+  var root = document.documentElement;
+  root.setAttribute('data-theme-pref', pref);
+  if (pref === 'light' || pref === 'dark') root.setAttribute('data-theme', pref);
+  var isDark = pref === 'dark' || (pref === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', isDark ? '#0E1016' : '#FFFBF2');
+})();
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Fraunces:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Azeret+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.0/dist/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+
+<style>
+:root {
+  --ink-900:#0E1016; --ink-800:#1A1D22; --ink-700:#34363B; --ink-600:#54565B;
+  --ink-500:#6E7178; --ink-400:#98999B; --ink-300:#C4C6CA; --ink-200:#D4D6DA; --ink-100:#E5E7EA; --ink-50:#F4F5F7;
+  --sun:#FFB627; --punch:#FF6B35; --punch-hover:#E55A28; --fire:#E94734; --berry:#C2185B;
+  --electric:#009FE3; --ocean:#0069A7; --nebula:#5D5DA5; --midnight:#0E2244;
+  --mint-50:#DCFAF8; --neon:#00D4D0; --jade:#00B0AD; --blue-50:#E1F0FF;
+  --cream:#FFFBF2; --vanilla:#FFF4D6;
+  --font-sans:'Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  --font-serif:'Fraunces',Georgia,serif;
+  --font-mono:'Azeret Mono',ui-monospace,SFMono-Regular,monospace;
+  --safe-top:env(safe-area-inset-top,0px); --safe-bottom:env(safe-area-inset-bottom,0px);
+  --bg:var(--cream); --bg-elevated:#FFFFFF; --surface-1:#FFFFFF; --surface-2:var(--ink-50);
+  --text:var(--ink-900); --text-strong:var(--ink-900); --text-muted:var(--ink-500); --text-subtle:var(--ink-400);
+  --border:var(--ink-200); --border-soft:var(--ink-100);
+  --accent:var(--electric); --success:var(--jade); --error:var(--fire);
+  --cta:var(--punch); --cta-hover:var(--punch-hover); --cta-text:#FFFFFF;
+  --header-bg:var(--ink-900); --header-text:var(--cream);
+  --overlay:rgba(14,16,22,0.55); --shadow-soft:0 12px 34px rgba(14,16,22,0.10);
+}
+[data-theme="dark"] {
+  --bg:var(--ink-900); --bg-elevated:var(--ink-800); --surface-1:var(--ink-800); --surface-2:var(--ink-700);
+  --text:var(--cream); --text-strong:#FFFFFF; --text-muted:var(--ink-400); --text-subtle:var(--ink-500);
+  --border:var(--ink-700); --border-soft:var(--ink-800);
+  --accent:var(--electric); --success:var(--neon); --error:var(--punch);
+  --header-bg:#07080B; --overlay:rgba(0,0,0,0.65); --shadow-soft:0 12px 34px rgba(0,0,0,0.45);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:var(--ink-900); --bg-elevated:var(--ink-800); --surface-1:var(--ink-800); --surface-2:var(--ink-700);
+    --text:var(--cream); --text-strong:#FFFFFF; --text-muted:var(--ink-400); --text-subtle:var(--ink-500);
+    --border:var(--ink-700); --border-soft:var(--ink-800);
+    --success:var(--neon); --error:var(--punch); --header-bg:#07080B; --overlay:rgba(0,0,0,0.65);
+    --shadow-soft:0 12px 34px rgba(0,0,0,0.45);
+  }
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html { -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
+body { font-family:var(--font-sans); background:var(--bg); color:var(--text); line-height:1.5; min-height:100vh; min-height:100dvh; overflow-x:hidden; }
+.hidden { display:none !important; }
+button { font-family:inherit; cursor:pointer; border:none; background:none; color:inherit; }
+input { font-family:inherit; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+/* ===== shared dark hero (login + home) ===== */
+.dark-hero { position:relative; overflow:hidden; min-height:100dvh; background:var(--ink-900); color:var(--cream); }
+.dark-hero::before { content:''; position:absolute; top:-25%; right:-35%; width:95%; height:170%; background:linear-gradient(135deg,var(--punch),var(--fire)); transform:rotate(-64deg); opacity:0.16; filter:blur(1px); pointer-events:none; }
+.dark-hero::after { content:''; position:absolute; bottom:-30%; left:-30%; width:80%; height:140%; background:linear-gradient(135deg,var(--electric),var(--neon)); transform:rotate(-64deg); opacity:0.12; pointer-events:none; }
+.angle-mark { width:54px; height:4px; background:var(--punch); margin:0.9rem auto 1.1rem; transform:skewX(-26deg); }
+
+/* ===== LOGIN ===== */
+#screen-login { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:2rem 1.25rem; }
+.hero-wrap { position:relative; z-index:1; width:100%; max-width:360px; text-align:center; }
+.brand-logo { font-family:var(--font-serif); font-weight:600; letter-spacing:-2px; line-height:1; }
+.brand-logo sup { font-family:var(--font-sans); font-size:0.28em; font-weight:700; vertical-align:super; margin-left:2px; color:var(--punch); }
+.login-logo { font-size:3.2rem; animation:fadeUp .5s .04s ease both; }
+.tagline { font-family:var(--font-serif); font-style:italic; font-weight:500; font-size:1.2rem; color:var(--cream); }
+.sub-mono { font-family:var(--font-mono); text-transform:uppercase; letter-spacing:0.22em; font-size:0.66rem; color:var(--sun); }
+#screen-login .angle-mark { animation:fadeUp .5s .08s ease both; }
+#screen-login .tagline { animation:fadeUp .5s .12s ease both; }
+#screen-login .sub-mono { margin:0.45rem 0 2rem; animation:fadeUp .5s .16s ease both; }
+.login-card { width:100%; background:rgba(26,29,34,0.85); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid var(--ink-700); border-radius:18px; padding:1.5rem; text-align:left; animation:fadeUp .5s .2s ease both; }
+.login-card label { display:block; font-family:var(--font-mono); font-size:0.66rem; font-weight:600; color:var(--ink-400); margin:0 0 0.4rem; text-transform:uppercase; letter-spacing:0.12em; }
+.login-card input { width:100%; padding:0.8rem 1rem; margin-bottom:1rem; border-radius:10px; border:1px solid var(--ink-700); background:var(--ink-900); color:var(--cream); font-size:1rem; }
+.login-card input:focus { outline:none; border-color:var(--punch); }
+.login-btn { width:100%; background:var(--cta); color:var(--cta-text); padding:0.9rem; border-radius:10px; font-weight:800; font-size:1rem; transition:background .15s; }
+.login-btn:active { background:var(--cta-hover); }
+.login-err { color:#FFB4A6; font-size:0.85rem; min-height:1.2em; margin-bottom:0.75rem; text-align:center; }
+.pin-pad { display:grid; grid-template-columns:repeat(3,1fr); gap:0.5rem; margin:0.1rem 0 1rem; }
+.pin-pad button { padding:0.8rem 0; border-radius:12px; background:rgba(255,255,255,0.06); border:1px solid var(--ink-700); color:var(--cream); font-family:var(--font-mono); font-size:1.25rem; font-weight:700; transition:background .12s, transform .08s; }
+.pin-pad button:active { background:var(--punch); border-color:var(--punch); transform:scale(0.96); }
+.pin-pad .pad-action { background:transparent; font-size:1.05rem; color:var(--ink-400); }
+.pin-pad .pad-action:active { color:#fff; }
+
+/* ===== HOME / INICIO ===== */
+#screen-home { display:flex; flex-direction:column; }
+.home-topbar { position:relative; z-index:2; display:flex; align-items:center; gap:0.55rem; padding:calc(0.7rem + var(--safe-top)) 1rem 0.4rem; }
+.home-topbar .spacer { flex:1; }
+.home-hero { position:relative; z-index:1; text-align:center; padding:1.6rem 1.25rem 0.5rem; }
+.home-logo { font-size:3.8rem; animation:fadeUp .5s .02s ease both; }
+.home-hero .tagline { animation:fadeUp .5s .1s ease both; }
+.home-hero .sub-mono { margin-top:0.4rem; animation:fadeUp .5s .14s ease both; }
+.home-greet { font-family:var(--font-mono); font-size:0.74rem; color:var(--ink-300); margin-top:1.1rem; letter-spacing:0.04em; animation:fadeUp .5s .18s ease both; }
+.home-cards { position:relative; z-index:1; width:100%; max-width:480px; margin:1.3rem auto 0; padding:0 1.25rem 2rem; display:flex; flex-direction:column; gap:0.75rem; }
+.home-card { display:flex; align-items:center; gap:1rem; padding:1.05rem 1.1rem; border-radius:16px; text-align:left; background:rgba(26,29,34,0.85); border:1px solid var(--ink-700); color:var(--cream); animation:fadeUp .5s .22s ease both; transition:transform .12s; }
+.home-card:active { transform:scale(0.985); }
+.home-card.primary { background:linear-gradient(135deg,var(--punch),var(--fire)); border:none; box-shadow:0 14px 30px rgba(255,107,53,0.3); }
+.hc-icon { width:48px; height:48px; border-radius:13px; background:rgba(255,255,255,0.16); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.hc-icon svg { width:24px; height:24px; stroke:currentColor; fill:none; }
+.hc-text { flex:1; min-width:0; }
+.hc-title { font-weight:800; font-size:1.06rem; }
+.hc-desc { font-size:0.8rem; opacity:0.9; margin-top:1px; }
+.hc-arrow { font-size:1.4rem; opacity:0.9; }
+.home-stat { text-align:center; font-family:var(--font-mono); font-size:0.7rem; color:var(--ink-400); letter-spacing:0.04em; animation:fadeUp .5s .26s ease both; }
+
+/* ===== APP HEADER ===== */
+.app-header { position:sticky; top:0; z-index:30; background:var(--header-bg); color:var(--header-text); padding:calc(0.75rem + var(--safe-top)) 1rem 0.75rem; display:flex; align-items:center; gap:0.55rem; overflow:hidden; }
+.app-header::after { content:''; position:absolute; top:-50%; right:-6%; width:120px; height:220%; background:var(--punch); opacity:0.18; transform:rotate(-64deg); pointer-events:none; }
+.app-header .brand { position:relative; z-index:1; font-family:var(--font-serif); font-weight:600; font-size:1.4rem; letter-spacing:-0.5px; }
+.app-header .brand sup { font-family:var(--font-sans); font-size:0.4em; font-weight:700; vertical-align:super; color:var(--punch); margin-left:1px; }
+.app-header .tag { position:relative; z-index:1; font-family:var(--font-mono); font-size:0.6rem; font-weight:600; color:var(--sun); text-transform:uppercase; letter-spacing:0.18em; padding-top:0.3rem; }
+.app-header .spacer { flex:1; }
+.icon-btn { position:relative; z-index:1; width:38px; height:38px; border-radius:10px; background:rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; color:var(--cream); }
+.icon-btn svg { width:18px; height:18px; stroke:currentColor; fill:none; }
+
+/* ===== SUPPLIER BAR ===== */
+.supplier-bar { background:var(--bg-elevated); border-bottom:1px solid var(--border-soft); padding:0.85rem 1rem; display:flex; align-items:center; gap:0.75rem; }
+.supplier-bar .info { flex:1; min-width:0; }
+.supplier-bar .lbl { font-family:var(--font-mono); font-size:0.62rem; font-weight:600; color:var(--text-subtle); text-transform:uppercase; letter-spacing:0.14em; }
+.supplier-bar .name { font-weight:700; font-size:1rem; color:var(--text-strong); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.supplier-bar .meta { font-family:var(--font-mono); font-size:0.7rem; color:var(--text-muted); }
+.btn-pill { background:var(--cta); color:var(--cta-text); padding:0.55rem 1.05rem; border-radius:999px; font-weight:800; font-size:0.8rem; white-space:nowrap; transition:background .15s; }
+.btn-pill:active { background:var(--cta-hover); }
+
+/* ===== TABS ===== */
+.tabbar { display:flex; background:var(--bg-elevated); border-bottom:1px solid var(--border-soft); }
+.tabbar button { flex:1; padding:0.75rem; font-family:var(--font-mono); font-weight:600; font-size:0.74rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted); border-bottom:2px solid transparent; transition:color .15s; }
+.tabbar button.active { color:var(--punch); border-bottom-color:var(--punch); }
+
+/* ===== SEARCH ===== */
+.search-row { padding:0.7rem 1rem; background:var(--bg-elevated); border-bottom:1px solid var(--border-soft); }
+.search-row input { width:100%; padding:0.6rem 1rem 0.6rem 2.3rem; background:var(--surface-2); border:1px solid var(--border-soft); border-radius:10px; font-size:0.9rem; color:var(--text);
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236E7178' stroke-width='2'><circle cx='11' cy='11' r='8'/><line x1='21' y1='21' x2='16.65' y2='16.65'/></svg>");
+  background-repeat:no-repeat; background-position:0.65rem center; background-size:15px; }
+.search-row input:focus { outline:none; border-color:var(--punch); }
+
+/* ===== LISTS ===== */
+.list { padding:0.75rem 1rem 7.5rem; animation:fadeIn .3s ease; }
+.empty { text-align:center; color:var(--text-muted); padding:3rem 1rem; font-size:0.9rem; }
+.count-row { display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; padding:0 0.1rem 0.6rem; }
+.count-line { font-family:var(--font-mono); font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-subtle); }
+.btn-reponer-all { margin-left:auto; display:inline-flex; align-items:center; gap:0.35rem; padding:0.45rem 0.85rem; border-radius:999px; background:var(--punch); color:#fff; font-family:var(--font-mono); font-size:0.66rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; }
+.btn-reponer-all:active { background:var(--punch-hover); }
+
+/* product grid: 2 por fila en movil, mas en pantallas anchas */
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(158px,1fr)); gap:0.6rem; }
+.card { position:relative; background:var(--surface-1); border:1px solid var(--border-soft); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; transition:border-color .15s, box-shadow .15s; }
+.card.has { border-color:var(--punch); box-shadow:0 0 0 1px var(--punch); }
+.card-photo { position:relative; width:100%; aspect-ratio:1/1; background:var(--surface-2); display:flex; align-items:center; justify-content:center; }
+.card-photo img { position:relative; z-index:1; width:100%; height:100%; object-fit:cover; }
+.card-photo .ph { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--ink-300); z-index:0; }
+.card-photo .ph svg { width:34px; height:34px; stroke:currentColor; fill:none; }
+.badge-cart { position:absolute; top:6px; right:6px; z-index:2; background:var(--punch); color:#fff; font-family:var(--font-mono); font-size:0.7rem; font-weight:700; min-width:22px; height:22px; padding:0 6px; border-radius:11px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.25); }
+.card-body { padding:0.6rem 0.65rem 0.7rem; display:flex; flex-direction:column; flex:1; }
+.card-body .pcode { font-family:var(--font-mono); font-size:0.63rem; font-weight:600; color:var(--electric); letter-spacing:0.01em; }
+.card-body .pname { font-size:0.82rem; font-weight:600; color:var(--text-strong); line-height:1.2; margin-top:1px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:1.98em; }
+.card-price { font-family:var(--font-mono); font-weight:800; font-size:1.02rem; color:var(--punch); margin-top:0.35rem; line-height:1.1; }
+.card-price small { display:block; font-family:var(--font-mono); font-weight:600; font-size:0.58rem; color:var(--text-subtle); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:1px; }
+.card-meta { font-family:var(--font-mono); font-size:0.64rem; color:var(--text-muted); margin-top:0.4rem; line-height:1.55; }
+.card-meta b { color:var(--text-strong); font-weight:700; }
+.card-meta .nd { color:var(--text-subtle); }
+.card-foot { margin-top:auto; }
+.btn-reponer { margin-top:0.5rem; width:100%; padding:0.42rem; border-radius:8px; background:var(--blue-50); color:var(--ocean); border:1px solid transparent; font-family:var(--font-mono); font-size:0.64rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; display:flex; align-items:center; justify-content:center; gap:0.3rem; }
+.btn-reponer:active { background:var(--electric); color:#fff; }
+.card-step { display:flex; align-items:center; gap:0.4rem; margin-top:0.5rem; padding-top:0; }
+.card-step button { width:34px; height:34px; border-radius:8px; background:var(--surface-2); border:1px solid var(--border-soft); font-size:1.2rem; font-weight:700; color:var(--text-strong); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.card-step button:active { background:var(--punch); color:#fff; border-color:var(--punch); }
+.card-step .q { flex:1; min-width:0; width:100%; text-align:center; font-family:var(--font-mono); font-weight:700; font-size:0.95rem; border:1px solid var(--border-soft); border-radius:8px; padding:0.38rem 0.2rem; background:var(--surface-1); color:var(--text-strong); -moz-appearance:textfield; }
+.card-step .q:focus { outline:none; border-color:var(--punch); }
+.card-step .q::-webkit-outer-spin-button, .card-step .q::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+
+/* thumb (carrito) */
+.thumb { width:50px; height:50px; border-radius:9px; overflow:hidden; flex-shrink:0; background:var(--surface-2); position:relative; display:flex; align-items:center; justify-content:center; }
+.thumb img { position:relative; z-index:1; width:100%; height:100%; object-fit:cover; }
+.thumb .ph { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--ink-300); z-index:0; }
+.thumb .ph svg { width:20px; height:20px; stroke:currentColor; fill:none; }
+
+/* ===== CART ===== */
+.cart-line { background:var(--surface-1); border:1px solid var(--border-soft); border-radius:14px; padding:0.85rem; margin-bottom:0.6rem; }
+.cart-line .ctop { display:flex; align-items:center; gap:0.7rem; }
+.cart-line .thumb { width:50px; height:50px; border-radius:9px; }
+.cart-line .thumb .ph svg { width:20px; height:20px; }
+.cart-line .cmeta { flex:1; min-width:0; }
+.cart-line .pname { font-size:0.9rem; font-weight:600; color:var(--text-strong); }
+.cart-line .pcode { font-family:var(--font-mono); font-size:0.7rem; font-weight:600; color:var(--electric); }
+.cart-line .rm { color:var(--error); font-size:0.78rem; font-weight:700; flex-shrink:0; }
+.cart-line .row2 { display:flex; align-items:flex-end; gap:0.75rem; margin-top:0.65rem; flex-wrap:wrap; }
+.cart-field { display:flex; flex-direction:column; gap:3px; }
+.cart-field label { font-family:var(--font-mono); font-size:0.6rem; font-weight:600; color:var(--text-subtle); text-transform:uppercase; letter-spacing:0.08em; }
+.cart-field input { width:92px; padding:0.45rem 0.55rem; border:1px solid var(--border); border-radius:8px; background:var(--surface-1); color:var(--text-strong); font-family:var(--font-mono); font-size:0.9rem; }
+.cart-field input:focus { outline:none; border-color:var(--punch); }
+.cart-line .cajas { font-family:var(--font-mono); font-size:0.66rem; color:var(--text-subtle); margin-top:0.5rem; text-transform:uppercase; letter-spacing:0.06em; }
+.cart-line .ltotal { margin-left:auto; font-family:var(--font-mono); font-weight:800; font-size:1.05rem; color:var(--text-strong); }
+
+/* ===== FOOTER ===== */
+.footer { position:fixed; left:0; right:0; bottom:0; z-index:25; background:var(--bg-elevated); border-top:1px solid var(--border); padding:0.75rem 1rem calc(0.75rem + var(--safe-bottom)); box-shadow:0 -6px 22px rgba(0,0,0,0.10); }
+.footer .totrow { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.6rem; }
+.footer .totlbl { font-family:var(--font-mono); font-size:0.7rem; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.12em; }
+.footer .totval { font-family:var(--font-mono); font-size:1.45rem; font-weight:700; color:var(--punch); }
+.footer .acts { display:flex; gap:0.5rem; }
+.footer .acts button { flex:1; padding:0.75rem; border-radius:11px; font-weight:800; font-size:0.84rem; transition:transform .1s, background .15s; }
+.footer .acts button:active { transform:scale(0.97); }
+.btn-doc { background:var(--surface-2); color:var(--text-strong); border:1px solid var(--border); }
+.btn-sap { background:var(--cta); color:var(--cta-text); }
+.btn-sap:disabled, .btn-doc:disabled { opacity:0.4; }
+
+/* ===== MODAL ===== */
+.modal-overlay { position:fixed; inset:0; background:var(--overlay); z-index:60; display:flex; align-items:flex-end; justify-content:center; animation:fadeIn .2s ease; }
+.modal { background:var(--bg-elevated); width:100%; max-width:560px; max-height:88vh; border-radius:20px 20px 0 0; display:flex; flex-direction:column; overflow:hidden; }
+@media (min-width:600px){ .modal-overlay{align-items:center;} .modal{border-radius:20px;} }
+.modal-head { padding:1.05rem 1.25rem; border-bottom:1px solid var(--border-soft); display:flex; align-items:center; gap:0.75rem; }
+.modal-head h3 { font-family:var(--font-serif); font-size:1.2rem; font-weight:600; flex:1; }
+.modal-head .x { font-size:1.6rem; color:var(--text-muted); width:32px; height:32px; }
+.modal-search { padding:0.8rem 1.25rem; border-bottom:1px solid var(--border-soft); }
+.modal-search input { width:100%; padding:0.65rem 0.9rem; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); color:var(--text); font-size:0.95rem; }
+.modal-search input:focus { outline:none; border-color:var(--punch); }
+.modal-list { flex:1; overflow-y:auto; padding:0.5rem 0; }
+.sup-item { width:100%; text-align:left; padding:0.85rem 1.25rem; border-bottom:1px solid var(--border-soft); display:block; }
+.sup-item:active { background:var(--surface-2); }
+.sup-item .n { font-weight:700; font-size:0.93rem; color:var(--text-strong); }
+.sup-item .d { font-family:var(--font-mono); font-size:0.72rem; color:var(--text-muted); margin-top:2px; }
+
+#toast { position:fixed; bottom:calc(7rem + var(--safe-bottom)); left:50%; transform:translateX(-50%); background:var(--ink-900); color:#fff; padding:0.75rem 1.15rem; border-radius:12px; font-size:0.85rem; font-weight:600; z-index:90; max-width:90%; text-align:center; box-shadow:var(--shadow-soft); }
+#toast.err { background:var(--error); }
+.spinner { width:26px; height:26px; border:3px solid var(--border); border-top-color:var(--punch); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ===== CBM footer ===== */
+.footer .totrow-cbm { margin-bottom:0.7rem; padding-top:0.55rem; border-top:1px dashed var(--border-soft); }
+.footer .totrow-cbm .totlbl { color:var(--text-subtle); }
+.footer .totval-cbm { font-family:var(--font-mono); font-size:1.05rem; font-weight:700; color:var(--electric); }
+
+/* ===== foto clickeable ===== */
+.card-photo.has-img { cursor:zoom-in; }
+.thumb.has-img { cursor:zoom-in; }
+
+/* ===== LIGHTBOX (foto en grande) ===== */
+.lightbox { position:fixed; inset:0; z-index:100; background:rgba(0,0,0,0.92); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:1.5rem; animation:fadeIn .2s ease; }
+.lightbox img { max-width:100%; max-height:80vh; object-fit:contain; border-radius:12px; box-shadow:0 20px 60px rgba(0,0,0,0.55); }
+.lightbox .lb-x { position:absolute; top:calc(0.7rem + var(--safe-top)); right:1rem; width:42px; height:42px; border-radius:50%; background:rgba(255,255,255,0.16); color:#fff; font-size:1.7rem; display:flex; align-items:center; justify-content:center; }
+.lightbox .lb-cap { color:#fff; font-family:var(--font-mono); font-size:0.78rem; margin-top:1rem; text-align:center; max-width:92%; opacity:0.92; letter-spacing:0.02em; }
+
+/* ===== INDICADOR DE CONTENEDOR (CAMIÓN JFK) ===== */
+.container-indicator { background:var(--bg-elevated); border:1px solid var(--border); border-radius:16px; padding:1.25rem 1rem 1rem; margin-bottom:1rem; box-shadow:0 2px 12px rgba(0,159,227,0.06); }
+.container-indicator__top { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem; gap:0.6rem; flex-wrap:wrap; }
+.container-indicator__label { font-size:0.66rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.1em; font-weight:700; font-family:var(--font-mono); }
+.container-indicator__pct-row { display:flex; align-items:baseline; gap:0.5rem; margin-top:4px; }
+.container-indicator__pct { font-size:2rem; font-weight:900; color:var(--electric); line-height:1; letter-spacing:-0.02em; }
+.container-indicator__multi { font-size:1.1rem; font-weight:900; color:#fff; background:var(--electric); padding:4px 10px; border-radius:8px; letter-spacing:-0.02em; animation:multi-pop 0.5s ease; }
+@keyframes multi-pop { 0% { transform:scale(0.5); opacity:0; } 60% { transform:scale(1.15); } 100% { transform:scale(1); opacity:1; } }
+.container-indicator__selector { display:flex; gap:4px; background:var(--surface-2); padding:4px; border-radius:12px; }
+.cont-size-btn { padding:7px 14px; font-size:0.76rem; font-weight:800; color:var(--text-muted); border-radius:8px; transition:all 0.15s; letter-spacing:0.02em; }
+.cont-size-btn.active { background:var(--punch); color:#fff; box-shadow:0 2px 6px rgba(255,107,53,0.3); }
+.container-visual { width:100%; display:flex; justify-content:center; margin:0.25rem 0 0.75rem; }
+.container-visual svg { width:100%; max-width:420px; height:auto; }
+#cont-fill { transition:height 0.6s cubic-bezier(0.34,1.56,0.64,1), y 0.6s cubic-bezier(0.34,1.56,0.64,1), fill 0.3s; }
+#cont-wave { animation:wave-flow 3s ease-in-out infinite; }
+@keyframes wave-flow { 0%,100% { transform:translateX(0); } 50% { transform:translateX(-6px); } }
+#full-badge { animation:full-pop 0.6s ease; }
+@keyframes full-pop { 0% { transform:scale(0); } 60% { transform:scale(1.3); } 100% { transform:scale(1); } }
+.container-indicator.has-load #wheel1, .container-indicator.has-load #wheel2, .container-indicator.has-load #wheel3, .container-indicator.has-load #wheel4 { animation:wheel-bounce 1.5s ease-in-out infinite; }
+#wheel2 { animation-delay:0.1s; } #wheel3 { animation-delay:0.2s; } #wheel4 { animation-delay:0.3s; }
+@keyframes wheel-bounce { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-1px); } }
+.container-indicator__stats { display:flex; justify-content:space-around; gap:0.5rem; font-size:0.78rem; padding-top:0.7rem; border-top:1px solid var(--border-soft); }
+.container-indicator__stats > div { text-align:center; }
+.cont-stat-label { color:var(--text-muted); font-size:0.62rem; display:block; text-transform:uppercase; letter-spacing:0.04em; font-weight:600; font-family:var(--font-mono); margin-bottom:2px; }
+.container-indicator__stats strong { color:var(--text-strong); font-size:1rem; font-weight:800; font-family:var(--font-mono); }
+.container-indicator__hint { text-align:center; margin-top:0.75rem; font-size:0.78rem; color:var(--text-muted); font-weight:600; font-style:italic; }
+.container-indicator__hint.success { color:var(--electric); font-weight:800; font-style:normal; }
+.container-indicator__hint.warning { color:var(--sun); font-weight:800; font-style:normal; }
+
+/* ===== ACTIVIDADES ===== */
+.act-section-title { font-family:var(--font-mono); font-size:0.66rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-subtle); margin:0.9rem 0.1rem 0.5rem; }
+.act-card { position:relative; background:var(--surface-1); border:1px solid var(--border-soft); border-radius:14px; padding:0.9rem 1rem; margin-bottom:0.6rem; transition:border-color .15s, transform .1s; }
+.act-card:active { transform:scale(0.99); }
+.act-card__top { display:flex; align-items:center; gap:0.5rem; margin-bottom:0.45rem; }
+.act-badge { font-family:var(--font-mono); font-size:0.6rem; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; color:#fff; padding:3px 9px; border-radius:999px; }
+.act-badge.borrador { background:var(--ink-500); }
+.act-badge.confirmado { background:var(--electric); }
+.act-badge.enviado_proveedor { background:var(--jade); }
+.act-badge.sap_error { background:var(--fire); }
+.act-card__date { margin-left:auto; font-family:var(--font-mono); font-size:0.66rem; color:var(--text-subtle); }
+.act-card__sup { font-weight:700; font-size:0.95rem; color:var(--text-strong); }
+.act-card__meta { display:flex; align-items:center; gap:0.5rem; margin-top:0.35rem; font-family:var(--font-mono); font-size:0.72rem; color:var(--text-muted); }
+.act-card__total { margin-left:auto; font-weight:800; color:var(--punch); font-size:0.9rem; }
+.act-card__num { font-family:var(--font-mono); font-size:0.62rem; color:var(--text-subtle); }
+.act-card__del { position:absolute; top:8px; right:10px; color:var(--error); font-size:1rem; font-weight:700; width:24px; height:24px; }
+.act-card__sap { font-family:var(--font-mono); font-size:0.66rem; color:var(--jade); font-weight:700; margin-top:0.3rem; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="screen-login" class="dark-hero">
+  <div class="hero-wrap">
+    <div class="brand-logo login-logo">JFK<sup>&reg;</sup></div>
+    <div class="angle-mark"></div>
+    <div class="tagline">Conecta tu estilo.</div>
+    <div class="sub-mono">Portal de Compras · Reposición</div>
+    <div class="login-card">
+      <label>Correo</label>
+      <input id="login-email" type="email" autocomplete="username" placeholder="tucorreo@jfkintl.com">
+      <label>PIN</label>
+      <input id="login-pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="••••••" maxlength="6">
+      <div class="pin-pad" id="pin-pad">
+        <button type="button" data-d="1">1</button>
+        <button type="button" data-d="2">2</button>
+        <button type="button" data-d="3">3</button>
+        <button type="button" data-d="4">4</button>
+        <button type="button" data-d="5">5</button>
+        <button type="button" data-d="6">6</button>
+        <button type="button" data-d="7">7</button>
+        <button type="button" data-d="8">8</button>
+        <button type="button" data-d="9">9</button>
+        <button type="button" class="pad-action" data-act="clear">C</button>
+        <button type="button" data-d="0">0</button>
+        <button type="button" class="pad-action" data-act="back">⌫</button>
+      </div>
+      <div class="login-err" id="login-err"></div>
+      <button class="login-btn" id="login-btn">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- HOME / INICIO -->
+<div id="screen-home" class="dark-hero hidden">
+  <div class="home-topbar">
+    <span class="spacer"></span>
+    <button class="icon-btn" id="home-theme" title="Tema">
+      <svg viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/></svg>
+    </button>
+    <button class="icon-btn" id="home-logout" title="Salir">
+      <svg viewBox="0 0 24 24" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+  </div>
+  <div class="home-hero">
+    <div class="brand-logo home-logo">JFK<sup>&reg;</sup></div>
+    <div class="angle-mark"></div>
+    <div class="tagline">Conecta tu estilo.</div>
+    <div class="sub-mono">Portal de Compras · Reposición</div>
+    <div class="home-greet" id="home-greet"></div>
+  </div>
+  <div class="home-cards">
+    <button class="home-card primary" id="home-start">
+      <span class="hc-icon"><svg viewBox="0 0 24 24" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg></span>
+      <span class="hc-text"><span class="hc-title">Nueva reposición</span><span class="hc-desc">Elige un proveedor y arma tu orden de compra</span></span>
+      <span class="hc-arrow">→</span>
+    </button>
+    <button class="home-card" id="home-continue" style="display:none;">
+      <span class="hc-icon"><svg viewBox="0 0 24 24" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></span>
+      <span class="hc-text"><span class="hc-title">Continuar pedido</span><span class="hc-desc" id="home-continue-desc"></span></span>
+      <span class="hc-arrow">→</span>
+    </button>
+    <button class="home-card" id="home-actividades">
+      <span class="hc-icon"><svg viewBox="0 0 24 24" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+      <span class="hc-text"><span class="hc-title">Actividades</span><span class="hc-desc">Borradores y órdenes guardadas</span></span>
+      <span class="hc-arrow">→</span>
+    </button>
+    <div class="home-stat" id="home-stat">Cargando proveedores…</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="screen-app" class="hidden">
+  <header class="app-header">
+    <span class="brand">JFK<sup>&reg;</sup></span>
+    <span class="tag">Compras</span>
+    <span class="spacer"></span>
+    <button class="icon-btn" id="btn-home" title="Inicio">
+      <svg viewBox="0 0 24 24" stroke-width="2"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V10"/><path d="M9 21v-6h6v6"/></svg>
+    </button>
+    <button class="icon-btn" id="btn-theme" title="Tema">
+      <svg viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/></svg>
+    </button>
+  </header>
+
+  <div class="supplier-bar">
+    <div class="info">
+      <div class="lbl">Proveedor</div>
+      <div class="name" id="sup-name">Ninguno seleccionado</div>
+      <div class="meta" id="sup-meta"></div>
+    </div>
+    <button class="btn-pill" id="btn-pick-supplier">Cambiar</button>
+  </div>
+
+  <div class="tabbar">
+    <button id="tab-cat" class="active">Productos</button>
+    <button id="tab-cart">Reposición (<span id="cart-count">0</span>)</button>
+  </div>
+
+  <div id="view-cat">
+    <div class="search-row">
+      <input id="prod-search" type="search" placeholder="Filtrar productos de este proveedor…">
+    </div>
+    <div class="list" id="prod-list"></div>
+  </div>
+
+  <div id="view-cart" class="hidden">
+    <div style="padding:0.75rem 1rem 0;">
+    <div class="container-indicator" id="container-indicator">
+      <div class="container-indicator__top">
+        <div>
+          <div class="container-indicator__label">Capacidad del contenedor</div>
+          <div class="container-indicator__pct-row">
+            <span class="container-indicator__pct" id="cont-pct">0%</span>
+            <span class="container-indicator__multi" id="cont-multi" style="display:none;">×1</span>
+          </div>
+        </div>
+        <div class="container-indicator__selector">
+          <button class="cont-size-btn active" data-size="20" onclick="cambiarTamCont('20')">20'</button>
+          <button class="cont-size-btn" data-size="40" onclick="cambiarTamCont('40')">40 HQ</button>
+          <button class="cont-size-btn" data-size="45" onclick="cambiarTamCont('45')">45'</button>
+        </div>
+      </div>
+      <div class="container-visual">
+        <svg viewBox="0 0 420 180" xmlns="http://www.w3.org/2000/svg" id="cont-svg">
+          <defs>
+            <linearGradient id="fill-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#33B5E8"/>
+              <stop offset="50%" stop-color="#009FE3"/>
+              <stop offset="100%" stop-color="#007AB0"/>
+            </linearGradient>
+            <linearGradient id="cab-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#2A2D34"/>
+              <stop offset="100%" stop-color="#0E1016"/>
+            </linearGradient>
+            <radialGradient id="shadow-grad">
+              <stop offset="0%" stop-color="rgba(0,0,0,0.25)"/>
+              <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+            </radialGradient>
+            <clipPath id="cont-clip">
+              <rect x="42" y="32" width="248" height="92" rx="3"/>
+            </clipPath>
+            <linearGradient id="cab-shine" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="rgba(255,255,255,0.15)"/>
+              <stop offset="50%" stop-color="rgba(255,255,255,0)"/>
+            </linearGradient>
+          </defs>
+          <ellipse cx="210" cy="160" rx="180" ry="8" fill="url(#shadow-grad)"/>
+          <rect x="42" y="32" width="248" height="92" rx="3" fill="#E8E6DF" stroke="#0E1016" stroke-width="2"/>
+          <g clip-path="url(#cont-clip)">
+            <rect id="cont-fill" x="42" y="124" width="248" height="0" fill="url(#fill-grad)"/>
+            <path id="cont-wave" d="M 42 124 Q 105 124 168 124 T 290 124 L 290 124 L 42 124 Z" fill="rgba(255,255,255,0.18)" opacity="0"/>
+          </g>
+          <g stroke="#0E1016" stroke-width="0.6" opacity="0.35">
+            <line x1="80" y1="34" x2="80" y2="122"/>
+            <line x1="118" y1="34" x2="118" y2="122"/>
+            <line x1="156" y1="34" x2="156" y2="122"/>
+            <line x1="194" y1="34" x2="194" y2="122"/>
+            <line x1="232" y1="34" x2="232" y2="122"/>
+            <line x1="270" y1="34" x2="270" y2="122"/>
+          </g>
+          <text id="jfk-logo-truck" x="166" y="92" font-family="Inter, sans-serif" font-size="44" font-weight="900" fill="#0E1016" text-anchor="middle" letter-spacing="-2">
+            JFK<tspan font-size="14" fill="#009FE3" dy="-18">®</tspan>
+          </text>
+          <rect x="38" y="28" width="8" height="8" fill="#0E1016"/>
+          <rect x="286" y="28" width="8" height="8" fill="#0E1016"/>
+          <rect x="38" y="120" width="8" height="8" fill="#0E1016"/>
+          <rect x="286" y="120" width="8" height="8" fill="#0E1016"/>
+          <text x="50" y="42" font-family="Inter, sans-serif" font-size="5" font-weight="700" fill="#666">JFKU 234 567-8</text>
+          <text x="282" y="120" font-family="Inter, sans-serif" font-size="5" font-weight="700" fill="#666" text-anchor="end">22G1 · MAX 28,200 KG</text>
+          <rect x="40" y="124" width="252" height="6" fill="#0E1016"/>
+          <rect x="290" y="118" width="6" height="12" fill="#0E1016"/>
+          <path d="M 296 60 L 320 60 L 320 50 Q 320 46 324 46 L 358 46 Q 368 46 372 56 L 388 94 Q 392 100 392 108 L 392 130 L 296 130 Z" fill="url(#cab-grad)" stroke="#0E1016" stroke-width="1.5"/>
+          <path d="M 296 60 L 320 60 L 320 50 Q 320 46 324 46 L 358 46 Q 368 46 372 56 L 388 94 Q 392 100 392 108 L 392 130 L 296 130 Z" fill="url(#cab-shine)"/>
+          <path d="M 324 52 L 356 52 Q 362 52 365 58 L 376 84 L 322 84 L 322 56 Q 322 52 324 52 Z" fill="#5DBCDD" opacity="0.85"/>
+          <path d="M 324 52 L 356 52 Q 362 52 365 58 L 376 84 L 322 84 L 322 56 Q 322 52 324 52 Z" fill="rgba(255,255,255,0.25)" opacity="0.5"/>
+          <rect x="322" y="92" width="20" height="14" rx="2" fill="#5DBCDD" opacity="0.7"/>
+          <line x1="345" y1="86" x2="345" y2="130" stroke="#000" stroke-width="0.8" opacity="0.4"/>
+          <circle cx="343" cy="115" r="1.2" fill="#FFD700"/>
+          <ellipse cx="385" cy="118" rx="4" ry="3" fill="#FFEB99" stroke="#0E1016" stroke-width="0.8"/>
+          <text x="334" y="118" font-family="Inter, sans-serif" font-size="6" font-weight="900" fill="#fff" text-anchor="middle">JFK</text>
+          <g id="wheel1"><circle cx="80" cy="138" r="14" fill="#0E1016"/><circle cx="80" cy="138" r="10" fill="#2A2D34"/><circle cx="80" cy="138" r="5" fill="#5A5D64"/><circle cx="80" cy="138" r="2" fill="#0E1016"/></g>
+          <g id="wheel2"><circle cx="115" cy="138" r="14" fill="#0E1016"/><circle cx="115" cy="138" r="10" fill="#2A2D34"/><circle cx="115" cy="138" r="5" fill="#5A5D64"/><circle cx="115" cy="138" r="2" fill="#0E1016"/></g>
+          <g id="wheel3"><circle cx="225" cy="138" r="14" fill="#0E1016"/><circle cx="225" cy="138" r="10" fill="#2A2D34"/><circle cx="225" cy="138" r="5" fill="#5A5D64"/><circle cx="225" cy="138" r="2" fill="#0E1016"/></g>
+          <g id="wheel4"><circle cx="350" cy="138" r="14" fill="#0E1016"/><circle cx="350" cy="138" r="10" fill="#2A2D34"/><circle cx="350" cy="138" r="5" fill="#5A5D64"/><circle cx="350" cy="138" r="2" fill="#0E1016"/></g>
+          <g id="full-badge" style="display:none;">
+            <circle cx="60" cy="50" r="18" fill="#009FE3" stroke="#fff" stroke-width="2"/>
+            <text x="60" y="55" font-family="Inter, sans-serif" font-size="14" font-weight="900" fill="#fff" text-anchor="middle">✓</text>
+          </g>
+        </svg>
+      </div>
+      <div class="container-indicator__stats">
+        <div><span class="cont-stat-label">CFT usado</span> <strong id="cont-cft">0</strong> de <span id="cont-cap">1,170</span></div>
+        <div><span class="cont-stat-label">CBM</span> <strong id="cont-cbm">0.00</strong> m³</div>
+        <div><span class="cont-stat-label">Peso</span> <strong id="cont-weight">0</strong> kg</div>
+      </div>
+      <div class="container-indicator__hint" id="cont-hint">Empieza a llenar tu contenedor</div>
+    </div>
+    </div>
+    <div class="list" id="cart-list"><div class="empty">Aún no agregas productos a la reposición.</div></div>
+  </div>
+
+  <div class="footer">
+    <div class="totrow"><span class="totlbl">Total compra</span><span class="totval" id="grand-total">$0.00</span></div>
+    <div class="totrow totrow-cbm"><span class="totlbl">Volumen total · CBM</span><span class="totval-cbm" id="grand-cbm">0.000 m³</span></div>
+    <div class="acts">
+      <button class="btn-doc" id="btn-pdf" disabled>PDF</button>
+      <button class="btn-doc" id="btn-xls" disabled>Excel</button>
+      <button class="btn-sap" id="btn-sap" disabled>Confirmar orden</button>
+    </div>
+  </div>
+</div>
+
+<!-- ACTIVIDADES -->
+<div id="screen-actividades" class="hidden">
+  <header class="app-header">
+    <button class="icon-btn" id="act-back" title="Volver">
+      <svg viewBox="0 0 24 24" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <span class="brand">JFK<sup>&reg;</sup></span>
+    <span class="tag">Actividades</span>
+    <span class="spacer"></span>
+  </header>
+  <div class="list" id="act-list" style="padding-bottom:2rem;"><div class="empty"><div class="spinner"></div></div></div>
+</div>
+
+<!-- SUPPLIER MODAL -->
+<div id="supplier-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-head"><h3>Elegir proveedor</h3><button class="x" id="sup-modal-x">×</button></div>
+    <div class="modal-search"><input id="sup-search" type="search" placeholder="Buscar por nombre, código o RUC…"></div>
+    <div class="modal-list" id="sup-list"><div class="empty"><div class="spinner"></div></div></div>
+  </div>
+</div>
+
+<!-- LIGHTBOX foto en grande -->
+<div id="img-lightbox" class="lightbox hidden" onclick="closeImg()">
+  <button class="lb-x" onclick="closeImg()">×</button>
+  <img id="lb-img" alt="">
+  <div id="lb-cap" class="lb-cap"></div>
+</div>
+
+<div id="toast" class="hidden"></div>
+
+<script>
+/* ===== CONFIG ===== */
+const SUPABASE_URL = 'https://gpighopguwafnxouejfb.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_FfCiha0_CJT0rJts1ifzqg_tmFzo0DC';
+const SAP_PO_ENDPOINT = '/.netlify/functions/crear-compra-sap';
+const PRODUCT_IMG_BASE = SUPABASE_URL + '/storage/v1/object/public/productos';
+let supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const BOX_SVG = '<svg viewBox="0 0 24 24" stroke-width="1.6"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>';
+
+/* ===== STATE ===== */
+let currentUser = null, currentSupplier = null;
+let cart = {}, allSuppliers = [], supplierItems = [], prodCache = {};
+let currentDraftId = null, currentOrderId = null, draftSaveTimer = null;
+const CREATED_BY = 'ADMIN-JG';
+
+/* ===== HELPERS ===== */
+const $ = (id) => document.getElementById(id);
+function money(n) { const v = Number(n); return '$' + (isNaN(v) ? 0 : v).toFixed(2); }
+function num(n) { const v = Number(n); return isNaN(v) ? '0' : (Math.round(v * 100) / 100).toLocaleString('es'); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function q(s) { return String(s).replace(/'/g, "\\'"); }
+function showToast(msg, isErr) { const t = $('toast'); t.textContent = msg; t.className = isErr ? 'err' : ''; setTimeout(() => t.classList.add('hidden'), 3400); }
+function cartItems() { return Object.values(cart).filter(i => i.qty > 0); }
+function boxOf(p) { return (p && p.items_per_box && p.items_per_box > 1) ? p.items_per_box : 1; }
+
+/* ===== CBM (volumen) =====
+   El dato en products.volume_cft_per_unit está en pies cúbicos (CFT).
+   1 CFT = 0.0283168 m³. */
+const CFT_TO_CBM = 0.0283168;
+function cbmUnit(p) { return (p && p.volume_cft != null) ? Number(p.volume_cft) * CFT_TO_CBM : 0; }
+function cbmLineItem(i) { return cbmUnit(i.product) * (i.qty || 0); }
+function totalCBM() { return cartItems().reduce((s, i) => s + cbmLineItem(i), 0); }
+function cbmFmt(n) { const v = Number(n) || 0; return v.toFixed(3) + ' m³'; }
+
+/* ===== LIGHTBOX (abrir foto en grande) ===== */
+function openImg(code) {
+  const p = prodCache[code];
+  $('lb-img').src = PRODUCT_IMG_BASE + '/' + encodeURIComponent(code) + '.jpg';
+  $('lb-cap').textContent = (p && p.name ? p.name + ' · ' : '') + code;
+  $('img-lightbox').classList.remove('hidden');
+}
+function closeImg() { $('img-lightbox').classList.add('hidden'); $('lb-img').src = ''; }
+
+/* ===== INDICADOR DE CONTENEDOR (CAMIÓN JFK) ===== */
+let containerSize = '20';
+const CONTAINER_CAPS = {
+  '20': { cft: 1170, label: "20'" },
+  '40': { cft: 2694, label: "40 HQ" },
+  '45': { cft: 3040, label: "45'" }
+};
+function calcularCargaActual() {
+  let cft = 0, weight = 0;
+  cartItems().forEach(i => {
+    cft += (i.qty || 0) * (parseFloat(i.product.volume_cft) || 0);
+    weight += (i.qty || 0) * (parseFloat(i.product.weight_kg) || 0);
+  });
+  return { cft, cbm: cft * 0.0283168, weight };
+}
+function updateContainerIndicator() {
+  const cap = CONTAINER_CAPS[containerSize];
+  const { cft, cbm, weight } = calcularCargaActual();
+
+  // Contenedores LLENOS y cuánto va en el contenedor en curso (el último)
+  const full = Math.floor(cft / cap.cft);        // contenedores 100% llenos
+  const rem = cft - (full * cap.cft);            // CFT en el contenedor en curso
+  const exact = (cft > 0 && rem === 0);          // múltiplo exacto (todo en llenos)
+  let lastPct = (rem / cap.cft) * 100;           // % del contenedor en curso
+  let needed;                                     // contenedores que OCUPA el pedido
+  if (cft <= 0) { needed = 0; }
+  else if (exact) { needed = full; lastPct = 100; }
+  else { needed = full + 1; }
+  const pctDisplay = (cft <= 0) ? 0 : lastPct;
+  const pctTxt = pctDisplay.toFixed(1) + '%';
+  const plC = full > 1 ? 'es' : '';
+  const plL = full > 1 ? 's' : '';              // plural "contenedor(es)"
+
+  const elPct = $('cont-pct'), elMulti = $('cont-multi'), elCft = $('cont-cft'), elCap = $('cont-cap'),
+    elCbm = $('cont-cbm'), elW = $('cont-weight'), elFill = $('cont-fill'), elWave = $('cont-wave'),
+    elBadge = $('full-badge'), elHint = $('cont-hint'), elContainer = $('container-indicator');
+  if (elPct) {
+    elPct.textContent = pctTxt;
+    elPct.style.color = exact ? '#00C46E' : 'var(--electric)';
+
+    // Badge ×N = total de contenedores que ocupa el pedido (llenos + el que va en curso)
+    if (needed >= 2) {
+      elMulti.textContent = '×' + needed;
+      elMulti.style.display = 'inline-block';
+      elMulti.style.animation = 'none'; void elMulti.offsetWidth; elMulti.style.animation = '';
+    } else { elMulti.style.display = 'none'; }
+
+    elCft.textContent = cft.toFixed(1);
+    elCap.textContent = cap.cft.toLocaleString();
+    elCbm.textContent = cbm.toFixed(2);
+    elW.textContent = Math.round(weight).toLocaleString();
+
+    const maxH = 92;
+    const fillH = (Math.min(pctDisplay, 100) / 100) * maxH;
+    elFill.setAttribute('height', fillH);
+    elFill.setAttribute('y', 124 - fillH);
+    if (elWave && fillH > 5) {
+      const yWave = 124 - fillH;
+      elWave.setAttribute('d', `M 42 ${yWave} Q 105 ${yWave - 2} 168 ${yWave} T 290 ${yWave} L 290 ${yWave + 3} L 42 ${yWave + 3} Z`);
+      elWave.setAttribute('opacity', '0.5');
+    } else if (elWave) { elWave.setAttribute('opacity', '0'); }
+
+    if (elBadge) { elBadge.style.display = exact ? 'block' : 'none'; }
+    elContainer.classList.toggle('has-load', cft > 0);
+
+    // Mensaje EXACTO de cuántos contenedores llenas y qué falta
+    if (cft === 0) {
+      elHint.textContent = 'Empieza a llenar tu contenedor';
+      elHint.className = 'container-indicator__hint';
+    } else if (exact) {
+      elHint.textContent = `🚛 ${full} contenedor${plC} lleno${plL} — ¡justo!`;
+      elHint.className = 'container-indicator__hint success';
+    } else if (full >= 1) {
+      elHint.textContent = `🚛 ${full} lleno${plL} + ${lastPct.toFixed(1)}% del ${full + 1}°`;
+      elHint.className = 'container-indicator__hint success';
+    } else if (lastPct >= 80) {
+      elHint.textContent = `Casi lleno · faltan ${(cap.cft - rem).toFixed(0)} CFT`;
+      elHint.className = 'container-indicator__hint warning';
+    } else {
+      elHint.textContent = `Faltan ${(cap.cft - rem).toFixed(0)} CFT para llenar`;
+      elHint.className = 'container-indicator__hint';
+    }
+  }
+}
+function cambiarTamCont(size) {
+  containerSize = size;
+  document.querySelectorAll('.cont-size-btn').forEach(b => { b.classList.toggle('active', b.dataset.size === size); });
+  updateContainerIndicator();
+}
+function thumbHTML(code, big) {
+  const cls = big ? 'thumb' : 'thumb';
+  return '<div class="' + cls + '" onclick="if(this.classList.contains(\'has-img\'))openImg(\'' + q(esc(code)) + '\')"><span class="ph">' + BOX_SVG + '</span>' +
+    '<img loading="lazy" alt="" src="' + PRODUCT_IMG_BASE + '/' + encodeURIComponent(code) + '.jpg" onload="this.closest(\'.thumb\').classList.add(\'has-img\')" onerror="this.style.display=\'none\'"></div>';
+}
+
+/* ===== THEME ===== */
+function toggleTheme() {
+  const cur = localStorage.getItem('jfk-theme-pref') || 'auto';
+  const next = cur === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('jfk-theme-pref', next);
+  document.documentElement.setAttribute('data-theme', next);
+}
+$('btn-theme').addEventListener('click', toggleTheme);
+$('home-theme').addEventListener('click', toggleTheme);
+
+/* ===== SCREENS ===== */
+function show(screen) {
+  $('screen-login').classList.toggle('hidden', screen !== 'login');
+  $('screen-home').classList.toggle('hidden', screen !== 'home');
+  $('screen-app').classList.toggle('hidden', screen !== 'app');
+  $('screen-actividades').classList.toggle('hidden', screen !== 'actividades');
+}
+async function showHome() {
+  show('home');
+  const name = (currentUser && currentUser.name) ? currentUser.name.split(' ')[0] : '';
+  $('home-greet').textContent = name ? ('Hola, ' + name + ' 👋') : '';
+  // continuar pedido si ya hay proveedor + carrito
+  const hasDraft = currentSupplier && cartItems().length > 0;
+  $('home-continue').style.display = hasDraft ? 'flex' : 'none';
+  if (hasDraft) $('home-continue-desc').textContent = currentSupplier.name + ' · ' + cartItems().length + ' productos';
+  // contador de proveedores
+  if (allSuppliers.length === 0) await loadSuppliers(true);
+  $('home-stat').textContent = allSuppliers.length + ' proveedores con compras';
+}
+
+/* ===== LOGIN ===== */
+$('login-btn').addEventListener('click', doLogin);
+$('login-pin').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+(function () {
+  const pad = $('pin-pad'), pin = $('login-pin');
+  if (!pad || !pin) return;
+  pad.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.d != null) { if (pin.value.length < 6) pin.value += b.dataset.d; }
+    else if (b.dataset.act === 'back') { pin.value = pin.value.slice(0, -1); }
+    else if (b.dataset.act === 'clear') { pin.value = ''; }
+    $('login-err').textContent = '';
+  });
+})();
+
+async function doLogin() {
+  const email = $('login-email').value.trim().toLowerCase();
+  const pin = $('login-pin').value.trim();
+  const err = $('login-err'); err.textContent = '';
+  if (!email || !pin) { err.textContent = 'Ingresa correo y PIN.'; return; }
+  try {
+    const { data: seller, error } = await supa.from('sellers')
+      .select('id, name, email, pin_hash, role, active, failed_attempts, locked_until')
+      .eq('email', email).maybeSingle();
+    if (error) { err.textContent = 'Error de conexión.'; return; }
+    if (!seller) { err.textContent = 'Usuario no encontrado.'; return; }
+    if (!seller.active) { err.textContent = 'Usuario inactivo.'; return; }
+    if (seller.locked_until && new Date(seller.locked_until) > new Date()) { err.textContent = 'Cuenta bloqueada temporalmente.'; return; }
+    const ok = dcodeIO.bcrypt.compareSync(pin, seller.pin_hash);
+    if (!ok) {
+      const attempts = (seller.failed_attempts || 0) + 1;
+      const upd = { failed_attempts: attempts };
+      if (attempts >= 5) upd.locked_until = new Date(Date.now() + 15 * 60000).toISOString();
+      supa.from('sellers').update(upd).eq('id', seller.id);
+      err.textContent = 'PIN incorrecto.'; return;
+    }
+    if (seller.role !== 'admin') { err.textContent = 'El portal de compras es solo para administradores.'; return; }
+    supa.from('sellers').update({ failed_attempts: 0, locked_until: null, last_login: new Date().toISOString() }).eq('id', seller.id);
+    currentUser = seller;
+    showHome();
+  } catch (e) { err.textContent = 'Error: ' + e.message; }
+}
+
+function doLogout() {
+  currentUser = null; currentSupplier = null; cart = {}; prodCache = {}; supplierItems = [];
+  $('login-pin').value = ''; resetCatalog(); updateFooter(); show('login');
+}
+$('home-logout').addEventListener('click', doLogout);
+$('btn-logout') && $('btn-logout').addEventListener('click', doLogout);
+
+/* ===== HOME ACTIONS ===== */
+$('home-start').addEventListener('click', () => { nuevaReposicion(); openSupplierModal(); });
+$('home-continue').addEventListener('click', () => { show('app'); switchTab('cat'); });
+$('home-actividades').addEventListener('click', openActividades);
+$('act-back').addEventListener('click', showHome);
+$('btn-home').addEventListener('click', showHome);
+function nuevaReposicion() { cart = {}; currentDraftId = null; currentOrderId = null; }
+
+/* ===== TABS ===== */
+$('tab-cat').addEventListener('click', () => switchTab('cat'));
+$('tab-cart').addEventListener('click', () => switchTab('cart'));
+function switchTab(t) {
+  $('tab-cat').classList.toggle('active', t === 'cat');
+  $('tab-cart').classList.toggle('active', t === 'cart');
+  $('view-cat').classList.toggle('hidden', t !== 'cat');
+  $('view-cart').classList.toggle('hidden', t !== 'cart');
+  if (t === 'cart') renderCart();
+}
+
+/* ===== SUPPLIERS ===== */
+$('btn-pick-supplier').addEventListener('click', openSupplierModal);
+$('sup-modal-x').addEventListener('click', () => $('supplier-modal').classList.add('hidden'));
+$('supplier-modal').addEventListener('click', e => { if (e.target === $('supplier-modal')) $('supplier-modal').classList.add('hidden'); });
+$('sup-search').addEventListener('input', e => filterSuppliers(e.target.value));
+
+async function openSupplierModal() {
+  $('supplier-modal').classList.remove('hidden');
+  $('sup-search').value = '';
+  if (allSuppliers.length === 0) { $('sup-list').innerHTML = '<div class="empty"><div class="spinner"></div></div>'; await loadSuppliers(); }
+  renderSuppliers(allSuppliers);
+  setTimeout(() => $('sup-search').focus(), 100);
+}
+
+async function loadSuppliers(silent) {
+  allSuppliers = [];
+  let from = 0; const batch = 1000;
+  while (true) {
+    const { data, error } = await supa.from('suppliers')
+      .select('sap_card_code, name, tax_id, city, current_balance, currency')
+      .eq('active', true).eq('has_purchases', true)
+      .order('name').range(from, from + batch - 1);
+    if (error) { if (!silent) $('sup-list').innerHTML = '<div class="empty">Error: ' + esc(error.message) + '</div>'; return; }
+    if (!data || data.length === 0) break;
+    allSuppliers = allSuppliers.concat(data);
+    if (data.length < batch) break;
+    from += batch;
+  }
+}
+
+function filterSuppliers(term) {
+  term = (term || '').toLowerCase().trim();
+  const f = !term ? allSuppliers : allSuppliers.filter(s =>
+    (s.name || '').toLowerCase().includes(term) || (s.sap_card_code || '').toLowerCase().includes(term) || (s.tax_id || '').toLowerCase().includes(term));
+  renderSuppliers(f);
+}
+
+function renderSuppliers(list) {
+  const el = $('sup-list');
+  if (!list.length) { el.innerHTML = '<div class="empty">Sin resultados.</div>'; return; }
+  el.innerHTML = list.slice(0, 400).map(s => {
+    const meta = [s.sap_card_code, s.tax_id ? 'RUC ' + s.tax_id : '', s.city].filter(Boolean).join(' · ');
+    return '<button class="sup-item" onclick="selectSupplier(\'' + q(esc(s.sap_card_code)) + '\')">' +
+      '<div class="n">' + esc(s.name) + '</div><div class="d">' + esc(meta) + '</div></button>';
+  }).join('');
+}
+
+async function selectSupplier(code) {
+  const s = allSuppliers.find(x => x.sap_card_code === code);
+  if (!s) return;
+  currentSupplier = s;
+  $('sup-name').textContent = s.name;
+  $('sup-meta').textContent = [s.sap_card_code, s.tax_id ? 'RUC ' + s.tax_id : ''].filter(Boolean).join(' · ');
+  $('supplier-modal').classList.add('hidden');
+  show('app'); switchTab('cat');
+  await loadSupplierItems(code);
+  updateFooter();
+}
+
+async function loadSupplierItems(code) {
+  const el = $('prod-list');
+  el.innerHTML = '<div class="empty"><div class="spinner"></div></div>';
+  $('prod-search').value = '';
+  let hist = []; let from = 0; const B = 1000;
+  while (true) {
+    const { data, error } = await supa.from('supplier_item_history')
+      .select('item_code, item_name, last_price, last_date, last_qty, total_qty, total_amount, num_purchases')
+      .eq('supplier_card_code', code).order('total_qty', { ascending: false }).range(from, from + B - 1);
+    if (error) { el.innerHTML = '<div class="empty">Error: ' + esc(error.message) + '</div>'; return; }
+    if (!data || !data.length) break;
+    hist = hist.concat(data);
+    if (data.length < B) break;
+    from += B;
+  }
+  if (!hist.length) { supplierItems = []; prodCache = {}; el.innerHTML = '<div class="empty">Este proveedor no tiene productos en el historial.</div>'; return; }
+  const pmap = {}; const codes = hist.map(h => h.item_code);
+  for (let i = 0; i < codes.length; i += 300) {
+    const { data } = await supa.from('products').select('sap_item_code, name, stock, items_per_box, fob_cost, volume_cft_per_unit, weight_kg_per_unit').in('sap_item_code', codes.slice(i, i + 300));
+    (data || []).forEach(p => { pmap[p.sap_item_code] = p; });
+  }
+  supplierItems = hist.map(h => {
+    const p = pmap[h.item_code] || {};
+    return {
+      item_code: h.item_code, name: p.name || h.item_name || h.item_code,
+      last_price: h.last_price, last_date: h.last_date, last_qty: h.last_qty,
+      total_qty: h.total_qty, total_amount: h.total_amount, num_purchases: h.num_purchases,
+      stock: (p.stock != null ? p.stock : null), items_per_box: (p.items_per_box || 1), fob_cost: (p.fob_cost != null ? p.fob_cost : null),
+      volume_cft: (p.volume_cft_per_unit != null ? Number(p.volume_cft_per_unit) : null),
+      weight_kg: (p.weight_kg_per_unit != null ? Number(p.weight_kg_per_unit) : null)
+    };
+  });
+  prodCache = {}; supplierItems.forEach(it => { prodCache[it.item_code] = it; });
+  renderItems(supplierItems);
+}
+
+$('prod-search').addEventListener('input', e => {
+  const t = (e.target.value || '').toLowerCase().trim();
+  if (!supplierItems.length) return;
+  const f = !t ? supplierItems : supplierItems.filter(i => (i.name || '').toLowerCase().includes(t) || (i.item_code || '').toLowerCase().includes(t));
+  renderItems(f);
+});
+
+function currentList() {
+  const t = ($('prod-search').value || '').toLowerCase().trim();
+  return !t ? supplierItems : supplierItems.filter(i => (i.name || '').toLowerCase().includes(t) || (i.item_code || '').toLowerCase().includes(t));
+}
+
+function renderItems(list) {
+  const el = $('prod-list');
+  if (!list.length) { el.innerHTML = '<div class="empty">Sin resultados.</div>'; return; }
+  const head = '<div class="count-row"><span class="count-line">' + list.length + ' producto' + (list.length === 1 ? '' : 's') + ' que le compras</span>' +
+    '<button class="btn-reponer-all" onclick="reponerAll()">↻ Reponer última compra</button></div>';
+  const cards = list.map(p => {
+    const code = p.item_code, inCart = cart[code] ? cart[code].qty : 0, box = boxOf(p);
+    const lastp = (p.last_price != null) ? money(p.last_price) : '—';
+    const stockTxt = (p.stock != null) ? ('<b>' + num(p.stock) + '</b>') : '<span class="nd">s/d</span>';
+    const totq = (p.total_qty != null) ? num(p.total_qty) : '—';
+    const lastd = p.last_date ? esc(p.last_date) : '—';
+    const bultoLine = box > 1 ? ' · Bulto <b>' + box + '</b>' : '';
+    const badge = inCart > 0 ? '<span class="badge-cart">' + inCart + '</span>' : '';
+    const lq = (p.last_qty != null) ? Number(p.last_qty) : 0;
+    const reponerBtn = lq > 0 ? '<button class="btn-reponer" onclick="reponerOne(\'' + q(esc(code)) + '\')">↻ Reponer última · ' + num(lq) + '</button>' : '';
+    return '<div class="card' + (inCart > 0 ? ' has' : '') + '">' +
+      '<div class="card-photo" onclick="if(this.classList.contains(\'has-img\'))openImg(\'' + q(esc(code)) + '\')"><span class="ph">' + BOX_SVG + '</span>' + badge +
+        '<img loading="lazy" alt="" src="' + PRODUCT_IMG_BASE + '/' + encodeURIComponent(code) + '.jpg" onload="this.closest(\'.card-photo\').classList.add(\'has-img\')" onerror="this.style.display=\'none\'"></div>' +
+      '<div class="card-body">' +
+        '<div class="pcode">' + esc(code) + '</div>' +
+        '<div class="pname">' + esc(p.name) + '</div>' +
+        '<div class="card-price"><small>Últ. precio</small>' + lastp + '</div>' +
+        '<div class="card-meta">Inv ' + stockTxt + bultoLine + (cbmUnit(p) > 0 ? ' · CBM/u <b>' + cbmUnit(p).toFixed(4) + '</b>' : '') + '<br>Comprado <b>' + totq + '</b> · ' + lastd + '</div>' +
+        '<div class="card-foot">' + reponerBtn +
+          '<div class="card-step">' +
+            '<button onclick="changeQty(\'' + q(esc(code)) + '\',-1)">−</button>' +
+            '<input class="q" id="q-' + esc(code) + '" type="number" min="0" inputmode="numeric" value="' + inCart + '" onchange="applyQty(\'' + q(esc(code)) + '\',this.value)" onfocus="this.select()">' +
+            '<button onclick="changeQty(\'' + q(esc(code)) + '\',1)">+</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  el.innerHTML = head + '<div class="grid">' + cards + '</div>';
+}
+
+function applyQty(code, val) {
+  const p = prodCache[code]; if (!p) return;
+  const qty = Math.max(0, Math.floor(Number(val) || 0));
+  if (qty > 0) {
+    if (!cart[code]) {
+      const defPrice = (p.last_price != null) ? Number(p.last_price) : (p.fob_cost != null ? Number(p.fob_cost) : 0);
+      cart[code] = { qty: 0, price: defPrice, product: p };
+    }
+    cart[code].qty = qty;
+  } else { delete cart[code]; }
+  const inp = $('q-' + code);
+  if (inp) {
+    inp.value = qty;
+    const card = inp.closest('.card');
+    if (card) {
+      card.classList.toggle('has', qty > 0);
+      const photo = card.querySelector('.card-photo');
+      let badge = photo ? photo.querySelector('.badge-cart') : null;
+      if (qty > 0) { if (!badge && photo) { badge = document.createElement('span'); badge.className = 'badge-cart'; photo.appendChild(badge); } if (badge) badge.textContent = qty; }
+      else if (badge) { badge.remove(); }
+    }
+  }
+  updateFooter();
+}
+
+function changeQty(code, dir) {
+  const p = prodCache[code]; if (!p) return;
+  const step = boxOf(p);
+  const cur = cart[code] ? cart[code].qty : 0;
+  applyQty(code, cur + dir * step);
+}
+
+function reponerOne(code) {
+  const p = prodCache[code]; if (!p) return;
+  const lq = (p.last_qty != null) ? Number(p.last_qty) : 0;
+  if (lq > 0) { applyQty(code, lq); showToast('Repuesto: ' + num(lq)); }
+}
+
+function reponerAll() {
+  let n = 0;
+  supplierItems.forEach(p => {
+    const lq = (p.last_qty != null) ? Number(p.last_qty) : 0;
+    if (lq > 0) {
+      if (!cart[p.item_code]) {
+        const dp = (p.last_price != null) ? Number(p.last_price) : (p.fob_cost != null ? Number(p.fob_cost) : 0);
+        cart[p.item_code] = { qty: 0, price: dp, product: p };
+      }
+      cart[p.item_code].qty = lq; n++;
+    }
+  });
+  renderItems(currentList());
+  updateFooter();
+  showToast('Repuesta la última compra: ' + n + ' productos');
+}
+
+/* ===== CART ===== */
+function renderCart() {
+  const items = cartItems(); const el = $('cart-list');
+  if (!items.length) { el.innerHTML = '<div class="empty">Aún no agregas productos a la reposición.</div>'; return; }
+  el.innerHTML = items.map(i => {
+    const code = i.product.item_code, box = boxOf(i.product);
+    const cajas = box > 1 ? (' · ' + (Math.round((i.qty / box) * 100) / 100) + ' caja' + ((i.qty / box) === 1 ? '' : 's')) : '';
+    const lt = i.qty * i.price;
+    const cbmu = cbmUnit(i.product);
+    const cbmRow = cbmu > 0 ? '<div class="cajas">CBM línea <b>' + cbmFmt(cbmLineItem(i)) + '</b> · ' + cbmu.toFixed(4) + ' m³/u</div>' : '';
+    return '<div class="cart-line">' +
+      '<div class="ctop">' + thumbHTML(code) +
+        '<div class="cmeta"><div class="pcode">' + esc(code) + '</div><div class="pname">' + esc(i.product.name) + '</div></div>' +
+        '<button class="rm" onclick="removeLine(\'' + q(esc(code)) + '\')">Quitar</button>' +
+      '</div>' +
+      '<div class="row2">' +
+        '<div class="cart-field"><label>Cantidad</label><input type="number" min="0" step="1" value="' + i.qty + '" onchange="setQty(\'' + q(esc(code)) + '\',this.value)"></div>' +
+        '<div class="cart-field"><label>Costo unit.</label><input type="number" min="0" step="0.01" value="' + i.price + '" onchange="setPrice(\'' + q(esc(code)) + '\',this.value)"></div>' +
+        '<span class="ltotal">' + money(lt) + '</span>' +
+      '</div>' +
+      (box > 1 ? '<div class="cajas">Bulto de ' + box + cajas + '</div>' : '') +
+      cbmRow +
+    '</div>';
+  }).join('');
+}
+function setQty(code, val) { if (!cart[code]) return; const qn = Math.max(0, Math.floor(Number(val) || 0)); cart[code].qty = qn; if (qn === 0) delete cart[code]; renderCart(); updateFooter(); }
+function setPrice(code, val) { if (!cart[code]) return; cart[code].price = Math.max(0, Number(val) || 0); renderCart(); updateFooter(); }
+function removeLine(code) { delete cart[code]; renderCart(); updateFooter(); const qEl = $('q-' + code); if (qEl) { qEl.value = 0; const card = qEl.closest('.card'); if (card) { card.classList.remove('has'); const b = card.querySelector('.badge-cart'); if (b) b.remove(); } } }
+
+/* ===== TOTALS ===== */
+function grandTotal() { return cartItems().reduce((s, i) => s + i.qty * i.price, 0); }
+function updateFooter() {
+  const count = cartItems().length;
+  $('cart-count').textContent = count;
+  $('grand-total').textContent = money(grandTotal());
+  $('grand-cbm').textContent = cbmFmt(totalCBM());
+  updateContainerIndicator();
+  const ready = count > 0 && !!currentSupplier;
+  $('btn-pdf').disabled = !ready; $('btn-xls').disabled = !ready; $('btn-sap').disabled = !ready;
+  autoSaveDraft();
+}
+function resetCatalog() {
+  currentSupplier = null; supplierItems = []; prodCache = {};
+  $('sup-name').textContent = 'Ninguno seleccionado'; $('sup-meta').textContent = '';
+  $('prod-list').innerHTML = '<div class="empty">Elige un proveedor para ver los productos que le compras.</div>';
+  $('cart-list').innerHTML = '<div class="empty">Aún no agregas productos a la reposición.</div>';
+}
+
+/* ===== EXPORTS ===== */
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+function poFileName(ext) { return 'OC_' + (currentSupplier ? currentSupplier.sap_card_code : 'OC') + '_' + todayStr() + '.' + ext; }
+function downloadBlob(blob, name) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500); }
+function cajasDe(i) { const box = boxOf(i.product); return box > 1 ? String(Math.round((i.qty / box) * 100) / 100) : ''; }
+
+/* Carga la foto del producto desde Supabase como dataURL (+ dimensiones) para incrustar en PDF/Excel.
+   Devuelve null si el producto no tiene imagen. Cachea por código para no descargar dos veces. */
+const imgCache = {};
+function loadImgData(code) {
+  if (imgCache[code] !== undefined) return imgCache[code];
+  const p = (async () => {
+    try {
+      const res = await fetch(PRODUCT_IMG_BASE + '/' + encodeURIComponent(code) + '.jpg');
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      const dataUrl = await new Promise((rs, rj) => { const fr = new FileReader(); fr.onload = () => rs(fr.result); fr.onerror = rj; fr.readAsDataURL(blob); });
+      const dim = await new Promise(rs => { const im = new Image(); im.onload = () => rs({ w: im.naturalWidth || 1, h: im.naturalHeight || 1 }); im.onerror = () => rs({ w: 1, h: 1 }); im.src = dataUrl; });
+      return { dataUrl, w: dim.w, h: dim.h };
+    } catch (e) { return null; }
+  })();
+  imgCache[code] = p;
+  return p;
+}
+
+$('btn-pdf').addEventListener('click', generatePDF);
+$('btn-xls').addEventListener('click', generateExcel);
+$('btn-sap').addEventListener('click', confirmarOrden);
+
+async function generatePDF() {
+  const items = cartItems(); if (!items.length || !currentSupplier) return;
+  const btn = $('btn-pdf'); const prev = btn.textContent; btn.disabled = true; btn.textContent = 'Generando…';
+  try {
+    const imgs = await Promise.all(items.map(i => loadImgData(i.product.item_code)));
+    const { jsPDF } = window.jspdf; const doc = new jsPDF({ unit: 'mm', format: 'letter' }); const M = 14;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.text('JFK', M, 18);
+    doc.setFontSize(13); doc.text('ORDEN DE COMPRA', 210 - M, 18, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(90); doc.text('JFK International, S.A.', M, 25);
+    doc.setTextColor(20); doc.setFontSize(10); doc.text('Proveedor: ' + currentSupplier.name, M, 36);
+    let y = 41;
+    if (currentSupplier.sap_card_code) { doc.text('Código: ' + currentSupplier.sap_card_code, M, y); y += 5; }
+    if (currentSupplier.tax_id) { doc.text('RUC: ' + currentSupplier.tax_id, M, y); y += 5; }
+    doc.text('Fecha: ' + todayStr(), 210 - M, 36, { align: 'right' });
+    // Col 0 = Foto (se dibuja en didDrawCell). El resto del texto va normal.
+    const body = items.map(i => ['', i.product.item_code, i.product.name || '', String(i.qty), cajasDe(i), cbmLineItem(i).toFixed(3), money(i.price), money(i.qty * i.price)]);
+    doc.autoTable({
+      startY: y + 3, head: [['Foto', 'Código', 'Descripción', 'Cant', 'Cajas', 'CBM', 'Costo', 'Total']], body,
+      styles: { fontSize: 8.5, cellPadding: 2, valign: 'middle', minCellHeight: 16 },
+      headStyles: { fillColor: [14, 16, 22], textColor: 255, halign: 'center' },
+      columnStyles: { 0: { cellWidth: 18, minCellHeight: 16, halign: 'center' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' } },
+      margin: { left: M, right: M },
+      didDrawCell: function (data) {
+        if (data.section === 'body' && data.column.index === 0) {
+          const im = imgs[data.row.index];
+          if (im) {
+            const pad = 1.5;
+            const maxW = data.cell.width - pad * 2, maxH = data.cell.height - pad * 2;
+            const ar = im.w / im.h; let w = maxW, h = maxH;
+            if (ar > maxW / maxH) { w = maxW; h = maxW / ar; } else { h = maxH; w = maxH * ar; }
+            const x = data.cell.x + (data.cell.width - w) / 2, iy = data.cell.y + (data.cell.height - h) / 2;
+            try { doc.addImage(im.dataUrl, 'JPEG', x, iy, w, h); } catch (e) { }
+          }
+        }
+      }
+    });
+    const endY = doc.lastAutoTable.finalY || (y + 10);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('TOTAL: ' + money(grandTotal()), 210 - M, endY + 9, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.text('CBM TOTAL: ' + totalCBM().toFixed(3) + ' m\u00b3', 210 - M, endY + 16, { align: 'right' });
+    // ===== Línea de aprobación / firma =====
+    let sy = endY + 32;
+    const pageH = doc.internal.pageSize.getHeight();
+    if (sy + 26 > pageH - 12) { doc.addPage(); sy = 28; }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(20);
+    doc.text('APROBACIÓN DE LA ORDEN DE COMPRA', M, sy);
+    sy += 16;
+    doc.setDrawColor(60); doc.setLineWidth(0.3);
+    const colW = 76, x1 = M, x2 = 210 - M - colW;
+    doc.line(x1, sy, x1 + colW, sy);
+    doc.line(x2, sy, x2 + colW, sy);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(40);
+    doc.text('Elaborado por', x1, sy + 5);
+    doc.text('Aprobado por', x2, sy + 5);
+    doc.setFontSize(7); doc.setTextColor(120);
+    doc.text('Nombre y firma', x1, sy + 9);
+    doc.text('Nombre, firma y sello \u00b7 Fecha', x2, sy + 9);
+    doc.save(poFileName('pdf')); showToast('PDF generado');
+  } catch (e) { showToast('Error al generar PDF: ' + e.message, true); }
+  finally { btn.textContent = prev; updateFooter(); }
+}
+
+async function generateExcel() {
+  const items = cartItems(); if (!items.length || !currentSupplier) return;
+  if (typeof ExcelJS === 'undefined') { showToast('Excel no cargó, recarga la página', true); return; }
+  const btn = $('btn-xls'); const prev = btn.textContent; btn.disabled = true; btn.textContent = 'Generando…';
+  try {
+    const imgs = await Promise.all(items.map(i => loadImgData(i.product.item_code)));
+    const DARK = 'FF0E1016', PUNCH = 'FFFF6B35', CREAM = 'FFFFFBF2', WHITE = 'FFFFFFFF', GREY = 'FF6E7178', LINE = 'FFE5E7EA', ZEBRA = 'FFF7F8FA';
+    const wb = new ExcelJS.Workbook(); wb.creator = 'JFK International, S.A.';
+    const ws = wb.addWorksheet('Orden de Compra', { views: [{ state: 'frozen', ySplit: 9, showGridLines: false }] });
+    [11, 16, 46, 11, 9, 11, 14, 14].forEach((w, idx) => { ws.getColumn(idx + 1).width = w; });
+
+    // Banda de título
+    ws.mergeCells('A1:H1');
+    const t = ws.getCell('A1');
+    t.value = 'JFK   ·   ORDEN DE COMPRA';
+    t.font = { name: 'Arial', bold: true, size: 18, color: { argb: CREAM } };
+    t.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+    t.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: DARK } };
+    ws.getRow(1).height = 30;
+    ws.mergeCells('A2:H2');
+    const s = ws.getCell('A2');
+    s.value = 'JFK International, S.A.  ·  RUC 304748-1-410636 DV 71  ·  Zona Libre de Colón, Panamá  ·  Tel: 441-5267';
+    s.font = { size: 8, color: { argb: GREY } };
+    s.alignment = { horizontal: 'left', indent: 1 };
+
+    // Datos del proveedor
+    [['Proveedor:', currentSupplier.name], ['Código:', currentSupplier.sap_card_code || ''], ['RUC:', currentSupplier.tax_id || ''], ['Fecha:', todayStr()]].forEach((pair, idx) => {
+      const r = 4 + idx;
+      const a = ws.getCell('A' + r); a.value = pair[0]; a.font = { bold: true, size: 10, color: { argb: GREY } };
+      const b = ws.getCell('B' + r); b.value = pair[1]; b.font = { size: 10, bold: idx === 0 };
+    });
+
+    // Encabezado de tabla
+    const HR = 9;
+    ['Foto', 'Código', 'Descripción', 'Cantidad', 'Cajas', 'CBM (m³)', 'Costo Unit.', 'Total'].forEach((h, idx) => {
+      const c = ws.getRow(HR).getCell(idx + 1);
+      c.value = h;
+      c.font = { bold: true, size: 9, color: { argb: WHITE } };
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: DARK } };
+      c.alignment = { vertical: 'middle', horizontal: idx === 0 ? 'center' : (idx >= 3 ? 'right' : 'left') };
+    });
+    ws.getRow(HR).height = 20;
+
+    // Filas de productos
+    const firstDataRow = HR + 1;
+    items.forEach((i, idx) => {
+      const r = firstDataRow + idx;
+      const row = ws.getRow(r);
+      row.getCell(2).value = i.product.item_code;
+      row.getCell(3).value = i.product.name || '';
+      row.getCell(4).value = i.qty;
+      row.getCell(5).value = cajasDe(i);
+      row.getCell(6).value = cbmLineItem(i);
+      row.getCell(7).value = Number(i.price);
+      row.getCell(8).value = i.qty * i.price;
+      row.height = 44;
+      for (let c = 1; c <= 8; c++) {
+        const cell = row.getCell(c);
+        cell.border = { bottom: { style: 'thin', color: { argb: LINE } } };
+        cell.alignment = { vertical: 'middle', horizontal: c === 1 ? 'center' : (c >= 4 ? 'right' : 'left'), wrapText: c === 3 };
+        if (idx % 2 === 1) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ZEBRA } };
+      }
+      row.getCell(6).numFmt = '0.000';
+      row.getCell(7).numFmt = '"$"#,##0.00';
+      row.getCell(8).numFmt = '"$"#,##0.00';
+    });
+    // Fotos embebidas
+    imgs.forEach((im, idx) => {
+      if (!im) return;
+      const id = wb.addImage({ base64: im.dataUrl.split(',')[1], extension: 'jpeg' });
+      ws.addImage(id, { tl: { col: 0.15, row: (firstDataRow + idx - 1) + 0.1 }, ext: { width: 54, height: 54 } });
+    });
+    // Totales (banda naranja)
+    const tR = firstDataRow + items.length + 1;
+    const tRow = ws.getRow(tR);
+    tRow.getCell(6).value = totalCBM(); tRow.getCell(6).numFmt = '0.000'; tRow.getCell(6).font = { bold: true, color: { argb: DARK } }; tRow.getCell(6).alignment = { horizontal: 'right' };
+    tRow.getCell(7).value = 'TOTAL'; tRow.getCell(7).font = { bold: true, color: { argb: WHITE } }; tRow.getCell(7).alignment = { horizontal: 'right', vertical: 'middle' }; tRow.getCell(7).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: PUNCH } };
+    tRow.getCell(8).value = grandTotal(); tRow.getCell(8).numFmt = '"$"#,##0.00'; tRow.getCell(8).font = { bold: true, color: { argb: WHITE } }; tRow.getCell(8).alignment = { horizontal: 'right', vertical: 'middle' }; tRow.getCell(8).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: PUNCH } };
+    tRow.height = 20;
+    // Línea de aprobación / firma
+    const aprR = tR + 3;
+    ws.getCell('A' + aprR).value = 'APROBACIÓN DE LA ORDEN DE COMPRA'; ws.getCell('A' + aprR).font = { bold: true, size: 9, color: { argb: DARK } };
+    const labR = aprR + 2;
+    ws.getCell('A' + labR).value = 'Elaborado por:'; ws.getCell('A' + labR).font = { bold: true, size: 9, color: { argb: GREY } };
+    ws.getCell('E' + labR).value = 'Aprobado por:'; ws.getCell('E' + labR).font = { bold: true, size: 9, color: { argb: GREY } };
+    const firmaR = labR + 2;
+    ['A', 'B', 'C'].forEach(col => { ws.getCell(col + firmaR).border = { top: { style: 'thin', color: { argb: DARK } } }; });
+    ['E', 'F', 'G'].forEach(col => { ws.getCell(col + firmaR).border = { top: { style: 'thin', color: { argb: DARK } } }; });
+    ws.getCell('A' + (firmaR + 1)).value = 'Nombre y firma'; ws.getCell('A' + (firmaR + 1)).font = { size: 7.5, color: { argb: GREY } };
+    ws.getCell('E' + (firmaR + 1)).value = 'Nombre, firma y sello · Fecha'; ws.getCell('E' + (firmaR + 1)).font = { size: 7.5, color: { argb: GREY } };
+
+    const buf = await wb.xlsx.writeBuffer();
+    downloadBlob(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), poFileName('xlsx'));
+    showToast('Excel generado');
+  } catch (e) { showToast('Error al generar Excel: ' + e.message, true); }
+  finally { btn.textContent = prev; updateFooter(); }
+}
+
+/* ===== BORRADORES (autoguardado) ===== */
+function serializeCart() {
+  const data = {};
+  cartItems().forEach(i => {
+    const p = i.product;
+    data[i.product.item_code] = {
+      qty: i.qty, price: i.price,
+      product: {
+        item_code: p.item_code, name: p.name, stock: (p.stock != null ? p.stock : null),
+        items_per_box: p.items_per_box || 1, fob_cost: (p.fob_cost != null ? p.fob_cost : null),
+        volume_cft: (p.volume_cft != null ? p.volume_cft : null), weight_kg: (p.weight_kg != null ? p.weight_kg : null),
+        last_price: (p.last_price != null ? p.last_price : null), last_qty: (p.last_qty != null ? p.last_qty : null),
+        line_jfk: p.line_jfk || null
+      }
+    };
+  });
+  return data;
+}
+function rebuildCart(cartData) {
+  cart = {}; prodCache = {};
+  Object.entries(cartData || {}).forEach(([code, it]) => {
+    if (code === '__meta' || !it || !it.product) return;
+    cart[code] = { qty: it.qty, price: it.price, product: it.product };
+    prodCache[code] = it.product;
+  });
+}
+function autoSaveDraft() {
+  if (!currentSupplier || cartItems().length === 0 || currentOrderId) return;
+  clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(saveDraft, 1500);
+}
+async function saveDraft() {
+  if (!currentSupplier || cartItems().length === 0 || currentOrderId) return;
+  const payload = {
+    supplier_card_code: currentSupplier.sap_card_code, supplier_name: currentSupplier.name,
+    created_by: CREATED_BY, cart_data: serializeCart(), notes: null,
+    total_amount: grandTotal(), total_items: cartItems().length, total_cbm: totalCBM(),
+    updated_at: new Date().toISOString()
+  };
+  try {
+    if (currentDraftId) { await supa.from('purchase_drafts').update(payload).eq('id', currentDraftId); }
+    else { const { data, error } = await supa.from('purchase_drafts').insert(payload).select().single(); if (!error && data) currentDraftId = data.id; }
+  } catch (e) { /* silencioso */ }
+}
+function clearCurrentDraft() {
+  if (currentDraftId) { supa.from('purchase_drafts').delete().eq('id', currentDraftId).then(() => {}); currentDraftId = null; }
+}
+
+/* ===== ACTIVIDADES ===== */
+async function openActividades() {
+  show('actividades');
+  const list = $('act-list');
+  list.innerHTML = '<div class="empty"><div class="spinner"></div></div>';
+  try {
+    const hace20 = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString();
+    try { await supa.from('purchase_drafts').delete().lt('updated_at', hace20); } catch (e) {}
+    const [draftsRes, ordersRes] = await Promise.all([
+      supa.from('purchase_drafts').select('*').order('updated_at', { ascending: false }),
+      supa.from('purchase_orders').select('*').order('submitted_at', { ascending: false }).limit(50)
+    ]);
+    const drafts = draftsRes.data || [], orders = ordersRes.data || [];
+    if (draftsRes.error && ordersRes.error) { list.innerHTML = '<div class="empty">Error: ' + esc(draftsRes.error.message) + '<br>¿Ya corriste el SQL de las tablas en Supabase?</div>'; return; }
+    if (!drafts.length && !orders.length) { list.innerHTML = '<div class="empty">Aún no tienes borradores ni órdenes.<br>Arma una reposición y aparecerá aquí.</div>'; return; }
+    let html = '';
+    if (drafts.length) { html += '<div class="act-section-title">Borradores · ' + drafts.length + '</div>' + drafts.map(d => actCard(d, 'borrador')).join(''); }
+    if (orders.length) { html += '<div class="act-section-title">Órdenes · ' + orders.length + '</div>' + orders.map(o => actCard(o, o.status || 'confirmado')).join(''); }
+    list.innerHTML = html;
+  } catch (e) { list.innerHTML = '<div class="empty">Error: ' + esc(e.message) + '</div>'; }
+}
+function actCard(r, status) {
+  const isDraft = status === 'borrador';
+  const fecha = new Date(r.updated_at || r.submitted_at).toLocaleDateString('es-PA', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const labels = { borrador: 'Borrador', confirmado: 'Confirmado', enviado_proveedor: 'Enviado a proveedor', sap_error: 'Error SAP' };
+  const payload = JSON.stringify(r).replace(/'/g, '&#39;');
+  const onclick = isDraft ? ('retomarDraft(' + payload + ')') : ('retomarOrder(' + payload + ')');
+  const numLine = (!isDraft && r.order_number) ? '<div class="act-card__num">OC-' + r.order_number + '</div>' : '';
+  const sapLine = (status === 'enviado_proveedor' && r.sap_doc_num) ? '<div class="act-card__sap">✓ SAP #' + r.sap_doc_num + '</div>' : '';
+  const delBtn = isDraft ? '<button class="act-card__del" onclick=\'event.stopPropagation(); eliminarDraft("' + r.id + '")\'>✕</button>' : '';
+  return '<div class="act-card" onclick=\'' + onclick + '\'>' +
+    '<div class="act-card__top"><span class="act-badge ' + status + '">' + (labels[status] || status) + '</span><span class="act-card__date">' + fecha + '</span></div>' +
+    numLine +
+    '<div class="act-card__sup">' + esc(r.supplier_name || 'Sin proveedor') + '</div>' +
+    '<div class="act-card__meta"><span>' + (r.total_items || 0) + ' producto' + ((r.total_items === 1) ? '' : 's') + '</span><span class="act-card__total">' + money(r.total_amount || 0) + '</span></div>' +
+    sapLine + delBtn +
+  '</div>';
+}
+function retomarDraft(d) {
+  currentDraftId = d.id; currentOrderId = null;
+  currentSupplier = { sap_card_code: d.supplier_card_code, name: d.supplier_name };
+  rebuildCart(d.cart_data);
+  $('sup-name').textContent = currentSupplier.name; $('sup-meta').textContent = currentSupplier.sap_card_code || '';
+  show('app'); switchTab('cart'); updateFooter();
+  if (currentSupplier.sap_card_code) { try { loadSupplierItems(currentSupplier.sap_card_code); } catch (e) {} }
+  showToast('Borrador retomado · ' + currentSupplier.name);
+}
+function retomarOrder(o) {
+  currentOrderId = o.id; currentDraftId = null;
+  currentSupplier = { sap_card_code: o.supplier_card_code, name: o.supplier_name };
+  rebuildCart(o.cart_data);
+  $('sup-name').textContent = currentSupplier.name; $('sup-meta').textContent = currentSupplier.sap_card_code || '';
+  show('app'); switchTab('cart'); updateFooter();
+  if (currentSupplier.sap_card_code) { try { loadSupplierItems(currentSupplier.sap_card_code); } catch (e) {} }
+  showToast('Orden retomada para editar' + (o.order_number ? ' · OC-' + o.order_number : ''));
+}
+async function eliminarDraft(id) {
+  if (!confirm('¿Eliminar este borrador?')) return;
+  try { await supa.from('purchase_drafts').delete().eq('id', id); if (currentDraftId === id) currentDraftId = null; showToast('Borrador eliminado'); openActividades(); }
+  catch (e) { showToast('Error: ' + e.message, true); }
+}
+
+/* ===== CONFIRMAR ORDEN (guarda en Supabase + intenta SAP) ===== */
+async function confirmarOrden() {
+  const items = cartItems(); if (!items.length || !currentSupplier) return;
+  const editando = !!currentOrderId;
+  if (!confirm((editando ? '¿Guardar cambios en esta orden' : '¿Confirmar esta orden de compra') + ' para "' + currentSupplier.name + '"?\n' + items.length + ' productos · Total ' + money(grandTotal()))) return;
+  const btn = $('btn-sap'); const prev = btn.textContent; btn.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    let totalUnits = 0; items.forEach(i => totalUnits += i.qty);
+    const orderRow = {
+      supplier_card_code: currentSupplier.sap_card_code, supplier_name: currentSupplier.name,
+      created_by: CREATED_BY, status: 'confirmado',
+      total_items: items.length, total_units: totalUnits, total_amount: grandTotal(),
+      total_cbm: totalCBM(), total_weight_kg: calcularCargaActual().weight,
+      cart_data: serializeCart(), notes: null, updated_at: new Date().toISOString()
+    };
+    let orderId = currentOrderId, orderNumber = null;
+    if (editando) {
+      const { error } = await supa.from('purchase_orders').update(orderRow).eq('id', currentOrderId);
+      if (error) throw error;
+      await supa.from('purchase_order_items').delete().eq('order_id', currentOrderId);
+    } else {
+      orderRow.submitted_at = new Date().toISOString();
+      const { data, error } = await supa.from('purchase_orders').insert(orderRow).select().single();
+      if (error) throw error;
+      orderId = data.id; orderNumber = data.order_number;
+    }
+    const itemRows = items.map(i => ({
+      order_id: orderId, product_sap_code: i.product.item_code, product_name: i.product.name,
+      line_jfk: i.product.line_jfk || null, quantity: i.qty, unit_price: Number(i.price),
+      unit_cbm: cbmUnit(i.product), unit_weight_kg: (i.product.weight_kg || 0), notes: null
+    }));
+    const { error: iErr } = await supa.from('purchase_order_items').insert(itemRows);
+    if (iErr) throw iErr;
+
+    // Intentar crear en SAP
+    btn.textContent = 'Enviando a SAP…';
+    let sapMsg = '';
+    try {
+      const payload = { CardCode: currentSupplier.sap_card_code, DocDate: todayStr(),
+        Comments: 'Reposición desde Portal de Compras JFK', created_by: CREATED_BY,
+        DocumentLines: items.map(i => ({ ItemCode: i.product.item_code, Quantity: i.qty, Price: Number(i.price) })) };
+      const res = await fetch(SAP_PO_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      let data = {}; try { data = await res.json(); } catch (e) {}
+      if (res.ok && (data.ok || data.success)) {
+        const docNum = data.DocNum || data.docNum || data.DocEntry || data.docEntry;
+        await supa.from('purchase_orders').update({ status: 'enviado_proveedor', sap_doc_num: data.DocNum || data.docNum || null, sap_doc_entry: data.DocEntry || data.docEntry || null }).eq('id', orderId);
+        sapMsg = ' · enviada a proveedor (SAP #' + docNum + ')';
+      } else { sapMsg = ' · queda Confirmada (SAP pendiente)'; }
+    } catch (e) { sapMsg = ' · queda Confirmada (SAP pendiente)'; }
+
+    clearCurrentDraft();
+    cart = {}; currentOrderId = null;
+    renderCart(); updateFooter();
+    showToast('✓ Orden ' + (orderNumber ? 'OC-' + orderNumber + ' ' : '') + (editando ? 'actualizada' : 'confirmada') + sapMsg);
+    openActividades();
+  } catch (e) {
+    const msg = e.message || 'error';
+    showToast('Error al guardar: ' + msg + (/relation|does not exist|schema cache/i.test(msg) ? ' — ¿corriste el SQL en Supabase?' : ''), true);
+  } finally { btn.textContent = prev; updateFooter(); }
+}
+
+/* ===== INIT ===== */
+resetCatalog(); updateFooter(); show('login');
+</script>
+</body>
+</html>
