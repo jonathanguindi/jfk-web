@@ -2896,12 +2896,23 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
   </div>
   <div class="estado-body">
     <div class="cobranza-tabs" style="display:flex;gap:8px;margin-bottom:16px">
-      <button class="cobranza-tab active" id="cobranza-tab-pend" onclick="switchCobranzaTab('pend')" style="flex:1;padding:11px;border-radius:10px;border:1px solid var(--border,#2a2a33);background:#FF6B35;color:#fff;font-weight:700;cursor:pointer">Pendientes <span id="cobranza-pend-count"></span></button>
+      <button class="cobranza-tab active" id="cobranza-tab-pais" onclick="switchCobranzaTab('pais')" style="flex:1;padding:11px;border-radius:10px;border:1px solid var(--border,#2a2a33);background:#FF6B35;color:#fff;font-weight:700;cursor:pointer">Por país</button>
+      <button class="cobranza-tab" id="cobranza-tab-pend" onclick="switchCobranzaTab('pend')" style="flex:1;padding:11px;border-radius:10px;border:1px solid var(--border,#2a2a33);background:transparent;color:inherit;font-weight:700;cursor:pointer">Pendientes <span id="cobranza-pend-count"></span></button>
       <button class="cobranza-tab" id="cobranza-tab-auto" onclick="switchCobranzaTab('auto')" style="flex:1;padding:11px;border-radius:10px;border:1px solid var(--border,#2a2a33);background:transparent;color:inherit;font-weight:700;cursor:pointer">Lista automática</button>
     </div>
 
+    <!-- Dashboard por país -->
+    <div id="cobranza-pane-pais">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px;flex-wrap:wrap">
+        <div style="font-size:.85rem;opacity:.7">Elige un país para ver sus clientes con saldo pendiente, su morosidad y enviarles el estado de cuenta.</div>
+        <button onclick="loadCobranzaDashboard()" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border,#2a2a33);background:transparent;color:inherit;cursor:pointer;font-size:.8rem">↻ Refrescar</button>
+      </div>
+      <div id="cobranza-pais-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
+      <div id="cobranza-pais-list"><div class="estado-placeholder">Cargando clientes…</div></div>
+    </div>
+
     <!-- Pendientes de aprobación -->
-    <div id="cobranza-pane-pend">
+    <div id="cobranza-pane-pend" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div style="font-size:.85rem;opacity:.7">Clientes en mora esperando tu aprobación para enviarles su estado de cuenta.</div>
         <button onclick="loadCobranzaPendientes()" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border,#2a2a33);background:transparent;color:inherit;cursor:pointer;font-size:.8rem">↻ Refrescar</button>
@@ -6137,18 +6148,19 @@ let cobranzaAutoSet = new Set();   // sap_card_code que están en envío automá
 
 function openCobranzas() {
   goToScreen('cobranzas');
-  switchCobranzaTab('pend');
+  switchCobranzaTab('pais');
+  loadCobranzaDashboard();
   loadCobranzaPendientes();
   loadCobranzaAuto();
 }
 
 function switchCobranzaTab(which) {
-  const isPend = which === 'pend';
-  document.getElementById('cobranza-pane-pend').style.display = isPend ? 'block' : 'none';
-  document.getElementById('cobranza-pane-auto').style.display = isPend ? 'none' : 'block';
-  const tp = document.getElementById('cobranza-tab-pend'), ta = document.getElementById('cobranza-tab-auto');
-  tp.style.background = isPend ? '#FF6B35' : 'transparent'; tp.style.color = isPend ? '#fff' : 'inherit';
-  ta.style.background = !isPend ? '#FF6B35' : 'transparent'; ta.style.color = !isPend ? '#fff' : 'inherit';
+  ['pais','pend','auto'].forEach(t => {
+    const pane = document.getElementById('cobranza-pane-' + t);
+    if (pane) pane.style.display = (t === which) ? 'block' : 'none';
+    const btn = document.getElementById('cobranza-tab-' + t);
+    if (btn) { btn.style.background = (t === which) ? '#FF6B35' : 'transparent'; btn.style.color = (t === which) ? '#fff' : 'inherit'; }
+  });
 }
 
 async function loadCobranzaPendientes() {
@@ -6270,6 +6282,153 @@ async function toggleCobranzaAuto(cardCode, cb) {
     showToast('Error: ' + e.message, true);
   } finally {
     cb.disabled = false;
+  }
+}
+
+// --- Dashboard por país (clientes con saldo, morosidad, último envío) ---
+let cobranzaDeudores = [];          // clientes con saldo pendiente
+let cobranzaPaisActual = null;      // país seleccionado
+const cobMoroQueue = [];            // cola de cardCodes para calcular morosidad
+let cobMoroActivos = 0;             // llamadas a SAP en curso (throttle)
+
+const cobCssId = (s) => String(s).replace(/[^a-zA-Z0-9_-]/g, '_');
+function cobFmtFecha(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d)) return null;
+  return d.toLocaleDateString('es-PA', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+async function loadCobranzaDashboard() {
+  const chips = document.getElementById('cobranza-pais-chips');
+  const list = document.getElementById('cobranza-pais-list');
+  chips.innerHTML = '';
+  list.innerHTML = '<div class="estado-placeholder"><div class="spinner"></div></div>';
+  try {
+    const { data, error } = await supa
+      .from('customers')
+      .select('sap_card_code,name,country,email,current_balance,cobranza_auto,cobranza_last_sent')
+      .eq('active', true)
+      .gt('current_balance', 0)
+      .order('current_balance', { ascending: false })
+      .limit(3000);
+    if (error) throw error;
+    cobranzaDeudores = data || [];
+    renderCobranzaPaisChips();
+    if (cobranzaPaisActual && cobranzaDeudores.some(c => (c.country || '—') === cobranzaPaisActual)) {
+      renderCobranzaPaisList(cobranzaPaisActual);
+    } else {
+      cobranzaPaisActual = null;
+      list.innerHTML = cobranzaDeudores.length ? '<div class="estado-placeholder">Elige un país arriba 👆</div>' : '<div class="estado-placeholder">No hay clientes con saldo pendiente 🎉</div>';
+    }
+  } catch (e) {
+    list.innerHTML = `<div class="estado-placeholder" style="color:#E24B4A">Error: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function renderCobranzaPaisChips() {
+  const chips = document.getElementById('cobranza-pais-chips');
+  const byPais = {};
+  cobranzaDeudores.forEach(c => { const p = (c.country || '—'); (byPais[p] = byPais[p] || []).push(c); });
+  const paises = Object.keys(byPais).sort((a, b) => byPais[b].length - byPais[a].length);
+  chips.innerHTML = paises.map(p => {
+    const active = p === cobranzaPaisActual;
+    return `<button onclick="selectCobranzaPais('${escapeHtml(p)}')" style="padding:8px 14px;border-radius:999px;border:1px solid var(--border,#2a2a33);background:${active ? '#FF6B35' : 'transparent'};color:${active ? '#fff' : 'inherit'};font-weight:600;cursor:pointer">${escapeHtml(p)} <span style="opacity:.7">${byPais[p].length}</span></button>`;
+  }).join('');
+}
+
+function selectCobranzaPais(pais) {
+  cobranzaPaisActual = pais;
+  renderCobranzaPaisChips();
+  renderCobranzaPaisList(pais);
+}
+
+function renderCobranzaPaisList(pais) {
+  const list = document.getElementById('cobranza-pais-list');
+  const rows = cobranzaDeudores.filter(c => (c.country || '—') === pais);
+  if (!rows.length) { list.innerHTML = '<div class="estado-placeholder">Sin clientes</div>'; return; }
+  cobMoroQueue.length = 0;   // cancela la cola anterior
+  list.innerHTML = rows.map(c => {
+    const id = 'cob-row-' + cobCssId(c.sap_card_code);
+    const last = cobFmtFecha(c.cobranza_last_sent);
+    const sinCorreo = !c.email;
+    return `<div id="${id}" style="border:1px solid var(--border,#2a2a33);border-radius:12px;padding:14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div style="min-width:0">
+          <div style="font-weight:700">${escapeHtml(c.name || c.sap_card_code)}</div>
+          <div style="font-size:.78rem;opacity:.6">${escapeHtml(c.sap_card_code)}${sinCorreo ? ' · <span style="color:#E24B4A">sin correo</span>' : ' · ' + escapeHtml(c.email)}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:700">${fmt(c.current_balance)}</div>
+          <div class="cob-moro" style="font-size:.78rem;opacity:.6">morosidad…</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;flex-wrap:wrap">
+        <div class="cob-ult" style="font-size:.76rem;opacity:.65">${last ? 'Último envío: ' + last : 'Nunca enviado'}</div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;cursor:pointer">Recurrente
+            <input type="checkbox" ${c.cobranza_auto ? 'checked' : ''} onchange="toggleCobranzaAuto('${escapeHtml(c.sap_card_code)}',this)" style="width:18px;height:18px;accent-color:#FF6B35">
+          </label>
+          <button onclick="enviarDashboard('${escapeHtml(c.sap_card_code)}',this)" ${sinCorreo ? 'disabled' : ''} style="padding:8px 18px;border-radius:8px;border:none;background:${sinCorreo ? '#888' : '#1D9E75'};color:#fff;font-weight:700;cursor:${sinCorreo ? 'not-allowed' : 'pointer'}">Enviar</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  rows.slice(0, 50).forEach(c => cobMoroQueue.push(c.sap_card_code));   // calcula morosidad de los primeros 50
+  for (let i = 0; i < 3; i++) cobMoroPump();
+}
+
+function cobMoroPump() {
+  if (!cobMoroQueue.length || cobMoroActivos >= 3) return;
+  const cardCode = cobMoroQueue.shift();
+  cobMoroActivos++;
+  const hoy = new Date();
+  const hasta = hoy.toISOString().slice(0, 10);
+  const desde = (hoy.getFullYear() - 2) + '-01-01';
+  fetch('/.netlify/functions/estado-cuenta', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cardCode, desde, hasta })
+  }).then(r => r.json()).then(d => {
+    const row = document.getElementById('cob-row-' + cobCssId(cardCode));
+    if (!row) return;
+    const el = row.querySelector('.cob-moro');
+    if (d && d.success) {
+      const atraso = d.maxAtraso || 0, venc = d.vencido || 0;
+      let color = '#1D9E75', txt;
+      if (venc <= 0.01) txt = 'al día';
+      else { txt = atraso + ' días vencido'; color = atraso > 30 ? '#E24B4A' : '#E0A040'; }
+      el.innerHTML = `<span style="color:${color};font-weight:700">${txt}</span>` + (venc > 0.01 ? ` · ${fmt(venc)} venc.` : '');
+    } else { el.textContent = '—'; }
+  }).catch(() => {
+    const row = document.getElementById('cob-row-' + cobCssId(cardCode));
+    if (row) { const el = row.querySelector('.cob-moro'); if (el) el.textContent = '—'; }
+  }).finally(() => { cobMoroActivos--; cobMoroPump(); });
+}
+
+async function enviarDashboard(cardCode, btn) {
+  const cli = cobranzaDeudores.find(c => c.sap_card_code === cardCode);
+  if (!confirm(`¿Enviar el estado de cuenta a ${cli ? cli.name : cardCode} con copia a cobros?`)) return;
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  try {
+    const res = await fetch('/.netlify/functions/enviar-estado-cuenta', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cardCode, tipo: 'manual', aprobadoPor: currentVendor?.name || null })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showToast(`Enviado a ${data.to}`);
+      if (cli) cli.cobranza_last_sent = new Date().toISOString();
+      const row = document.getElementById('cob-row-' + cobCssId(cardCode));
+      if (row) { const u = row.querySelector('.cob-ult'); if (u) u.textContent = 'Último envío: ' + cobFmtFecha(new Date().toISOString()); }
+      btn.textContent = 'Enviado ✓'; btn.style.background = '#1D9E75';
+    } else {
+      showToast('No se pudo enviar: ' + (data.error || 'error'), true);
+      btn.disabled = false; btn.textContent = orig;
+    }
+  } catch (e) {
+    showToast('Error: ' + e.message, true);
+    btn.disabled = false; btn.textContent = orig;
   }
 }
 
