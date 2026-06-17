@@ -30,7 +30,7 @@ const EMPRESAS = {
       { label: 'Dirección',           value: 'Calle 14 Ave. Sta. Isabel, Edificio Lamparama, frente a Regal Intl.' },
       { label: 'Banco',               value: 'BANISTMO, S.A.  ·  SWIFT MIDLPAPA  ·  Torre Banistmo, Calle 50' },
       { label: 'Banco intermediario', value: 'CITIBANK, N.A.  ·  SWIFT CITIUS33XXX  ·  111 Wall St., New York, NY 10043, USA' },
-      { label: 'Referencia',          value: 'Indique el código de cliente en el detalle del pago.' }
+      { label: 'Referencia',          value: 'Indique el código de cliente en el detalle del pago.', value_en: 'Please indicate the customer code in the payment detail.' }
     ]
   },
   BDB: {
