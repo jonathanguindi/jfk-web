@@ -6394,6 +6394,28 @@ function cobMoroCell(m) {
   return { bar: grave ? 'var(--fire)' : 'var(--sun)', html: cobPill(grave ? 'var(--error-soft)' : 'rgba(255,182,39,.16)', grave ? 'var(--fire)' : '#9A6B00', m.atraso + ' días mora') + cred };
 }
 
+// Editar el correo del cliente y subirlo a SAP (+ Supabase)
+async function editarCorreoCliente(cardCode, current) {
+  const nuevo = (prompt('Correo del cliente (se guarda en SAP):', current || '') || '').trim();
+  if (!nuevo || nuevo === (current || '')) return;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nuevo)) { showToast('Correo inválido', true); return; }
+  showLoading(true);
+  try {
+    const res = await fetch('/.netlify/functions/actualizar-correo', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cardCode, email: nuevo })
+    });
+    const data = await res.json();
+    showLoading(false);
+    if (!data.ok) { showToast('No se pudo guardar: ' + (data.error || 'error'), true); return; }
+    [cobranzaDeudores, cobranzaRecurrentes, (typeof allCustomers !== 'undefined' ? allCustomers : [])]
+      .forEach(arr => { const c = (arr || []).find(x => x.sap_card_code === cardCode); if (c) c.email = nuevo; });
+    showToast('✓ Correo actualizado en SAP');
+    if (cobranzaPaisActual) renderCobranzaPaisList(cobranzaPaisActual);
+    if (document.getElementById('cobranza-pane-auto').style.display !== 'none') renderRecurrentes();
+  } catch (e) { showLoading(false); showToast('Error: ' + e.message, true); }
+}
+
 async function cobComputeMoro(cardCode) {
   const hoy = new Date();
   const hasta = hoy.toISOString().slice(0, 10);
@@ -6462,7 +6484,7 @@ function recurRow(c) {
           <div style="width:36px;height:36px;border-radius:50%;background:var(--ink-100);color:var(--ink-600);font-family:var(--font-serif);font-weight:600;font-size:.8rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">${escapeHtml(ini)}</div>
           <div style="min-width:0">
             <div style="font-weight:600;font-size:.9rem;color:var(--text-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:42vw">${escapeHtml(c.name || c.sap_card_code)}</div>
-            <div style="font-size:.72rem;color:var(--text-subtle);margin-top:1px"><span style="">${escapeHtml(c.sap_card_code)}</span>${sin ? ' · <span style="color:var(--error)">sin correo</span>' : ''}</div>
+            <div style="font-size:.72rem;color:var(--text-subtle);margin-top:1px"><span>${escapeHtml(c.sap_card_code)}</span> · ${sin ? `<a onclick="editarCorreoCliente('${escapeHtml(c.sap_card_code)}','')" style="color:var(--electric);cursor:pointer;text-decoration:underline">+ agregar correo</a>` : `${escapeHtml(c.email)} <a onclick="editarCorreoCliente('${escapeHtml(c.sap_card_code)}','${escapeHtml(c.email)}')" style="color:var(--electric);cursor:pointer" title="Editar correo">✎</a>`}</div>
           </div>
         </div>
         <div style="text-align:right"><div style="font-family:var(--font-serif);font-weight:600;font-size:1.02rem;color:var(--text-strong)">${fmt(c.current_balance)}</div><div class="rec-moro" style="margin-top:4px;font-size:.62rem;color:var(--text-subtle)">···</div></div>
@@ -6641,7 +6663,7 @@ function renderCobranzaPaisList(pais) {
             <div style="width:40px;height:40px;border-radius:50%;background:var(--ink-100);color:var(--ink-600);font-family:var(--font-serif);font-weight:600;font-size:.85rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">${escapeHtml(ini)}</div>
             <div style="min-width:0">
               <div style="font-weight:600;font-size:.95rem;color:var(--text-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:44vw">${escapeHtml(c.name || c.sap_card_code)}</div>
-              <div style="font-size:.74rem;color:var(--text-subtle);margin-top:2px"><span style="">${escapeHtml(c.sap_card_code)}</span>${sinCorreo ? ' · <span style="color:var(--error)">sin correo</span>' : ' · ' + escapeHtml(c.email)}</div>
+              <div style="font-size:.74rem;color:var(--text-subtle);margin-top:2px"><span>${escapeHtml(c.sap_card_code)}</span> · ${sinCorreo ? `<a onclick="editarCorreoCliente('${escapeHtml(c.sap_card_code)}','')" style="color:var(--electric);cursor:pointer;text-decoration:underline">+ agregar correo</a>` : `${escapeHtml(c.email)} <a onclick="editarCorreoCliente('${escapeHtml(c.sap_card_code)}','${escapeHtml(c.email)}')" style="color:var(--electric);cursor:pointer" title="Editar correo">✎</a>`}</div>
             </div>
           </div>
           <div style="text-align:right">
