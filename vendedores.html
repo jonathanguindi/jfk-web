@@ -2907,6 +2907,7 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
         <div style="font-size:.85rem;opacity:.7">Elige un país para ver sus clientes con saldo pendiente, su morosidad y enviarles el estado de cuenta.</div>
         <button onclick="loadCobranzaDashboard()" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border,#2a2a33);background:transparent;color:inherit;cursor:pointer;font-size:.8rem">↻ Refrescar</button>
       </div>
+      <div id="cobranza-pais-kpis" style="margin-bottom:14px"></div>
       <div id="cobranza-pais-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
       <div id="cobranza-pais-list"><div class="estado-placeholder">Cargando clientes…</div></div>
     </div>
@@ -6314,6 +6315,7 @@ async function loadCobranzaDashboard() {
       .limit(3000);
     if (error) throw error;
     cobranzaDeudores = data || [];
+    renderCobranzaKpis();
     renderCobranzaPaisChips();
     if (cobranzaPaisActual && cobranzaDeudores.some(c => (c.country || '—') === cobranzaPaisActual)) {
       renderCobranzaPaisList(cobranzaPaisActual);
@@ -6326,6 +6328,53 @@ async function loadCobranzaDashboard() {
   }
 }
 
+// Bandera (emoji) a partir del país: acepta código ISO-2 (PA, CR…) o nombre.
+const COB_PAIS_CODE = {
+  'panama':'PA','panamá':'PA','costa rica':'CR','colombia':'CO','guatemala':'GT','honduras':'HN',
+  'el salvador':'SV','nicaragua':'NI','republica dominicana':'DO','república dominicana':'DO',
+  'mexico':'MX','méxico':'MX','ecuador':'EC','peru':'PE','perú':'PE','venezuela':'VE','chile':'CL',
+  'argentina':'AR','brasil':'BR','brazil':'BR','bolivia':'BO','paraguay':'PY','uruguay':'UY',
+  'estados unidos':'US','usa':'US','united states':'US','espana':'ES','españa':'ES','spain':'ES','china':'CN'
+};
+const COB_CODE_NOMBRE = {
+  'PA':'Panamá','CR':'Costa Rica','CO':'Colombia','GT':'Guatemala','HN':'Honduras','SV':'El Salvador',
+  'NI':'Nicaragua','DO':'Rep. Dominicana','MX':'México','EC':'Ecuador','PE':'Perú','VE':'Venezuela',
+  'CL':'Chile','AR':'Argentina','BR':'Brasil','BO':'Bolivia','PY':'Paraguay','UY':'Uruguay',
+  'US':'Estados Unidos','ES':'España','CN':'China'
+};
+function cobPaisCode(p) {
+  if (!p || p === '—') return null;
+  const t = p.trim();
+  if (/^[A-Za-z]{2}$/.test(t)) return t.toUpperCase();
+  return COB_PAIS_CODE[t.toLowerCase()] || null;
+}
+function cobPaisFlag(p) {
+  const code = cobPaisCode(p);
+  if (!code) return '🏳️';
+  return code.replace(/./g, ch => String.fromCodePoint(127397 + ch.charCodeAt(0)));
+}
+function cobPaisNombre(p) {
+  const code = cobPaisCode(p);
+  if (code && COB_CODE_NOMBRE[code]) return COB_CODE_NOMBRE[code];
+  return (!p || p === '—') ? 'Sin país' : p;
+}
+
+function renderCobranzaKpis() {
+  const c = document.getElementById('cobranza-pais-kpis');
+  if (!c) return;
+  const n = cobranzaDeudores.length;
+  const total = cobranzaDeudores.reduce((s, x) => s + (parseFloat(x.current_balance) || 0), 0);
+  const paises = new Set(cobranzaDeudores.map(x => (x.country || '—'))).size;
+  const card = (label, val, accent) => `<div style="flex:1;min-width:130px;border:1px solid var(--border,#2a2a33);border-radius:14px;padding:14px 16px;background:linear-gradient(180deg,rgba(255,107,53,.07),transparent)">
+    <div style="font-size:.68rem;letter-spacing:.05em;text-transform:uppercase;opacity:.55;font-weight:700">${label}</div>
+    <div style="font-size:1.45rem;font-weight:800;margin-top:5px;color:${accent || 'inherit'}">${val}</div></div>`;
+  c.innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap">
+    ${card('Clientes con saldo', n)}
+    ${card('Total por cobrar', fmt(total), '#FF6B35')}
+    ${card('Países', paises)}
+  </div>`;
+}
+
 function renderCobranzaPaisChips() {
   const chips = document.getElementById('cobranza-pais-chips');
   const byPais = {};
@@ -6333,7 +6382,9 @@ function renderCobranzaPaisChips() {
   const paises = Object.keys(byPais).sort((a, b) => byPais[b].length - byPais[a].length);
   chips.innerHTML = paises.map(p => {
     const active = p === cobranzaPaisActual;
-    return `<button onclick="selectCobranzaPais('${escapeHtml(p)}')" style="padding:8px 14px;border-radius:999px;border:1px solid var(--border,#2a2a33);background:${active ? '#FF6B35' : 'transparent'};color:${active ? '#fff' : 'inherit'};font-weight:600;cursor:pointer">${escapeHtml(p)} <span style="opacity:.7">${byPais[p].length}</span></button>`;
+    return `<button onclick="selectCobranzaPais('${escapeHtml(p)}')" style="display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:999px;border:1px solid ${active ? '#FF6B35' : 'var(--border,#2a2a33)'};background:${active ? '#FF6B35' : 'transparent'};color:${active ? '#fff' : 'inherit'};font-weight:600;cursor:pointer;transition:all .15s">
+      <span style="font-size:1.1rem;line-height:1">${cobPaisFlag(p)}</span>${escapeHtml(cobPaisNombre(p))}
+      <span style="background:${active ? 'rgba(255,255,255,.25)' : 'var(--border,#2a2a33)'};padding:1px 8px;border-radius:999px;font-size:.72rem;font-weight:700">${byPais[p].length}</span></button>`;
   }).join('');
 }
 
@@ -6348,28 +6399,40 @@ function renderCobranzaPaisList(pais) {
   const rows = cobranzaDeudores.filter(c => (c.country || '—') === pais);
   if (!rows.length) { list.innerHTML = '<div class="estado-placeholder">Sin clientes</div>'; return; }
   cobMoroQueue.length = 0;   // cancela la cola anterior
-  list.innerHTML = rows.map(c => {
+  const header = `<div style="display:flex;align-items:center;gap:9px;margin:2px 0 14px">
+      <span style="font-size:1.4rem;line-height:1">${cobPaisFlag(pais)}</span>
+      <span style="font-weight:800;font-size:1.1rem">${escapeHtml(cobPaisNombre(pais))}</span>
+      <span style="opacity:.5;font-size:.85rem">· ${rows.length} cliente(s)</span>
+    </div>`;
+  list.innerHTML = header + rows.map(c => {
     const id = 'cob-row-' + cobCssId(c.sap_card_code);
     const last = cobFmtFecha(c.cobranza_last_sent);
     const sinCorreo = !c.email;
-    return `<div id="${id}" style="border:1px solid var(--border,#2a2a33);border-radius:12px;padding:14px;margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
-        <div style="min-width:0">
-          <div style="font-weight:700">${escapeHtml(c.name || c.sap_card_code)}</div>
-          <div style="font-size:.78rem;opacity:.6">${escapeHtml(c.sap_card_code)}${sinCorreo ? ' · <span style="color:#E24B4A">sin correo</span>' : ' · ' + escapeHtml(c.email)}</div>
+    const ini = (c.name || c.sap_card_code).split(/\s+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+    return `<div id="${id}" style="display:flex;border:1px solid var(--border,#2a2a33);border-radius:14px;overflow:hidden;margin-bottom:12px">
+      <div class="cob-accent" style="width:5px;background:#9aa4b2;flex-shrink:0"></div>
+      <div style="flex:1;padding:14px 16px;min-width:0">
+        <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:11px;min-width:0">
+            <div style="width:38px;height:38px;border-radius:50%;background:rgba(255,107,53,.15);color:#FF6B35;font-weight:800;font-size:.8rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">${escapeHtml(ini)}</div>
+            <div style="min-width:0">
+              <div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw">${escapeHtml(c.name || c.sap_card_code)}</div>
+              <div style="font-size:.75rem;opacity:.6">${escapeHtml(c.sap_card_code)}${sinCorreo ? ' · <span style="color:#E24B4A">sin correo</span>' : ' · ' + escapeHtml(c.email)}</div>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-weight:800;font-size:1.05rem">${fmt(c.current_balance)}</div>
+            <div class="cob-moro" style="font-size:.74rem;margin-top:4px;opacity:.7">calculando…</div>
+          </div>
         </div>
-        <div style="text-align:right">
-          <div style="font-weight:700">${fmt(c.current_balance)}</div>
-          <div class="cob-moro" style="font-size:.78rem;opacity:.6">morosidad…</div>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;flex-wrap:wrap">
-        <div class="cob-ult" style="font-size:.76rem;opacity:.65">${last ? 'Último envío: ' + last : 'Nunca enviado'}</div>
-        <div style="display:flex;align-items:center;gap:14px">
-          <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;cursor:pointer">Recurrente
-            <input type="checkbox" ${c.cobranza_auto ? 'checked' : ''} onchange="toggleCobranzaAuto('${escapeHtml(c.sap_card_code)}',this)" style="width:18px;height:18px;accent-color:#FF6B35">
-          </label>
-          <button onclick="enviarDashboard('${escapeHtml(c.sap_card_code)}',this)" ${sinCorreo ? 'disabled' : ''} style="padding:8px 18px;border-radius:8px;border:none;background:${sinCorreo ? '#888' : '#1D9E75'};color:#fff;font-weight:700;cursor:${sinCorreo ? 'not-allowed' : 'pointer'}">Enviar</button>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:13px;padding-top:11px;border-top:1px solid var(--border,#2a2a33);flex-wrap:wrap">
+          <div class="cob-ult" style="font-size:.74rem;opacity:.6">🕒 ${last ? 'Último envío: ' + last : 'Nunca enviado'}</div>
+          <div style="display:flex;align-items:center;gap:14px">
+            <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;cursor:pointer;opacity:.9">Recurrente
+              <input type="checkbox" ${c.cobranza_auto ? 'checked' : ''} onchange="toggleCobranzaAuto('${escapeHtml(c.sap_card_code)}',this)" style="width:18px;height:18px;accent-color:#FF6B35">
+            </label>
+            <button onclick="enviarDashboard('${escapeHtml(c.sap_card_code)}',this)" ${sinCorreo ? 'disabled' : ''} style="display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:9px;border:none;background:${sinCorreo ? '#888' : '#FF6B35'};color:#fff;font-weight:700;cursor:${sinCorreo ? 'not-allowed' : 'pointer'}">✉ Enviar</button>
+          </div>
         </div>
       </div>
     </div>`;
@@ -6391,13 +6454,15 @@ function cobMoroPump() {
   }).then(r => r.json()).then(d => {
     const row = document.getElementById('cob-row-' + cobCssId(cardCode));
     if (!row) return;
-    const el = row.querySelector('.cob-moro');
+    const el = row.querySelector('.cob-moro'), bar = row.querySelector('.cob-accent');
     if (d && d.success) {
       const atraso = d.maxAtraso || 0, venc = d.vencido || 0;
-      let color = '#1D9E75', txt;
-      if (venc <= 0.01) txt = 'al día';
-      else { txt = atraso + ' días vencido'; color = atraso > 30 ? '#E24B4A' : '#E0A040'; }
-      el.innerHTML = `<span style="color:${color};font-weight:700">${txt}</span>` + (venc > 0.01 ? ` · ${fmt(venc)} venc.` : '');
+      let color, txt;
+      if (venc <= 0.01) { color = '#1D9E75'; txt = 'al día'; }
+      else if (atraso > 30) { color = '#E24B4A'; txt = atraso + ' días vencido'; }
+      else { color = '#E0A040'; txt = atraso + ' días vencido'; }
+      if (bar) bar.style.background = color;
+      el.innerHTML = `<span style="display:inline-block;padding:2px 9px;border-radius:999px;background:${color}22;color:${color};font-weight:700;font-size:.72rem">${txt}</span>` + (venc > 0.01 ? ` <span style="opacity:.6">${fmt(venc)} venc.</span>` : '');
     } else { el.textContent = '—'; }
   }).catch(() => {
     const row = document.getElementById('cob-row-' + cobCssId(cardCode));
@@ -6420,7 +6485,7 @@ async function enviarDashboard(cardCode, btn) {
       showToast(`Enviado a ${data.to}`);
       if (cli) cli.cobranza_last_sent = new Date().toISOString();
       const row = document.getElementById('cob-row-' + cobCssId(cardCode));
-      if (row) { const u = row.querySelector('.cob-ult'); if (u) u.textContent = 'Último envío: ' + cobFmtFecha(new Date().toISOString()); }
+      if (row) { const u = row.querySelector('.cob-ult'); if (u) u.innerHTML = '🕒 Último envío: ' + cobFmtFecha(new Date().toISOString()); }
       btn.textContent = 'Enviado ✓'; btn.style.background = '#1D9E75';
     } else {
       showToast('No se pudo enviar: ' + (data.error || 'error'), true);
