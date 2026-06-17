@@ -2885,6 +2885,12 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
 </div>
 
 <!-- ===== COBRANZAS (SOLO ADMIN) ===== -->
+<style>
+  /* Fondo blanco solo en Cobranzas (en vez del crema del portal) */
+  #screen-cobranzas { background: var(--bg-elevated); }
+  /* Las tarjetas blancas se separan del fondo blanco con una sombra sutil */
+  #screen-cobranzas [style*="--surface-1"] { box-shadow: 0 1px 3px rgba(14,16,22,.05); }
+</style>
 <div id="screen-cobranzas" class="screen">
   <div class="estado-header">
     <div class="estado-header__top">
@@ -6270,8 +6276,12 @@ async function setRecurrencia(cardCode, cadencia, btn) {
   const cad = turningOff ? null : cadencia;
   if (cont) { cont.setAttribute('data-cad', cad || ''); cont.innerHTML = recurControlHTML({ sap_card_code: cardCode, cobranza_auto: auto, cobranza_cadencia: cad }); }
   try {
-    const { error } = await supa.from('customers').update({ cobranza_auto: auto, cobranza_cadencia: cad }).eq('sap_card_code', cardCode);
-    if (error) throw error;
+    const res = await fetch('/.netlify/functions/cobranza-marcar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cardCode, auto, cadencia: cad })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'No se pudo guardar');
     [cobranzaDeudores, cobranzaRecurrentes].forEach(arr => { const c = (arr || []).find(x => x.sap_card_code === cardCode); if (c) { c.cobranza_auto = auto; c.cobranza_cadencia = cad; } });
     showToast(turningOff ? 'Quitado de recurrente' : ('Recurrente ' + cadencia));
     loadCobranzaRecurrentes();
