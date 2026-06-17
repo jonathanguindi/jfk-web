@@ -37,7 +37,7 @@ async function runCobranzasJob(hoy = new Date()) {
   // 1) Clientes marcados para envío automático
   const { data: clientes, error: cErr } = await sb
     .from('customers')
-    .select('sap_card_code, name, email, payment_terms, current_balance, cobranza_last_sent, active')
+    .select('sap_card_code, name, email, payment_terms, current_balance, cobranza_last_sent, cobranza_cadencia, active')
     .eq('cobranza_auto', true)
     .eq('active', true)
     .limit(MAX_CLIENTS);
@@ -63,7 +63,8 @@ async function runCobranzasJob(hoy = new Date()) {
       const vencido = data.vencido || 0;
       if (vencido <= 0.01) continue;                       // no está en mora
       const atraso = data.maxAtraso || 0;
-      const cadencia = atraso > 30 ? 'diario' : 'semanal';
+      // Cadencia: la que eligió el administrador (manual); si no hay, según el atraso.
+      const cadencia = cli.cobranza_cadencia || (atraso > 30 ? 'diario' : 'semanal');
       if (!tocaEnviar(cadencia, cli.cobranza_last_sent, hoy)) continue;  // aún no toca reenviar
       if (yaPendiente.has(cli.sap_card_code)) continue;    // ya hay uno esperando aprobación
 

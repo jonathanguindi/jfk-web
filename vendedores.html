@@ -2923,13 +2923,14 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
 
     <!-- Recurrente -->
     <div id="cobranza-pane-auto" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-        <div style="font-size:.85rem;color:var(--text-muted)">Clientes con envío automático, agrupados por frecuencia según su atraso: <b>&gt;30 días = diario</b>, <b>1–30 días = semanal</b>.</div>
-        <button onclick="loadRecurGroups()" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border-soft);background:transparent;color:var(--text);cursor:pointer;font-size:.8rem">↻ Refrescar</button>
+      <div style="font-size:.85rem;color:var(--text-muted);margin-bottom:14px">Clientes marcados para envío recurrente. Cambia entre <b>Semanal</b> y <b>Diario</b>; agrupados por país.</div>
+      <div style="display:flex;gap:4px;margin-bottom:18px;background:var(--surface-2);border:1px solid var(--border-soft);border-radius:10px;padding:4px;max-width:340px">
+        <button id="rec-sub-semanal" onclick="switchRecCadencia('semanal')" style="flex:1;padding:9px;border-radius:7px;border:none;background:var(--surface-1);color:var(--text-strong);font-family:var(--font-mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.06)">Semanal <span id="rec-count-semanal"></span></button>
+        <button id="rec-sub-diario" onclick="switchRecCadencia('diario')" style="flex:1;padding:9px;border-radius:7px;border:none;background:transparent;color:var(--text-muted);font-family:var(--font-mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;cursor:pointer">Diario <span id="rec-count-diario"></span></button>
       </div>
-      <div id="cobranza-recur-groups"><div class="estado-placeholder"><div class="spinner"></div></div></div>
+      <div id="cobranza-recur-list"><div class="estado-placeholder"><div class="spinner"></div></div></div>
       <div style="margin-top:24px;padding-top:18px;border-top:1px solid var(--border-soft)">
-        <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-subtle);margin-bottom:10px">Agregar o quitar clientes</div>
+        <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-subtle);margin-bottom:10px">Agregar clientes</div>
         <input type="search" id="cobranza-auto-search" placeholder="Buscar cliente por nombre o código…" oninput="renderCobranzaAuto()" style="width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--border);background:transparent;color:inherit;margin-bottom:12px;box-sizing:border-box">
         <div id="cobranza-auto-list"></div>
       </div>
@@ -6159,7 +6160,7 @@ function openCobranzas() {
   switchCobranzaTab('pais');
   loadCobranzaDashboard();
   loadCobranzaPendientes();
-  loadCobranzaAuto();
+  loadCobranzaRecurrentes();
 }
 
 function switchCobranzaTab(which) {
@@ -6247,51 +6248,121 @@ async function descartarEnvio(id, btn) {
   }
 }
 
-async function loadCobranzaAuto() {
+// ===== RECURRENTE: cadencia manual (semanal / diario) =====
+let cobranzaRecurrentes = [];        // clientes con cobranza_auto = true (+ cadencia)
+let recCadenciaActual = 'semanal';   // sub-pestaña activa
+
+// Dos botones Semanal/Diario según el estado del cliente
+function recurControlHTML(c) {
+  const cad = c.cobranza_auto ? (c.cobranza_cadencia || 'semanal') : null;
+  const b = (val, label) => {
+    const on = cad === val;
+    return `<button type="button" onclick="setRecurrencia('${escapeHtml(c.sap_card_code)}','${val}',this)" style="padding:5px 11px;border-radius:7px;border:1px solid ${on ? 'var(--electric)' : 'var(--border)'};background:${on ? 'var(--electric)' : 'transparent'};color:${on ? '#fff' : 'var(--text-muted)'};font-family:var(--font-mono);font-size:.58rem;letter-spacing:.05em;text-transform:uppercase;cursor:pointer">${label}</button>`;
+  };
+  return `<span style="font-family:var(--font-mono);font-size:.58rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-subtle);margin-right:1px">Recurrente</span>${b('semanal', 'Sem')}${b('diario', 'Diario')}`;
+}
+
+async function setRecurrencia(cardCode, cadencia, btn) {
+  const cont = btn.closest('.cob-recctrl');
+  const prev = cont ? (cont.getAttribute('data-cad') || '') : '';
+  const turningOff = (prev === cadencia);
+  const auto = !turningOff;
+  const cad = turningOff ? null : cadencia;
+  if (cont) { cont.setAttribute('data-cad', cad || ''); cont.innerHTML = recurControlHTML({ sap_card_code: cardCode, cobranza_auto: auto, cobranza_cadencia: cad }); }
   try {
-    if (allCustomers.length === 0) await loadCustomers();
-    const { data, error } = await supa.from('customers').select('sap_card_code').eq('cobranza_auto', true);
+    const { error } = await supa.from('customers').update({ cobranza_auto: auto, cobranza_cadencia: cad }).eq('sap_card_code', cardCode);
     if (error) throw error;
-    cobranzaAutoSet = new Set((data || []).map(r => r.sap_card_code));
+    [cobranzaDeudores, cobranzaRecurrentes].forEach(arr => { const c = (arr || []).find(x => x.sap_card_code === cardCode); if (c) { c.cobranza_auto = auto; c.cobranza_cadencia = cad; } });
+    showToast(turningOff ? 'Quitado de recurrente' : ('Recurrente ' + cadencia));
+    loadCobranzaRecurrentes();
   } catch (e) {
-    cobranzaAutoSet = new Set();
+    showToast('Error: ' + e.message, true);
+    if (cont) { cont.setAttribute('data-cad', prev); cont.innerHTML = recurControlHTML({ sap_card_code: cardCode, cobranza_auto: !!prev, cobranza_cadencia: prev || null }); }
   }
+}
+
+async function loadCobranzaRecurrentes() {
+  const cont = document.getElementById('cobranza-recur-list');
+  if (cont) cont.innerHTML = '<div class="estado-placeholder"><div class="spinner"></div></div>';
+  try {
+    if (allCustomers.length === 0) loadCustomers();   // para el buscador (no bloqueante)
+    const { data, error } = await supa.from('customers')
+      .select('sap_card_code,name,country,email,current_balance,cobranza_cadencia,cobranza_last_sent')
+      .eq('cobranza_auto', true).eq('active', true).limit(2000);
+    if (error) throw error;
+    cobranzaRecurrentes = data || [];
+  } catch (e) {
+    if (cont) cont.innerHTML = `<div class="estado-placeholder" style="color:var(--error)">Error: ${escapeHtml(e.message)}</div>`;
+    return;
+  }
+  const nSem = cobranzaRecurrentes.filter(c => (c.cobranza_cadencia || 'semanal') === 'semanal').length;
+  const nDia = cobranzaRecurrentes.filter(c => c.cobranza_cadencia === 'diario').length;
+  const cs = document.getElementById('rec-count-semanal'), cd = document.getElementById('rec-count-diario');
+  if (cs) cs.textContent = nSem ? `(${nSem})` : '';
+  if (cd) cd.textContent = nDia ? `(${nDia})` : '';
+  renderRecurrentes();
   renderCobranzaAuto();
-  loadRecurGroups();
+}
+
+function switchRecCadencia(cad) {
+  recCadenciaActual = cad;
+  ['semanal', 'diario'].forEach(k => {
+    const b = document.getElementById('rec-sub-' + k);
+    if (b) { const on = k === cad; b.style.background = on ? 'var(--surface-1)' : 'transparent'; b.style.color = on ? 'var(--text-strong)' : 'var(--text-muted)'; b.style.boxShadow = on ? '0 1px 2px rgba(0,0,0,.06)' : 'none'; }
+  });
+  renderRecurrentes();
+}
+
+function renderRecurrentes() {
+  const cont = document.getElementById('cobranza-recur-list');
+  if (!cont) return;
+  const arr = cobranzaRecurrentes.filter(c => (c.cobranza_cadencia || 'semanal') === recCadenciaActual);
+  if (!arr.length) { cont.innerHTML = `<div class="estado-placeholder">Sin clientes recurrentes ${recCadenciaActual === 'diario' ? 'diarios' : 'semanales'}. Márcalos en “Por país”.</div>`; return; }
+  const byP = {};
+  arr.forEach(c => { const p = (c.country || '—'); (byP[p] = byP[p] || []).push(c); });
+  const paises = Object.keys(byP).sort((a, b) => byP[b].length - byP[a].length);
+  cont.innerHTML = paises.map(p => `
+    <div style="margin-bottom:18px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:1.1rem">${cobPaisFlag(p)}</span>
+        <span style="font-family:var(--font-serif);font-weight:600;font-size:1rem;color:var(--text-strong)">${escapeHtml(cobPaisNombre(p))}</span>
+        <span style="font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-subtle)">${byP[p].length}</span>
+      </div>
+      ${byP[p].map(recurRow).join('')}
+    </div>`).join('');
+  recMoroLoad(arr.map(c => c.sap_card_code).slice(0, 60));
+}
+
+// carga perezosa de morosidad para las filas recurrentes
+let recMoroActivos = 0; const recMoroQ = [];
+function recMoroLoad(cards) { recMoroQ.length = 0; cards.forEach(c => recMoroQ.push(c)); for (let i = 0; i < 3; i++) recMoroPump(); }
+function recMoroPump() {
+  if (!recMoroQ.length || recMoroActivos >= 3) return;
+  const card = recMoroQ.shift(); recMoroActivos++;
+  cobComputeMoro(card).then(m => {
+    const row = document.getElementById('rec-row-' + cobCssId(card)); if (!row) return;
+    const el = row.querySelector('.rec-moro'), bar = row.querySelector('.rec-accent');
+    if (m && m.vencido > 0.01) { const d = m.atraso > 30; if (bar) bar.style.background = d ? 'var(--fire)' : 'var(--sun)'; if (el) el.innerHTML = cobPill(d ? 'var(--error-soft)' : 'rgba(255,182,39,.16)', d ? 'var(--fire)' : '#9A6B00', m.atraso + ' días vencido'); }
+    else if (m) { if (bar) bar.style.background = 'var(--jade)'; if (el) el.innerHTML = cobPill('var(--success-soft)', 'var(--deep)', 'al día'); }
+    else if (el) el.textContent = '—';
+  }).finally(() => { recMoroActivos--; recMoroPump(); });
 }
 
 function renderCobranzaAuto() {
   const cont = document.getElementById('cobranza-auto-list');
+  if (!cont) return;
   const term = (document.getElementById('cobranza-auto-search').value || '').trim().toLowerCase();
-  if (!term) { cont.innerHTML = ''; return; }   // el buscador es solo para agregar/quitar
-  const list = allCustomers.filter(c =>
-    (c.name || '').toLowerCase().includes(term) || (c.sap_card_code || '').toLowerCase().includes(term)
-  ).slice(0, 80);
+  if (!term) { cont.innerHTML = ''; return; }
+  const list = allCustomers.filter(c => (c.name || '').toLowerCase().includes(term) || (c.sap_card_code || '').toLowerCase().includes(term)).slice(0, 60);
   if (!list.length) { cont.innerHTML = '<div class="estado-placeholder">Sin resultados</div>'; return; }
   cont.innerHTML = list.map(c => {
-    const on = cobranzaAutoSet.has(c.sap_card_code);
-    return `<label style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px;border:1px solid var(--border-soft);border-radius:10px;margin-bottom:8px;cursor:pointer">
-      <span><span style="font-weight:600;color:var(--text-strong)">${escapeHtml(c.name || '')}</span><span style="font-family:var(--font-mono);font-size:.74rem;color:var(--text-subtle);display:block">${escapeHtml(c.sap_card_code)}</span></span>
-      <input type="checkbox" ${on ? 'checked' : ''} onchange="toggleCobranzaAuto('${escapeHtml(c.sap_card_code)}',this)" style="width:20px;height:20px;accent-color:var(--cta);flex-shrink:0">
-    </label>`;
+    const rec = cobranzaRecurrentes.find(x => x.sap_card_code === c.sap_card_code);
+    const state = { sap_card_code: c.sap_card_code, cobranza_auto: !!rec, cobranza_cadencia: rec ? (rec.cobranza_cadencia || 'semanal') : null };
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;border:1px solid var(--border-soft);border-radius:10px;margin-bottom:8px">
+      <div style="min-width:0"><div style="font-weight:600;color:var(--text-strong);font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:42vw">${escapeHtml(c.name || '')}</div><div style="font-family:var(--font-mono);font-size:.72rem;color:var(--text-subtle)">${escapeHtml(c.sap_card_code)}</div></div>
+      <div class="cob-recctrl" data-card="${escapeHtml(c.sap_card_code)}" data-cad="${state.cobranza_cadencia || ''}" style="display:flex;align-items:center;gap:6px;flex-shrink:0">${recurControlHTML(state)}</div>
+    </div>`;
   }).join('');
-}
-
-async function toggleCobranzaAuto(cardCode, cb) {
-  const on = cb.checked;
-  cb.disabled = true;
-  try {
-    const { error } = await supa.from('customers').update({ cobranza_auto: on }).eq('sap_card_code', cardCode);
-    if (error) throw error;
-    if (on) cobranzaAutoSet.add(cardCode); else cobranzaAutoSet.delete(cardCode);
-    showToast(on ? 'Agregado a recurrente' : 'Quitado de recurrente');
-    loadRecurGroups();
-  } catch (e) {
-    cb.checked = !on;
-    showToast('Error: ' + e.message, true);
-  } finally {
-    cb.disabled = false;
-  }
 }
 
 // --- Vista "Recurrente": clientes auto agrupados por frecuencia (diario / semanal) ---
@@ -6356,14 +6427,11 @@ async function loadRecurGroups() {
 }
 
 function recurRow(c) {
-  const m = c._m, sin = !c.email, last = cobFmtFecha(c.cobranza_last_sent);
+  const sin = !c.email, last = cobFmtFecha(c.cobranza_last_sent);
   const ini = (c.name || c.sap_card_code).split(/\s+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase();
-  let bar = 'var(--jade)', pill = cobPill('var(--success-soft)', 'var(--deep)', 'al día');
-  if (m && m.vencido > 0.01) { const d = m.atraso > 30; bar = d ? 'var(--fire)' : 'var(--sun)'; pill = cobPill(d ? 'var(--error-soft)' : 'rgba(255,182,39,.16)', d ? 'var(--fire)' : '#9A6B00', m.atraso + ' días vencido'); }
-  else if (!m) { bar = 'var(--border-strong)'; pill = '<span style="font-family:var(--font-mono);font-size:.62rem;color:var(--text-subtle)">—</span>'; }
-  const saldo = m ? m.saldo : c.current_balance;
-  return `<div style="display:flex;background:var(--surface-1);border:1px solid var(--border-soft);border-radius:12px;overflow:hidden;margin-bottom:8px">
-    <div style="width:3px;background:${bar};flex-shrink:0"></div>
+  const state = { sap_card_code: c.sap_card_code, cobranza_auto: true, cobranza_cadencia: c.cobranza_cadencia || 'semanal' };
+  return `<div id="rec-row-${cobCssId(c.sap_card_code)}" style="display:flex;background:var(--surface-1);border:1px solid var(--border-soft);border-radius:12px;overflow:hidden;margin-bottom:8px">
+    <div class="rec-accent" style="width:3px;background:var(--border-strong);flex-shrink:0"></div>
     <div style="flex:1;padding:13px 16px;min-width:0">
       <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:11px;min-width:0">
@@ -6373,13 +6441,13 @@ function recurRow(c) {
             <div style="font-size:.72rem;color:var(--text-subtle);margin-top:1px"><span style="font-family:var(--font-mono)">${escapeHtml(c.sap_card_code)}</span>${sin ? ' · <span style="color:var(--error)">sin correo</span>' : ''}</div>
           </div>
         </div>
-        <div style="text-align:right"><div style="font-family:var(--font-serif);font-weight:600;font-size:1.02rem;color:var(--text-strong)">${fmt(saldo)}</div><div style="margin-top:4px">${pill}</div></div>
+        <div style="text-align:right"><div style="font-family:var(--font-serif);font-weight:600;font-size:1.02rem;color:var(--text-strong)">${fmt(c.current_balance)}</div><div class="rec-moro" style="margin-top:4px;font-family:var(--font-mono);font-size:.62rem;color:var(--text-subtle)">···</div></div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border-soft);flex-wrap:wrap">
-        <div style="font-family:var(--font-mono);font-size:.62rem;color:var(--text-subtle)">${last ? 'Último envío · ' + last : 'Sin envíos previos'}</div>
-        <div style="display:flex;align-items:center;gap:14px">
-          <button onclick="quitarRecurrente('${escapeHtml(c.sap_card_code)}',this)" style="background:none;border:none;color:var(--text-subtle);font-family:var(--font-mono);font-size:.62rem;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;text-decoration:underline">Quitar</button>
-          <button onclick="enviarDashboard('${escapeHtml(c.sap_card_code)}',this)" ${sin ? 'disabled' : ''} style="padding:7px 18px;border-radius:8px;border:none;background:${sin ? 'var(--ink-300)' : 'var(--cta)'};color:#fff;font-weight:600;font-size:.8rem;cursor:${sin ? 'not-allowed' : 'pointer'}">Enviar</button>
+        <div class="cob-recctrl" data-card="${escapeHtml(c.sap_card_code)}" data-cad="${c.cobranza_cadencia || 'semanal'}" style="display:flex;align-items:center;gap:6px">${recurControlHTML(state)}</div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="font-family:var(--font-mono);font-size:.6rem;color:var(--text-subtle)">${last ? 'Últ · ' + last : 'Sin envíos'}</div>
+          <button onclick="enviarDashboard('${escapeHtml(c.sap_card_code)}',this)" ${sin ? 'disabled' : ''} style="padding:7px 16px;border-radius:8px;border:none;background:${sin ? 'var(--ink-300)' : 'var(--cta)'};color:#fff;font-weight:600;font-size:.78rem;cursor:${sin ? 'not-allowed' : 'pointer'}">Enviar</button>
         </div>
       </div>
     </div>
@@ -6423,7 +6491,7 @@ async function loadCobranzaDashboard() {
   try {
     const { data, error } = await supa
       .from('customers')
-      .select('sap_card_code,name,country,email,current_balance,cobranza_auto,cobranza_last_sent')
+      .select('sap_card_code,name,country,email,current_balance,cobranza_auto,cobranza_cadencia,cobranza_last_sent')
       .eq('active', true)
       .gt('current_balance', 0)
       .order('current_balance', { ascending: false })
@@ -6559,10 +6627,8 @@ function renderCobranzaPaisList(pais) {
         </div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border-soft);flex-wrap:wrap">
           <div class="cob-ult" style="font-family:var(--font-mono);font-size:.64rem;letter-spacing:.03em;color:var(--text-subtle)">${last ? 'Último envío · ' + last : 'Sin envíos previos'}</div>
-          <div style="display:flex;align-items:center;gap:16px">
-            <label style="display:flex;align-items:center;gap:7px;font-family:var(--font-mono);font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);cursor:pointer">Recurrente
-              <input type="checkbox" ${c.cobranza_auto ? 'checked' : ''} onchange="toggleCobranzaAuto('${escapeHtml(c.sap_card_code)}',this)" style="width:16px;height:16px;accent-color:var(--cta)">
-            </label>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <div class="cob-recctrl" data-card="${escapeHtml(c.sap_card_code)}" data-cad="${c.cobranza_auto ? (c.cobranza_cadencia || 'semanal') : ''}" style="display:flex;align-items:center;gap:6px">${recurControlHTML(c)}</div>
             <button onclick="enviarDashboard('${escapeHtml(c.sap_card_code)}',this)" ${sinCorreo ? 'disabled' : ''} style="padding:8px 20px;border-radius:8px;border:none;background:${sinCorreo ? 'var(--ink-300)' : 'var(--cta)'};color:#fff;font-weight:600;font-size:.82rem;letter-spacing:.02em;cursor:${sinCorreo ? 'not-allowed' : 'pointer'}">Enviar</button>
           </div>
         </div>

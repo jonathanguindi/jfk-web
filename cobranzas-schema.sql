@@ -9,6 +9,10 @@ alter table public.customers
 alter table public.customers
   add column if not exists cobranza_last_sent timestamptz;
 
+-- Cadencia elegida manualmente para el envío recurrente: 'semanal' | 'diario'
+alter table public.customers
+  add column if not exists cobranza_cadencia text;
+
 -- 2) Tabla de envíos / cola de aprobación -------------------------------------
 create table if not exists public.cobranza_envios (
   id            uuid primary key default gen_random_uuid(),
