@@ -140,6 +140,15 @@ async function computeEstadoCuenta({ cardCode, desde, hasta }, hoy = new Date())
     vencido = r2(vencido + restante);     // saldo de apertura se asume vencido
   }
 
+  // Días de crédito acordados = DocDueDate - DocDate de la factura más reciente.
+  let diasCredito = null;
+  for (const f of facturas) {
+    if (f.DocDate && f.DocDueDate) {
+      const dd = Math.round((new Date(f.DocDueDate) - new Date(f.DocDate)) / 86400000);
+      if (dd >= 0) { diasCredito = dd; break; }
+    }
+  }
+
   return {
     success: true,
     cliente: {
@@ -161,7 +170,8 @@ async function computeEstadoCuenta({ cardCode, desde, hasta }, hoy = new Date())
     saldoFinal,
     // Campos de cobranzas
     vencido,
-    maxAtraso
+    maxAtraso,
+    diasCredito
   };
 }
 

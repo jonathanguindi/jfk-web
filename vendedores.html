@@ -6354,9 +6354,9 @@ function recMoroPump() {
   cobComputeMoro(card).then(m => {
     const row = document.getElementById('rec-row-' + cobCssId(card)); if (!row) return;
     const el = row.querySelector('.rec-moro'), bar = row.querySelector('.rec-accent');
-    if (m && m.vencido > 0.01) { const d = m.atraso > 30; if (bar) bar.style.background = d ? 'var(--fire)' : 'var(--sun)'; if (el) el.innerHTML = cobPill(d ? 'var(--error-soft)' : 'rgba(255,182,39,.16)', d ? 'var(--fire)' : '#9A6B00', m.atraso + ' días vencido'); }
-    else if (m) { if (bar) bar.style.background = 'var(--jade)'; if (el) el.innerHTML = cobPill('var(--success-soft)', 'var(--deep)', 'al día'); }
-    else if (el) el.textContent = '—';
+    const cell = cobMoroCell(m);
+    if (bar) bar.style.background = cell.bar;
+    if (el) el.innerHTML = cell.html;
   }).finally(() => { recMoroActivos--; recMoroPump(); });
 }
 
@@ -6381,6 +6381,18 @@ function renderCobranzaAuto() {
 function cobPill(bg, fg, txt) {
   return `<span style="display:inline-block;padding:3px 9px;border-radius:5px;background:${bg};color:${fg};font-weight:500;font-size:.62rem;letter-spacing:.04em;text-transform:uppercase">${txt}</span>`;
 }
+// Días de crédito acordados (contexto)
+function cobCredito(c) {
+  return (c != null) ? ` <span style="font-size:.66rem;color:var(--text-subtle)">· ${c} d crédito</span>` : '';
+}
+// Celda de morosidad: verde = al día (dentro del crédito), amarillo = vencido reciente, rojo = muy vencido.
+function cobMoroCell(m) {
+  if (!m) return { bar: 'var(--border-strong)', html: '<span style="color:var(--text-subtle)">—</span>' };
+  const cred = cobCredito(m.credito);
+  if (m.vencido <= 0.01) return { bar: 'var(--jade)', html: cobPill('var(--success-soft)', 'var(--deep)', 'Al día') + cred };
+  const grave = m.atraso > 30;
+  return { bar: grave ? 'var(--fire)' : 'var(--sun)', html: cobPill(grave ? 'var(--error-soft)' : 'rgba(255,182,39,.16)', grave ? 'var(--fire)' : '#9A6B00', m.atraso + ' días mora') + cred };
+}
 
 async function cobComputeMoro(cardCode) {
   const hoy = new Date();
@@ -6389,7 +6401,7 @@ async function cobComputeMoro(cardCode) {
   try {
     const r = await fetch('/.netlify/functions/estado-cuenta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cardCode, desde, hasta }) });
     const d = await r.json();
-    if (d && d.success) return { atraso: d.maxAtraso || 0, vencido: d.vencido || 0, saldo: d.cliente.saldoActual };
+    if (d && d.success) return { atraso: d.maxAtraso || 0, vencido: d.vencido || 0, saldo: d.cliente.saldoActual, credito: d.diasCredito };
   } catch (e) {}
   return null;
 }
@@ -6666,13 +6678,9 @@ function cobMoroPump() {
     if (!row) return;
     const el = row.querySelector('.cob-moro'), bar = row.querySelector('.cob-accent');
     if (d && d.success) {
-      const atraso = d.maxAtraso || 0, venc = d.vencido || 0;
-      let barC, bg, fg, txt;
-      if (venc <= 0.01) { barC = 'var(--jade)'; bg = 'var(--success-soft)'; fg = 'var(--deep)'; txt = 'al día'; }
-      else if (atraso > 30) { barC = 'var(--fire)'; bg = 'var(--error-soft)'; fg = 'var(--fire)'; txt = atraso + ' días vencido'; }
-      else { barC = 'var(--sun)'; bg = 'rgba(255,182,39,.16)'; fg = '#9A6B00'; txt = atraso + ' días vencido'; }
-      if (bar) bar.style.background = barC;
-      el.innerHTML = `<span style="display:inline-block;padding:3px 9px;border-radius:5px;background:${bg};color:${fg};font-weight:500;font-size:.62rem;letter-spacing:.04em;text-transform:uppercase">${txt}</span>` + (venc > 0.01 ? ` <span style="font-size:.64rem;color:var(--text-subtle)">${fmt(venc)}</span>` : '');
+      const cell = cobMoroCell({ atraso: d.maxAtraso || 0, vencido: d.vencido || 0, credito: d.diasCredito });
+      if (bar) bar.style.background = cell.bar;
+      el.innerHTML = cell.html;
     } else { el.textContent = '—'; }
   }).catch(() => {
     const row = document.getElementById('cob-row-' + cobCssId(cardCode));
