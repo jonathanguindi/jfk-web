@@ -40,8 +40,8 @@ async function prefetchImgs(empresa, codes, conc = 8) {
 }
 
 const LBL = {
-  es: { titulo: 'FACTURAS', factura: 'Factura', fecha: 'Fecha', total: 'Total', cant: 'Cant', precio: 'Precio', subtotal: 'Total', sinFotos: 'sin foto', generado: 'Documento generado automáticamente' },
-  en: { titulo: 'INVOICES', factura: 'Invoice', fecha: 'Date', total: 'Total', cant: 'Qty', precio: 'Price', subtotal: 'Total', sinFotos: 'no photo', generado: 'Automatically generated document' }
+  es: { titulo: 'FACTURAS', factura: 'Factura', num: 'N° ', fecha: 'Fecha', producto: 'Producto', total: 'Total', cant: 'Cant', precio: 'Precio', subtotal: 'Total', sinFotos: 'sin foto', generado: 'Documento generado automáticamente' },
+  en: { titulo: 'INVOICES', factura: 'Invoice', num: '#', fecha: 'Date', producto: 'Product', total: 'Total', cant: 'Qty', precio: 'Price', subtotal: 'Total', sinFotos: 'no photo', generado: 'Automatically generated document' }
 };
 
 // facturas = salida de fetchFacturasConLineas()
@@ -87,7 +87,7 @@ async function buildFacturasPDF(facturas, empresa, lang = 'es') {
         // Cabecera de la factura
         doc.rect(left, y, contentW, 22).fill('#0E1016');
         doc.fillColor('#fff').font('Helvetica-Bold').fontSize(10)
-          .text(`${L.factura} N° ${f.docNum}`, left + 8, y + 6, { lineBreak: false });
+          .text(`${L.factura} ${L.num}${f.docNum}`, left + 8, y + 6, { lineBreak: false });
         doc.font('Helvetica').fontSize(9)
           .text(`${L.fecha}: ${f.fecha}`, left + 160, y + 6.5, { lineBreak: false });
         doc.font('Helvetica-Bold').fontSize(10)
@@ -98,7 +98,7 @@ async function buildFacturasPDF(facturas, empresa, lang = 'es') {
         // Encabezado de columnas
         doc.font('Helvetica-Bold').fontSize(7).fillColor('#888');
         doc.text('', xImg, y, { width: wImg });
-        doc.text('Producto', xDesc, y, { width: wDesc, lineBreak: false });
+        doc.text(L.producto, xDesc, y, { width: wDesc, lineBreak: false });
         doc.text(L.cant, xQty, y, { width: wQty, align: 'right', lineBreak: false });
         doc.text(L.precio, xPre, y, { width: wPre, align: 'right', lineBreak: false });
         doc.text(L.subtotal, xTot, y, { width: wTot, align: 'right', lineBreak: false });
