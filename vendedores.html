@@ -2914,7 +2914,7 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
         <button onclick="loadCobranzaDashboard()" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border,#2a2a33);background:transparent;color:inherit;cursor:pointer;font-size:.8rem">↻ Refrescar</button>
       </div>
       <div id="cobranza-pais-kpis" style="margin-bottom:14px"></div>
-      <div id="cobranza-pais-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
+      <div id="cobranza-pais-chips" style="display:flex;gap:8px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:8px;margin-bottom:10px;-webkit-overflow-scrolling:touch"></div>
       <div id="cobranza-pais-list"><div class="estado-placeholder">Cargando clientes…</div></div>
     </div>
 
@@ -2931,12 +2931,12 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
     <div id="cobranza-pane-auto" style="display:none">
       <div style="font-size:.85rem;color:var(--text-muted);margin-bottom:14px">Clientes marcados para envío recurrente. Cambia entre <b>Semanal</b> y <b>Diario</b>; agrupados por país.</div>
       <div style="display:flex;gap:4px;margin-bottom:18px;background:var(--surface-2);border:1px solid var(--border-soft);border-radius:10px;padding:4px;max-width:340px">
-        <button id="rec-sub-semanal" onclick="switchRecCadencia('semanal')" style="flex:1;padding:9px;border-radius:7px;border:none;background:var(--surface-1);color:var(--text-strong);font-family:var(--font-mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.06)">Semanal <span id="rec-count-semanal"></span></button>
-        <button id="rec-sub-diario" onclick="switchRecCadencia('diario')" style="flex:1;padding:9px;border-radius:7px;border:none;background:transparent;color:var(--text-muted);font-family:var(--font-mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;cursor:pointer">Diario <span id="rec-count-diario"></span></button>
+        <button id="rec-sub-semanal" onclick="switchRecCadencia('semanal')" style="flex:1;padding:9px;border-radius:7px;border:none;background:var(--surface-1);color:var(--text-strong);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.06)">Semanal <span id="rec-count-semanal"></span></button>
+        <button id="rec-sub-diario" onclick="switchRecCadencia('diario')" style="flex:1;padding:9px;border-radius:7px;border:none;background:transparent;color:var(--text-muted);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;cursor:pointer">Diario <span id="rec-count-diario"></span></button>
       </div>
       <div id="cobranza-recur-list"><div class="estado-placeholder"><div class="spinner"></div></div></div>
       <div style="margin-top:24px;padding-top:18px;border-top:1px solid var(--border-soft)">
-        <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-subtle);margin-bottom:10px">Agregar clientes</div>
+        <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-subtle);margin-bottom:10px">Agregar clientes</div>
         <input type="search" id="cobranza-auto-search" placeholder="Buscar cliente por nombre o código…" oninput="renderCobranzaAuto()" style="width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--border);background:transparent;color:inherit;margin-bottom:12px;box-sizing:border-box">
         <div id="cobranza-auto-list"></div>
       </div>
@@ -6263,9 +6263,9 @@ function recurControlHTML(c) {
   const cad = c.cobranza_auto ? (c.cobranza_cadencia || 'semanal') : null;
   const b = (val, label) => {
     const on = cad === val;
-    return `<button type="button" onclick="setRecurrencia('${escapeHtml(c.sap_card_code)}','${val}',this)" style="padding:5px 11px;border-radius:7px;border:1px solid ${on ? 'var(--electric)' : 'var(--border)'};background:${on ? 'var(--electric)' : 'transparent'};color:${on ? '#fff' : 'var(--text-muted)'};font-family:var(--font-mono);font-size:.58rem;letter-spacing:.05em;text-transform:uppercase;cursor:pointer">${label}</button>`;
+    return `<button type="button" onclick="setRecurrencia('${escapeHtml(c.sap_card_code)}','${val}',this)" style="padding:5px 11px;border-radius:7px;border:1px solid ${on ? 'var(--electric)' : 'var(--border)'};background:${on ? 'var(--electric)' : 'transparent'};color:${on ? '#fff' : 'var(--text-muted)'};font-size:.58rem;letter-spacing:.05em;text-transform:uppercase;cursor:pointer">${label}</button>`;
   };
-  return `<span style="font-family:var(--font-mono);font-size:.58rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-subtle);margin-right:1px">Recurrente</span>${b('semanal', 'Sem')}${b('diario', 'Diario')}`;
+  return `<span style="font-size:.58rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-subtle);margin-right:1px">Recurrente</span>${b('semanal', 'Sem')}${b('diario', 'Diario')}`;
 }
 
 async function setRecurrencia(cardCode, cadencia, btn) {
@@ -6338,7 +6338,7 @@ function renderRecurrentes() {
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
         <span style="font-size:1.1rem">${cobPaisFlag(p)}</span>
         <span style="font-family:var(--font-serif);font-weight:600;font-size:1rem;color:var(--text-strong)">${escapeHtml(cobPaisNombre(p))}</span>
-        <span style="font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-subtle)">${byP[p].length}</span>
+        <span style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-subtle)">${byP[p].length}</span>
       </div>
       ${byP[p].map(recurRow).join('')}
     </div>`).join('');
@@ -6371,7 +6371,7 @@ function renderCobranzaAuto() {
     const rec = cobranzaRecurrentes.find(x => x.sap_card_code === c.sap_card_code);
     const state = { sap_card_code: c.sap_card_code, cobranza_auto: !!rec, cobranza_cadencia: rec ? (rec.cobranza_cadencia || 'semanal') : null };
     return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;border:1px solid var(--border-soft);border-radius:10px;margin-bottom:8px">
-      <div style="min-width:0"><div style="font-weight:600;color:var(--text-strong);font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:42vw">${escapeHtml(c.name || '')}</div><div style="font-family:var(--font-mono);font-size:.72rem;color:var(--text-subtle)">${escapeHtml(c.sap_card_code)}</div></div>
+      <div style="min-width:0"><div style="font-weight:600;color:var(--text-strong);font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:42vw">${escapeHtml(c.name || '')}</div><div style="font-size:.72rem;color:var(--text-subtle)">${escapeHtml(c.sap_card_code)}</div></div>
       <div class="cob-recctrl" data-card="${escapeHtml(c.sap_card_code)}" data-cad="${state.cobranza_cadencia || ''}" style="display:flex;align-items:center;gap:6px;flex-shrink:0">${recurControlHTML(state)}</div>
     </div>`;
   }).join('');
@@ -6379,7 +6379,7 @@ function renderCobranzaAuto() {
 
 // --- Vista "Recurrente": clientes auto agrupados por frecuencia (diario / semanal) ---
 function cobPill(bg, fg, txt) {
-  return `<span style="display:inline-block;padding:3px 9px;border-radius:5px;background:${bg};color:${fg};font-family:var(--font-mono);font-weight:500;font-size:.62rem;letter-spacing:.04em;text-transform:uppercase">${txt}</span>`;
+  return `<span style="display:inline-block;padding:3px 9px;border-radius:5px;background:${bg};color:${fg};font-weight:500;font-size:.62rem;letter-spacing:.04em;text-transform:uppercase">${txt}</span>`;
 }
 
 async function cobComputeMoro(cardCode) {
@@ -6427,8 +6427,8 @@ async function loadRecurGroups() {
     return `<div style="margin-bottom:22px">
       <div style="display:flex;align-items:center;gap:9px;margin-bottom:11px">
         <span style="width:9px;height:9px;border-radius:50%;background:${accent};flex-shrink:0"></span>
-        <span style="font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-strong);font-weight:500">${title}</span>
-        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-subtle)">${arr.length} · ${sub}</span>
+        <span style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-strong);font-weight:500">${title}</span>
+        <span style="font-size:11px;color:var(--text-subtle)">${arr.length} · ${sub}</span>
       </div>
       ${arr.map(recurRow).join('')}</div>`;
   };
@@ -6450,15 +6450,15 @@ function recurRow(c) {
           <div style="width:36px;height:36px;border-radius:50%;background:var(--ink-100);color:var(--ink-600);font-family:var(--font-serif);font-weight:600;font-size:.8rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">${escapeHtml(ini)}</div>
           <div style="min-width:0">
             <div style="font-weight:600;font-size:.9rem;color:var(--text-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:42vw">${escapeHtml(c.name || c.sap_card_code)}</div>
-            <div style="font-size:.72rem;color:var(--text-subtle);margin-top:1px"><span style="font-family:var(--font-mono)">${escapeHtml(c.sap_card_code)}</span>${sin ? ' · <span style="color:var(--error)">sin correo</span>' : ''}</div>
+            <div style="font-size:.72rem;color:var(--text-subtle);margin-top:1px"><span style="">${escapeHtml(c.sap_card_code)}</span>${sin ? ' · <span style="color:var(--error)">sin correo</span>' : ''}</div>
           </div>
         </div>
-        <div style="text-align:right"><div style="font-family:var(--font-serif);font-weight:600;font-size:1.02rem;color:var(--text-strong)">${fmt(c.current_balance)}</div><div class="rec-moro" style="margin-top:4px;font-family:var(--font-mono);font-size:.62rem;color:var(--text-subtle)">···</div></div>
+        <div style="text-align:right"><div style="font-family:var(--font-serif);font-weight:600;font-size:1.02rem;color:var(--text-strong)">${fmt(c.current_balance)}</div><div class="rec-moro" style="margin-top:4px;font-size:.62rem;color:var(--text-subtle)">···</div></div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border-soft);flex-wrap:wrap">
         <div class="cob-recctrl" data-card="${escapeHtml(c.sap_card_code)}" data-cad="${c.cobranza_cadencia || 'semanal'}" style="display:flex;align-items:center;gap:6px">${recurControlHTML(state)}</div>
         <div style="display:flex;align-items:center;gap:12px">
-          <div style="font-family:var(--font-mono);font-size:.6rem;color:var(--text-subtle)">${last ? 'Últ · ' + last : 'Sin envíos'}</div>
+          <div style="font-size:.6rem;color:var(--text-subtle)">${last ? 'Últ · ' + last : 'Sin envíos'}</div>
           <button onclick="enviarDashboard('${escapeHtml(c.sap_card_code)}',this)" ${sin ? 'disabled' : ''} style="padding:7px 16px;border-radius:8px;border:none;background:${sin ? 'var(--ink-300)' : 'var(--cta)'};color:#fff;font-weight:600;font-size:.78rem;cursor:${sin ? 'not-allowed' : 'pointer'}">Enviar</button>
         </div>
       </div>
@@ -6578,7 +6578,7 @@ function renderCobranzaKpis() {
   const paises = new Set(cobranzaDeudores.map(x => (x.country || '—'))).size;
   const card = (label, val, edge) => `<div style="position:relative;flex:1;min-width:160px;background:var(--surface-1);border:1px solid var(--border-soft);border-radius:12px;padding:17px 20px 17px 22px;overflow:hidden">
     <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:${edge}"></div>
-    <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-subtle)">${label}</div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-subtle)">${label}</div>
     <div style="font-family:var(--font-serif);font-size:clamp(1.1rem,4.4vw,1.7rem);font-weight:600;margin-top:9px;line-height:1.05;white-space:nowrap;color:var(--text-strong)">${val}</div></div>`;
   c.innerHTML = `<div style="display:flex;gap:12px;flex-wrap:wrap">
     ${card('Clientes con saldo', n, 'var(--electric)')}
@@ -6594,9 +6594,9 @@ function renderCobranzaPaisChips() {
   const paises = Object.keys(byPais).sort((a, b) => byPais[b].length - byPais[a].length);
   chips.innerHTML = paises.map(p => {
     const active = p === cobranzaPaisActual;
-    return `<button onclick="selectCobranzaPais('${escapeHtml(p)}')" style="display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:9px;border:1px solid ${active ? 'var(--electric)' : 'var(--border)'};background:${active ? 'var(--electric)' : 'transparent'};color:${active ? '#fff' : 'var(--text)'};font-size:13px;font-weight:500;cursor:pointer;transition:all .15s">
+    return `<button onclick="selectCobranzaPais('${escapeHtml(p)}')" style="flex-shrink:0;display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:9px;border:1px solid ${active ? 'var(--electric)' : 'var(--border)'};background:${active ? 'var(--electric)' : 'transparent'};color:${active ? '#fff' : 'var(--text)'};font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap">
       <span style="font-size:1.05rem;line-height:1">${cobPaisFlag(p)}</span>${escapeHtml(cobPaisNombre(p))}
-      <span style="font-family:var(--font-mono);font-size:11px;opacity:.75">${byPais[p].length}</span></button>`;
+      <span style="font-size:11px;opacity:.75">${byPais[p].length}</span></button>`;
   }).join('');
 }
 
@@ -6614,7 +6614,7 @@ function renderCobranzaPaisList(pais) {
   const header = `<div style="display:flex;align-items:baseline;gap:10px;margin:6px 0 16px;padding-bottom:13px;border-bottom:1px solid var(--border-soft)">
       <span style="font-size:1.45rem;line-height:1">${cobPaisFlag(pais)}</span>
       <span style="font-family:var(--font-serif);font-weight:600;font-size:1.2rem;color:var(--text-strong)">${escapeHtml(cobPaisNombre(pais))}</span>
-      <span style="font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-subtle)">${rows.length} clientes</span>
+      <span style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-subtle)">${rows.length} clientes</span>
     </div>`;
   list.innerHTML = header + rows.map(c => {
     const id = 'cob-row-' + cobCssId(c.sap_card_code);
@@ -6629,7 +6629,7 @@ function renderCobranzaPaisList(pais) {
             <div style="width:40px;height:40px;border-radius:50%;background:var(--ink-100);color:var(--ink-600);font-family:var(--font-serif);font-weight:600;font-size:.85rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">${escapeHtml(ini)}</div>
             <div style="min-width:0">
               <div style="font-weight:600;font-size:.95rem;color:var(--text-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:44vw">${escapeHtml(c.name || c.sap_card_code)}</div>
-              <div style="font-size:.74rem;color:var(--text-subtle);margin-top:2px"><span style="font-family:var(--font-mono)">${escapeHtml(c.sap_card_code)}</span>${sinCorreo ? ' · <span style="color:var(--error)">sin correo</span>' : ' · ' + escapeHtml(c.email)}</div>
+              <div style="font-size:.74rem;color:var(--text-subtle);margin-top:2px"><span style="">${escapeHtml(c.sap_card_code)}</span>${sinCorreo ? ' · <span style="color:var(--error)">sin correo</span>' : ' · ' + escapeHtml(c.email)}</div>
             </div>
           </div>
           <div style="text-align:right">
@@ -6638,7 +6638,7 @@ function renderCobranzaPaisList(pais) {
           </div>
         </div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border-soft);flex-wrap:wrap">
-          <div class="cob-ult" style="font-family:var(--font-mono);font-size:.64rem;letter-spacing:.03em;color:var(--text-subtle)">${last ? 'Último envío · ' + last : 'Sin envíos previos'}</div>
+          <div class="cob-ult" style="font-size:.64rem;letter-spacing:.03em;color:var(--text-subtle)">${last ? 'Último envío · ' + last : 'Sin envíos previos'}</div>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <div class="cob-recctrl" data-card="${escapeHtml(c.sap_card_code)}" data-cad="${c.cobranza_auto ? (c.cobranza_cadencia || 'semanal') : ''}" style="display:flex;align-items:center;gap:6px">${recurControlHTML(c)}</div>
             <button onclick="enviarDashboard('${escapeHtml(c.sap_card_code)}',this)" ${sinCorreo ? 'disabled' : ''} style="padding:8px 20px;border-radius:8px;border:none;background:${sinCorreo ? 'var(--ink-300)' : 'var(--cta)'};color:#fff;font-weight:600;font-size:.82rem;letter-spacing:.02em;cursor:${sinCorreo ? 'not-allowed' : 'pointer'}">Enviar</button>
@@ -6672,7 +6672,7 @@ function cobMoroPump() {
       else if (atraso > 30) { barC = 'var(--fire)'; bg = 'var(--error-soft)'; fg = 'var(--fire)'; txt = atraso + ' días vencido'; }
       else { barC = 'var(--sun)'; bg = 'rgba(255,182,39,.16)'; fg = '#9A6B00'; txt = atraso + ' días vencido'; }
       if (bar) bar.style.background = barC;
-      el.innerHTML = `<span style="display:inline-block;padding:3px 9px;border-radius:5px;background:${bg};color:${fg};font-family:var(--font-mono);font-weight:500;font-size:.62rem;letter-spacing:.04em;text-transform:uppercase">${txt}</span>` + (venc > 0.01 ? ` <span style="font-family:var(--font-mono);font-size:.64rem;color:var(--text-subtle)">${fmt(venc)}</span>` : '');
+      el.innerHTML = `<span style="display:inline-block;padding:3px 9px;border-radius:5px;background:${bg};color:${fg};font-weight:500;font-size:.62rem;letter-spacing:.04em;text-transform:uppercase">${txt}</span>` + (venc > 0.01 ? ` <span style="font-size:.64rem;color:var(--text-subtle)">${fmt(venc)}</span>` : '');
     } else { el.textContent = '—'; }
   }).catch(() => {
     const row = document.getElementById('cob-row-' + cobCssId(cardCode));
