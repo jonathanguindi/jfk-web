@@ -2895,10 +2895,10 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
     </div>
   </div>
   <div class="estado-body">
-    <div class="cobranza-tabs" style="display:flex;gap:8px;margin-bottom:16px">
-      <button class="cobranza-tab active" id="cobranza-tab-pais" onclick="switchCobranzaTab('pais')" style="flex:1;padding:11px;border-radius:10px;border:1px solid var(--border,#2a2a33);background:#FF6B35;color:#fff;font-weight:700;cursor:pointer">Por país</button>
-      <button class="cobranza-tab" id="cobranza-tab-pend" onclick="switchCobranzaTab('pend')" style="flex:1;padding:11px;border-radius:10px;border:1px solid var(--border,#2a2a33);background:transparent;color:inherit;font-weight:700;cursor:pointer">Pendientes <span id="cobranza-pend-count"></span></button>
-      <button class="cobranza-tab" id="cobranza-tab-auto" onclick="switchCobranzaTab('auto')" style="flex:1;padding:11px;border-radius:10px;border:1px solid var(--border,#2a2a33);background:transparent;color:inherit;font-weight:700;cursor:pointer">Lista automática</button>
+    <div class="cobranza-tabs" style="display:flex;gap:4px;margin-bottom:20px;background:var(--surface-2);border:1px solid var(--border-soft);border-radius:11px;padding:4px">
+      <button class="cobranza-tab" id="cobranza-tab-pais" onclick="switchCobranzaTab('pais')" style="flex:1;padding:10px;border-radius:8px;border:none;background:var(--surface-1);color:var(--text-strong);font-weight:600;font-size:.85rem;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.06)">Por país</button>
+      <button class="cobranza-tab" id="cobranza-tab-pend" onclick="switchCobranzaTab('pend')" style="flex:1;padding:10px;border-radius:8px;border:none;background:transparent;color:var(--text-muted);font-weight:600;font-size:.85rem;cursor:pointer">Pendientes <span id="cobranza-pend-count"></span></button>
+      <button class="cobranza-tab" id="cobranza-tab-auto" onclick="switchCobranzaTab('auto')" style="flex:1;padding:10px;border-radius:8px;border:none;background:transparent;color:var(--text-muted);font-weight:600;font-size:.85rem;cursor:pointer">Lista automática</button>
     </div>
 
     <!-- Dashboard por país -->
@@ -6160,7 +6160,12 @@ function switchCobranzaTab(which) {
     const pane = document.getElementById('cobranza-pane-' + t);
     if (pane) pane.style.display = (t === which) ? 'block' : 'none';
     const btn = document.getElementById('cobranza-tab-' + t);
-    if (btn) { btn.style.background = (t === which) ? '#FF6B35' : 'transparent'; btn.style.color = (t === which) ? '#fff' : 'inherit'; }
+    if (btn) {
+      const on = t === which;
+      btn.style.background = on ? 'var(--surface-1)' : 'transparent';
+      btn.style.color = on ? 'var(--text-strong)' : 'var(--text-muted)';
+      btn.style.boxShadow = on ? '0 1px 2px rgba(0,0,0,.06)' : 'none';
+    }
   });
 }
 
@@ -6381,12 +6386,12 @@ function renderCobranzaKpis() {
   const n = cobranzaDeudores.length;
   const total = cobranzaDeudores.reduce((s, x) => s + (parseFloat(x.current_balance) || 0), 0);
   const paises = new Set(cobranzaDeudores.map(x => (x.country || '—'))).size;
-  const card = (label, val, accent) => `<div style="flex:1;min-width:130px;border:1px solid var(--border,#2a2a33);border-radius:14px;padding:14px 16px;background:linear-gradient(180deg,rgba(255,107,53,.07),transparent)">
-    <div style="font-size:.68rem;letter-spacing:.05em;text-transform:uppercase;opacity:.55;font-weight:700">${label}</div>
-    <div style="font-size:1.45rem;font-weight:800;margin-top:5px;color:${accent || 'inherit'}">${val}</div></div>`;
-  c.innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap">
+  const card = (label, val, accent) => `<div style="flex:1;min-width:140px;background:var(--surface-1);border:1px solid var(--border-soft);border-radius:12px;padding:18px 20px">
+    <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-subtle);font-weight:600">${label}</div>
+    <div style="font-family:var(--font-serif);font-size:clamp(1.25rem,5vw,1.7rem);font-weight:600;margin-top:8px;line-height:1.05;white-space:nowrap;color:${accent || 'var(--text-strong)'}">${val}</div></div>`;
+  c.innerHTML = `<div style="display:flex;gap:12px;flex-wrap:wrap">
     ${card('Clientes con saldo', n)}
-    ${card('Total por cobrar', fmt(total), '#FF6B35')}
+    ${card('Total por cobrar', fmt(total), 'var(--cta)')}
     ${card('Países', paises)}
   </div>`;
 }
@@ -6398,9 +6403,9 @@ function renderCobranzaPaisChips() {
   const paises = Object.keys(byPais).sort((a, b) => byPais[b].length - byPais[a].length);
   chips.innerHTML = paises.map(p => {
     const active = p === cobranzaPaisActual;
-    return `<button onclick="selectCobranzaPais('${escapeHtml(p)}')" style="display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:999px;border:1px solid ${active ? '#FF6B35' : 'var(--border,#2a2a33)'};background:${active ? '#FF6B35' : 'transparent'};color:${active ? '#fff' : 'inherit'};font-weight:600;cursor:pointer;transition:all .15s">
-      <span style="font-size:1.1rem;line-height:1">${cobPaisFlag(p)}</span>${escapeHtml(cobPaisNombre(p))}
-      <span style="background:${active ? 'rgba(255,255,255,.25)' : 'var(--border,#2a2a33)'};padding:1px 8px;border-radius:999px;font-size:.72rem;font-weight:700">${byPais[p].length}</span></button>`;
+    return `<button onclick="selectCobranzaPais('${escapeHtml(p)}')" style="display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:9px;border:1px solid ${active ? 'var(--text-strong)' : 'var(--border)'};background:${active ? 'var(--text-strong)' : 'transparent'};color:${active ? 'var(--text-inverse)' : 'var(--text)'};font-size:13px;font-weight:500;cursor:pointer;transition:all .15s">
+      <span style="font-size:1.05rem;line-height:1">${cobPaisFlag(p)}</span>${escapeHtml(cobPaisNombre(p))}
+      <span style="font-family:var(--font-serif);font-size:12px;opacity:.65">${byPais[p].length}</span></button>`;
   }).join('');
 }
 
@@ -6415,39 +6420,39 @@ function renderCobranzaPaisList(pais) {
   const rows = cobranzaDeudores.filter(c => (c.country || '—') === pais);
   if (!rows.length) { list.innerHTML = '<div class="estado-placeholder">Sin clientes</div>'; return; }
   cobMoroQueue.length = 0;   // cancela la cola anterior
-  const header = `<div style="display:flex;align-items:center;gap:9px;margin:2px 0 14px">
-      <span style="font-size:1.4rem;line-height:1">${cobPaisFlag(pais)}</span>
-      <span style="font-weight:800;font-size:1.1rem">${escapeHtml(cobPaisNombre(pais))}</span>
-      <span style="opacity:.5;font-size:.85rem">· ${rows.length} cliente(s)</span>
+  const header = `<div style="display:flex;align-items:baseline;gap:10px;margin:6px 0 16px;padding-bottom:13px;border-bottom:1px solid var(--border-soft)">
+      <span style="font-size:1.45rem;line-height:1">${cobPaisFlag(pais)}</span>
+      <span style="font-family:var(--font-serif);font-weight:600;font-size:1.2rem;color:var(--text-strong)">${escapeHtml(cobPaisNombre(pais))}</span>
+      <span style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-subtle)">${rows.length} cliente(s)</span>
     </div>`;
   list.innerHTML = header + rows.map(c => {
     const id = 'cob-row-' + cobCssId(c.sap_card_code);
     const last = cobFmtFecha(c.cobranza_last_sent);
     const sinCorreo = !c.email;
     const ini = (c.name || c.sap_card_code).split(/\s+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase();
-    return `<div id="${id}" style="display:flex;border:1px solid var(--border,#2a2a33);border-radius:14px;overflow:hidden;margin-bottom:12px">
-      <div class="cob-accent" style="width:5px;background:#9aa4b2;flex-shrink:0"></div>
-      <div style="flex:1;padding:14px 16px;min-width:0">
+    return `<div id="${id}" style="display:flex;background:var(--surface-1);border:1px solid var(--border-soft);border-radius:12px;overflow:hidden;margin-bottom:10px">
+      <div class="cob-accent" style="width:3px;background:var(--border-strong);flex-shrink:0"></div>
+      <div style="flex:1;padding:15px 18px;min-width:0">
         <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
-          <div style="display:flex;align-items:center;gap:11px;min-width:0">
-            <div style="width:38px;height:38px;border-radius:50%;background:rgba(255,107,53,.15);color:#FF6B35;font-weight:800;font-size:.8rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">${escapeHtml(ini)}</div>
+          <div style="display:flex;align-items:center;gap:12px;min-width:0">
+            <div style="width:40px;height:40px;border-radius:50%;background:var(--ink-100);color:var(--ink-600);font-family:var(--font-serif);font-weight:600;font-size:.85rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">${escapeHtml(ini)}</div>
             <div style="min-width:0">
-              <div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw">${escapeHtml(c.name || c.sap_card_code)}</div>
-              <div style="font-size:.75rem;opacity:.6">${escapeHtml(c.sap_card_code)}${sinCorreo ? ' · <span style="color:#E24B4A">sin correo</span>' : ' · ' + escapeHtml(c.email)}</div>
+              <div style="font-weight:600;font-size:.95rem;color:var(--text-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:44vw">${escapeHtml(c.name || c.sap_card_code)}</div>
+              <div style="font-size:.74rem;color:var(--text-subtle);margin-top:2px">${escapeHtml(c.sap_card_code)}${sinCorreo ? ' · <span style="color:var(--error)">sin correo</span>' : ' · ' + escapeHtml(c.email)}</div>
             </div>
           </div>
           <div style="text-align:right">
-            <div style="font-weight:800;font-size:1.05rem">${fmt(c.current_balance)}</div>
-            <div class="cob-moro" style="font-size:.74rem;margin-top:4px;opacity:.7">calculando…</div>
+            <div style="font-family:var(--font-serif);font-weight:600;font-size:1.1rem;color:var(--text-strong)">${fmt(c.current_balance)}</div>
+            <div class="cob-moro" style="font-size:.72rem;margin-top:5px;color:var(--text-subtle)">···</div>
           </div>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:13px;padding-top:11px;border-top:1px solid var(--border,#2a2a33);flex-wrap:wrap">
-          <div class="cob-ult" style="font-size:.74rem;opacity:.6">🕒 ${last ? 'Último envío: ' + last : 'Nunca enviado'}</div>
-          <div style="display:flex;align-items:center;gap:14px">
-            <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;cursor:pointer;opacity:.9">Recurrente
-              <input type="checkbox" ${c.cobranza_auto ? 'checked' : ''} onchange="toggleCobranzaAuto('${escapeHtml(c.sap_card_code)}',this)" style="width:18px;height:18px;accent-color:#FF6B35">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border-soft);flex-wrap:wrap">
+          <div class="cob-ult" style="font-size:.72rem;color:var(--text-subtle)">${last ? 'Último envío · ' + last : 'Sin envíos previos'}</div>
+          <div style="display:flex;align-items:center;gap:16px">
+            <label style="display:flex;align-items:center;gap:7px;font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);cursor:pointer">Recurrente
+              <input type="checkbox" ${c.cobranza_auto ? 'checked' : ''} onchange="toggleCobranzaAuto('${escapeHtml(c.sap_card_code)}',this)" style="width:16px;height:16px;accent-color:var(--cta)">
             </label>
-            <button onclick="enviarDashboard('${escapeHtml(c.sap_card_code)}',this)" ${sinCorreo ? 'disabled' : ''} style="display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:9px;border:none;background:${sinCorreo ? '#888' : '#FF6B35'};color:#fff;font-weight:700;cursor:${sinCorreo ? 'not-allowed' : 'pointer'}">✉ Enviar</button>
+            <button onclick="enviarDashboard('${escapeHtml(c.sap_card_code)}',this)" ${sinCorreo ? 'disabled' : ''} style="padding:8px 20px;border-radius:8px;border:none;background:${sinCorreo ? 'var(--ink-300)' : 'var(--cta)'};color:#fff;font-weight:600;font-size:.82rem;letter-spacing:.02em;cursor:${sinCorreo ? 'not-allowed' : 'pointer'}">Enviar</button>
           </div>
         </div>
       </div>
@@ -6473,12 +6478,12 @@ function cobMoroPump() {
     const el = row.querySelector('.cob-moro'), bar = row.querySelector('.cob-accent');
     if (d && d.success) {
       const atraso = d.maxAtraso || 0, venc = d.vencido || 0;
-      let color, txt;
-      if (venc <= 0.01) { color = '#1D9E75'; txt = 'al día'; }
-      else if (atraso > 30) { color = '#E24B4A'; txt = atraso + ' días vencido'; }
-      else { color = '#E0A040'; txt = atraso + ' días vencido'; }
-      if (bar) bar.style.background = color;
-      el.innerHTML = `<span style="display:inline-block;padding:2px 9px;border-radius:999px;background:${color}22;color:${color};font-weight:700;font-size:.72rem">${txt}</span>` + (venc > 0.01 ? ` <span style="opacity:.6">${fmt(venc)} venc.</span>` : '');
+      let barC, bg, fg, txt;
+      if (venc <= 0.01) { barC = 'var(--jade)'; bg = 'var(--success-soft)'; fg = 'var(--deep)'; txt = 'al día'; }
+      else if (atraso > 30) { barC = 'var(--fire)'; bg = 'var(--error-soft)'; fg = 'var(--fire)'; txt = atraso + ' días vencido'; }
+      else { barC = 'var(--sun)'; bg = 'rgba(255,182,39,.16)'; fg = '#9A6B00'; txt = atraso + ' días vencido'; }
+      if (bar) bar.style.background = barC;
+      el.innerHTML = `<span style="display:inline-block;padding:3px 10px;border-radius:6px;background:${bg};color:${fg};font-weight:600;font-size:.7rem;letter-spacing:.02em">${txt}</span>` + (venc > 0.01 ? ` <span style="color:var(--text-subtle)">${fmt(venc)}</span>` : '');
     } else { el.textContent = '—'; }
   }).catch(() => {
     const row = document.getElementById('cob-row-' + cobCssId(cardCode));
@@ -6501,8 +6506,8 @@ async function enviarDashboard(cardCode, btn) {
       showToast(`Enviado a ${data.to}`);
       if (cli) cli.cobranza_last_sent = new Date().toISOString();
       const row = document.getElementById('cob-row-' + cobCssId(cardCode));
-      if (row) { const u = row.querySelector('.cob-ult'); if (u) u.innerHTML = '🕒 Último envío: ' + cobFmtFecha(new Date().toISOString()); }
-      btn.textContent = 'Enviado ✓'; btn.style.background = '#1D9E75';
+      if (row) { const u = row.querySelector('.cob-ult'); if (u) u.textContent = 'Último envío · ' + cobFmtFecha(new Date().toISOString()); }
+      btn.textContent = 'Enviado'; btn.style.background = 'var(--jade)';
     } else {
       showToast('No se pudo enviar: ' + (data.error || 'error'), true);
       btn.disabled = false; btn.textContent = orig;
