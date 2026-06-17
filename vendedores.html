@@ -6283,7 +6283,9 @@ async function setRecurrencia(cardCode, cadencia, btn) {
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || 'No se pudo guardar');
     [cobranzaDeudores, cobranzaRecurrentes].forEach(arr => { const c = (arr || []).find(x => x.sap_card_code === cardCode); if (c) { c.cobranza_auto = auto; c.cobranza_cadencia = cad; } });
-    showToast(turningOff ? 'Quitado de recurrente' : ('Recurrente ' + cadencia));
+    const nombre = ([cobranzaDeudores, cobranzaRecurrentes, (typeof allCustomers !== 'undefined' ? allCustomers : [])].map(a => (a || []).find(x => x.sap_card_code === cardCode)).find(Boolean) || {}).name || cardCode;
+    const cadLabel = cadencia === 'diario' ? 'Diario' : 'Semanal';
+    showToast(turningOff ? `${nombre} · quitado de Recurrentes` : `✓ ${nombre} → Recurrentes · ${cadLabel}`);
     loadCobranzaRecurrentes();
   } catch (e) {
     showToast('Error: ' + e.message, true);
