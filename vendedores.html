@@ -6340,7 +6340,18 @@ const COB_CODE_NOMBRE = {
   'PA':'Panamá','CR':'Costa Rica','CO':'Colombia','GT':'Guatemala','HN':'Honduras','SV':'El Salvador',
   'NI':'Nicaragua','DO':'Rep. Dominicana','MX':'México','EC':'Ecuador','PE':'Perú','VE':'Venezuela',
   'CL':'Chile','AR':'Argentina','BR':'Brasil','BO':'Bolivia','PY':'Paraguay','UY':'Uruguay',
-  'US':'Estados Unidos','ES':'España','CN':'China'
+  'US':'Estados Unidos','ES':'España','CN':'China',
+  // Caribe / otros (códigos ISO que aparecen en los clientes de JFK)
+  'TT':'Trinidad y Tobago','JM':'Jamaica','VC':'San Vicente','LC':'Santa Lucía','SR':'Surinam',
+  'BB':'Barbados','HT':'Haití','GY':'Guyana','TC':'Turks y Caicos','MF':'San Martín','DM':'Dominica',
+  'GD':'Granada','CU':'Cuba','AW':'Aruba','CW':'Curazao','PR':'Puerto Rico','GP':'Guadalupe','MQ':'Martinica'
+};
+// Códigos propios de JFK (no ISO). Editar aquí si aparecen otros.
+const COB_CUSTOM = {
+  'ZL':  { nombre: 'Zona Libre', flag: '🏬' }
+  // 'GYN': { nombre: 'Guyana',  flag: '🇬🇾' },  // ⚠️ confirmar significado con Jonathan
+  // 'AWI': { nombre: 'Antillas', flag: '🏝️' },  // ⚠️ confirmar
+  // 'CZ':  { nombre: 'Curazao', flag: '🇨🇼' },   // ⚠️ confirmar (¿Curazao?)
 };
 function cobPaisCode(p) {
   if (!p || p === '—') return null;
@@ -6349,13 +6360,18 @@ function cobPaisCode(p) {
   return COB_PAIS_CODE[t.toLowerCase()] || null;
 }
 function cobPaisFlag(p) {
+  const raw = (p || '').trim().toUpperCase();
+  if (COB_CUSTOM[raw]) return COB_CUSTOM[raw].flag;
   const code = cobPaisCode(p);
-  if (!code) return '🏳️';
+  if (!code) return '🌎';
   return code.replace(/./g, ch => String.fromCodePoint(127397 + ch.charCodeAt(0)));
 }
 function cobPaisNombre(p) {
+  const raw = (p || '').trim().toUpperCase();
+  if (COB_CUSTOM[raw]) return COB_CUSTOM[raw].nombre;
   const code = cobPaisCode(p);
   if (code && COB_CODE_NOMBRE[code]) return COB_CODE_NOMBRE[code];
+  if (code) return code;
   return (!p || p === '—') ? 'Sin país' : p;
 }
 
