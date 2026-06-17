@@ -21,6 +21,8 @@ const EMPRESAS = {
     from: 'JFK International | Accounts <accounts@jfkintl.com>',
     // Copia (CC) a cobros para llevar el control. Override: env COBRANZA_CC
     cc: 'cobranzas@jfkintl.com',
+    // Copia oculta (BCC) — Jonathan recibe copia de cada cobro enviado. Override: env COBRANZA_BCC
+    bcc: 'jonathang@jfkintl.com',
     // Correo del administrador que recibe el resumen diario para aprobar. Override: env COBRANZA_ADMIN
     admin: 'jonathang@jfkintl.com',
     // Instrucciones bancarias (Banistmo) — se incluyen en el PDF y el correo.
@@ -42,6 +44,7 @@ const EMPRESAS = {
     accent: [20, 110, 200],
     from: 'Big Dream | Accounts <accounts@TODO-dominio-bigdream.com>',
     cc: 'cobranzas@TODO-dominio-bigdream.com',
+    bcc: 'jonathang@jfkintl.com',
     admin: 'jonathang@jfkintl.com',
     banco: [
       { label: 'Beneficiario', value: 'BIG DREAM, S.A.' },
@@ -67,6 +70,7 @@ function getEmpresa() {
     ...cfg,
     from: process.env.COBRANZA_FROM || cfg.from,
     cc: process.env.COBRANZA_CC || cfg.cc,
+    bcc: process.env.COBRANZA_BCC || cfg.bcc,
     admin: process.env.COBRANZA_ADMIN || cfg.admin,
     supabaseUrl: process.env.SUPABASE_URL || cfg.supabaseUrl
   };

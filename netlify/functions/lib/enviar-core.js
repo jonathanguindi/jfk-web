@@ -110,6 +110,7 @@ async function enviarEstadoCuenta(opts = {}) {
     from: empresa.from,
     to: [to],
     cc: empresa.cc ? [empresa.cc] : undefined,
+    bcc: empresa.bcc ? [empresa.bcc] : undefined,
     subject,
     html: emailHTML(data, empresa, lang),
     attachments: [{ filename, content: pdf }]
