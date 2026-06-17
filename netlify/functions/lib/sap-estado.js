@@ -175,4 +175,35 @@ async function computeEstadoCuenta({ cardCode, desde, hasta }, hoy = new Date())
   };
 }
 
-module.exports = { computeEstadoCuenta };
+// Trae las facturas del rango CON sus líneas (para el PDF de facturas con fotos).
+// Limita a `max` (más recientes primero) para no traer demasiado.
+async function fetchFacturasConLineas({ cardCode, desde, hasta, max = 40 }) {
+  const cc = String(cardCode).replace(/'/g, "''");
+  const fechaDesde = desde || '2024-01-01';
+  const fechaHasta = hasta || new Date().toISOString().slice(0, 10);
+  const cookies = await sapLogin();
+  const path = `Invoices?$select=DocNum,DocDate,DocDueDate,DocTotal,DocCurrency,DocumentLines&$filter=CardCode eq '${cc}' and DocDate ge '${fechaDesde}' and DocDate le '${fechaHasta}'&$orderby=DocDate desc`;
+  const res = await fetch(`${SAP_URL}/${path}`, {
+    method: 'GET',
+    headers: { 'Cookie': cookies, 'Content-Type': 'application/json', 'Prefer': `odata.maxpagesize=${max}` },
+    agent
+  });
+  if (!res.ok) throw new Error(`SAP Invoices(lineas) ${res.status}: ${await res.text()}`);
+  const j = await res.json();
+  return (j.value || []).slice(0, max).map(f => ({
+    docNum: f.DocNum,
+    fecha: (f.DocDate || '').slice(0, 10),
+    venc: (f.DocDueDate || '').slice(0, 10),
+    total: f.DocTotal,
+    moneda: f.DocCurrency,
+    lineas: (f.DocumentLines || []).map(l => ({
+      code: l.ItemCode,
+      desc: l.ItemDescription,
+      qty: l.Quantity,
+      precio: (l.Price != null ? l.Price : l.UnitPrice),
+      total: l.LineTotal
+    }))
+  }));
+}
+
+module.exports = { computeEstadoCuenta, fetchFacturasConLineas };

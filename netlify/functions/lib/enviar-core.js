@@ -4,8 +4,9 @@
 // La usan el botón manual (enviar-estado-cuenta.js) y la aprobación del envío automático.
 
 const { Resend } = require('resend');
-const { computeEstadoCuenta } = require('./sap-estado');
+const { computeEstadoCuenta, fetchFacturasConLineas } = require('./sap-estado');
 const { buildEstadoCuentaPDF, fmt } = require('./estado-pdf');
+const { buildFacturasPDF } = require('./facturas-pdf');
 const { getEmpresa } = require('./empresa-config');
 const { getSupabase } = require('./supabase');
 const { idioma, bancoLabel, bancoValue } = require('./idioma');
@@ -80,7 +81,7 @@ function emailHTML(data, empresa, lang = 'es') {
 
 // opts: { cardCode, desde?, hasta?, toOverride?, tipo?, envioId?, aprobadoPor? }
 async function enviarEstadoCuenta(opts = {}) {
-  const { cardCode, desde, hasta, toOverride, tipo = 'manual', envioId = null, aprobadoPor = null } = opts;
+  const { cardCode, desde, hasta, toOverride, tipo = 'manual', envioId = null, aprobadoPor = null, incluirFacturas = false } = opts;
   if (!cardCode) return { ok: false, error: 'Falta cardCode' };
 
   const empresa = getEmpresa();
@@ -99,13 +100,25 @@ async function enviarEstadoCuenta(opts = {}) {
   // Idioma según el país del cliente (hispanohablante -> es, resto -> en)
   const lang = idioma(data.cliente.pais);
 
-  // 3) PDF (en el idioma del cliente)
+  // 3) PDF del estado de cuenta (en el idioma del cliente)
   const pdf = await buildEstadoCuentaPDF(data, empresa, lang);
+  const filename = `EstadoCuenta-${data.cliente.codigo}-${data.rango.hasta}.pdf`;
+  const attachments = [{ filename, content: pdf }];
+
+  // 3b) Opcional: PDF de facturas con fotos de productos
+  if (incluirFacturas) {
+    try {
+      const facturas = await fetchFacturasConLineas({ cardCode, desde: data.rango.desde, hasta: data.rango.hasta, max: 40 });
+      if (facturas.length) {
+        const fpdf = await buildFacturasPDF(facturas, empresa, lang);
+        attachments.push({ filename: `Facturas-${data.cliente.codigo}-${data.rango.hasta}.pdf`, content: fpdf });
+      }
+    } catch (e) { console.error('PDF de facturas falló (se envía solo el estado):', e.message); }
+  }
 
   // 4) Enviar por Resend (con CC a cobros)
   const resend = new Resend(process.env.RESEND_API_KEY);
   const subject = (EMAIL_T[lang] || EMAIL_T.es).subject(empresa.nombreCorto);
-  const filename = `EstadoCuenta-${data.cliente.codigo}-${data.rango.hasta}.pdf`;
   const { data: sent, error: sendErr } = await resend.emails.send({
     from: empresa.from,
     to: [to],
@@ -113,7 +126,7 @@ async function enviarEstadoCuenta(opts = {}) {
     bcc: empresa.bcc ? [empresa.bcc] : undefined,
     subject,
     html: emailHTML(data, empresa, lang),
-    attachments: [{ filename, content: pdf }]
+    attachments
   });
 
   if (sendErr) {
