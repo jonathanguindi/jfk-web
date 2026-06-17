@@ -2305,6 +2305,7 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
       <button class="home-grid__item" onclick="openPedidosRecibidos()"><svg class="home-grid__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>Pedidos recibidos</button>
       <button class="home-grid__item" onclick="openAccountModal()"><svg class="home-grid__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Clientes</button>
       <button class="home-grid__item" id="home-vendedores" onclick="openVendedores()" style="display:none;"><svg class="home-grid__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Vendedores</button>
+      <button class="home-grid__item" id="home-cobranzas" onclick="openCobranzas()" style="display:none;"><svg class="home-grid__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>Cobranzas</button>
     </div>
   </div>
 </div>
@@ -2870,10 +2871,50 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
   </div>
 
   <div class="estado-footer" id="estado-footer" style="display:none;">
-    <button class="estado-btn-pdf" onclick="generateEstadoCuentaPDF()">
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px;margin-right:5px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-      Descargar PDF
-    </button>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+      <button class="estado-btn-pdf" onclick="generateEstadoCuentaPDF()">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px;margin-right:5px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Descargar PDF
+      </button>
+      <button class="estado-btn-pdf" id="estado-btn-enviar" onclick="enviarEstadoCuentaCorreo()" style="background:#FF6B35;color:#fff;border-color:#FF6B35">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px;margin-right:5px"><path d="M4 4h16v16H4z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Enviar por correo
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== COBRANZAS (SOLO ADMIN) ===== -->
+<div id="screen-cobranzas" class="screen">
+  <div class="estado-header">
+    <div class="estado-header__top">
+      <button class="pedido-header__back-btn" onclick="goToScreen('home')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <span class="pedido-header__tag">Cobranzas</span>
+    </div>
+  </div>
+  <div class="estado-body">
+    <div class="cobranza-tabs" style="display:flex;gap:8px;margin-bottom:16px">
+      <button class="cobranza-tab active" id="cobranza-tab-pend" onclick="switchCobranzaTab('pend')" style="flex:1;padding:11px;border-radius:10px;border:1px solid var(--border,#2a2a33);background:#FF6B35;color:#fff;font-weight:700;cursor:pointer">Pendientes <span id="cobranza-pend-count"></span></button>
+      <button class="cobranza-tab" id="cobranza-tab-auto" onclick="switchCobranzaTab('auto')" style="flex:1;padding:11px;border-radius:10px;border:1px solid var(--border,#2a2a33);background:transparent;color:inherit;font-weight:700;cursor:pointer">Lista automática</button>
+    </div>
+
+    <!-- Pendientes de aprobación -->
+    <div id="cobranza-pane-pend">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:.85rem;opacity:.7">Clientes en mora esperando tu aprobación para enviarles su estado de cuenta.</div>
+        <button onclick="loadCobranzaPendientes()" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border,#2a2a33);background:transparent;color:inherit;cursor:pointer;font-size:.8rem">↻ Refrescar</button>
+      </div>
+      <div id="cobranza-pendientes-list"><div class="estado-placeholder">Cargando…</div></div>
+    </div>
+
+    <!-- Lista automática -->
+    <div id="cobranza-pane-auto" style="display:none">
+      <div style="font-size:.85rem;opacity:.7;margin-bottom:10px">Marca los clientes a los que el sistema revisará la mora cada día y propondrá enviarles su estado de cuenta (con tu aprobación).</div>
+      <input type="search" id="cobranza-auto-search" placeholder="Buscar cliente por nombre o código…" oninput="renderCobranzaAuto()" style="width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--border,#2a2a33);background:transparent;color:inherit;margin-bottom:12px;box-sizing:border-box">
+      <div id="cobranza-auto-list"><div class="estado-placeholder">Cargando clientes…</div></div>
+    </div>
   </div>
 </div>
 
@@ -3464,6 +3505,8 @@ function showHome() {
   // Gestión de vendedores: solo admin
   const vBtn = document.getElementById('home-vendedores');
   if (vBtn) vBtn.style.display = (currentVendor.role === 'admin') ? 'flex' : 'none';
+  const cBtn = document.getElementById('home-cobranzas');
+  if (cBtn) cBtn.style.display = 'flex';
   goToScreen('home');
 }
 function logout() {
@@ -6055,6 +6098,179 @@ function generateEstadoCuentaPDF() {
 
   doc.save(`EstadoCuenta-${d.cliente.codigo}-${d.rango.hasta}.pdf`);
   showToast('PDF descargado');
+}
+
+// ================================================
+// ================== COBRANZAS ===================
+// ================================================
+
+// --- Envío manual desde la pantalla de Estado de Cuenta ---
+async function enviarEstadoCuentaCorreo() {
+  if (!estadoCuentaCliente) { showToast('Selecciona un cliente primero', true); return; }
+  const cli = estadoCuentaCliente;
+  const desde = document.getElementById('estado-desde').value || undefined;
+  const hasta = document.getElementById('estado-hasta').value || undefined;
+  if (!confirm(`¿Enviar el estado de cuenta de ${cli.name} a su correo registrado, con copia a cobros?`)) return;
+
+  const btn = document.getElementById('estado-btn-enviar');
+  if (btn) { btn.disabled = true; btn.style.opacity = .6; }
+  showLoading(true);
+  try {
+    const res = await fetch('/.netlify/functions/enviar-estado-cuenta', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cardCode: cli.sap_card_code, desde, hasta, tipo: 'manual', aprobadoPor: currentVendor?.name || null })
+    });
+    const data = await res.json();
+    showLoading(false);
+    if (data.ok) showToast(`Estado de cuenta enviado a ${data.to}`);
+    else showToast('No se pudo enviar: ' + (data.error || 'error'), true);
+  } catch (e) {
+    showLoading(false);
+    showToast('Error de conexión: ' + e.message, true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.style.opacity = 1; }
+  }
+}
+
+// --- Pantalla de Cobranzas (admin) ---
+let cobranzaAutoSet = new Set();   // sap_card_code que están en envío automático
+
+function openCobranzas() {
+  goToScreen('cobranzas');
+  switchCobranzaTab('pend');
+  loadCobranzaPendientes();
+  loadCobranzaAuto();
+}
+
+function switchCobranzaTab(which) {
+  const isPend = which === 'pend';
+  document.getElementById('cobranza-pane-pend').style.display = isPend ? 'block' : 'none';
+  document.getElementById('cobranza-pane-auto').style.display = isPend ? 'none' : 'block';
+  const tp = document.getElementById('cobranza-tab-pend'), ta = document.getElementById('cobranza-tab-auto');
+  tp.style.background = isPend ? '#FF6B35' : 'transparent'; tp.style.color = isPend ? '#fff' : 'inherit';
+  ta.style.background = !isPend ? '#FF6B35' : 'transparent'; ta.style.color = !isPend ? '#fff' : 'inherit';
+}
+
+async function loadCobranzaPendientes() {
+  const cont = document.getElementById('cobranza-pendientes-list');
+  cont.innerHTML = '<div class="estado-placeholder"><div class="spinner"></div></div>';
+  try {
+    const { data, error } = await supa
+      .from('cobranza_envios')
+      .select('*')
+      .eq('status', 'pendiente')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    renderCobranzaPendientes(data || []);
+  } catch (e) {
+    cont.innerHTML = `<div class="estado-placeholder" style="color:#E24B4A">Error: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function renderCobranzaPendientes(rows) {
+  const cont = document.getElementById('cobranza-pendientes-list');
+  document.getElementById('cobranza-pend-count').textContent = rows.length ? `(${rows.length})` : '';
+  if (!rows.length) { cont.innerHTML = '<div class="estado-placeholder">No hay envíos pendientes 🎉</div>'; return; }
+  cont.innerHTML = rows.map(r => {
+    const sinCorreo = !r.email;
+    return `<div style="border:1px solid var(--border,#2a2a33);border-radius:12px;padding:14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div>
+          <div style="font-weight:700">${escapeHtml(r.customer_name || r.sap_card_code)}</div>
+          <div style="font-size:.8rem;opacity:.65">${escapeHtml(r.sap_card_code)} · ${sinCorreo ? '<span style="color:#E24B4A">sin correo</span>' : escapeHtml(r.email)}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:700;color:#FF6B35">${fmt(r.vencido)} <span style="font-size:.7rem;opacity:.6;color:inherit">vencido</span></div>
+          <div style="font-size:.78rem;opacity:.65">${r.atraso_dias || 0} días · ${escapeHtml(r.cadencia || '')}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button onclick="aprobarEnvio('${r.id}','${escapeHtml(r.sap_card_code)}',this)" ${sinCorreo ? 'disabled' : ''} style="flex:1;padding:9px;border-radius:8px;border:none;background:${sinCorreo ? '#888' : '#1D9E75'};color:#fff;font-weight:700;cursor:${sinCorreo ? 'not-allowed' : 'pointer'}">Aprobar y enviar</button>
+        <button onclick="descartarEnvio('${r.id}',this)" style="padding:9px 14px;border-radius:8px;border:1px solid var(--border,#2a2a33);background:transparent;color:inherit;cursor:pointer">Descartar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function aprobarEnvio(id, cardCode, btn) {
+  if (!confirm('¿Aprobar y enviar el estado de cuenta a este cliente (con copia a cobros)?')) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
+  try {
+    const res = await fetch('/.netlify/functions/enviar-estado-cuenta', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cardCode, envioId: id, tipo: 'auto', aprobadoPor: currentVendor?.name || null })
+    });
+    const data = await res.json();
+    if (data.ok) { showToast(`Enviado a ${data.to}`); loadCobranzaPendientes(); }
+    else { showToast('No se pudo enviar: ' + (data.error || 'error'), true); if (btn) { btn.disabled = false; btn.textContent = 'Aprobar y enviar'; } }
+  } catch (e) {
+    showToast('Error: ' + e.message, true);
+    if (btn) { btn.disabled = false; btn.textContent = 'Aprobar y enviar'; }
+  }
+}
+
+async function descartarEnvio(id, btn) {
+  if (!confirm('¿Descartar este envío? No se le enviará nada al cliente hoy.')) return;
+  if (btn) btn.disabled = true;
+  try {
+    const { error } = await supa.from('cobranza_envios').update({ status: 'descartado' }).eq('id', id);
+    if (error) throw error;
+    showToast('Descartado'); loadCobranzaPendientes();
+  } catch (e) {
+    showToast('Error: ' + e.message, true);
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function loadCobranzaAuto() {
+  try {
+    if (allCustomers.length === 0) await loadCustomers();
+    const { data, error } = await supa.from('customers').select('sap_card_code').eq('cobranza_auto', true);
+    if (error) throw error;
+    cobranzaAutoSet = new Set((data || []).map(r => r.sap_card_code));
+  } catch (e) {
+    cobranzaAutoSet = new Set();
+  }
+  renderCobranzaAuto();
+}
+
+function renderCobranzaAuto() {
+  const cont = document.getElementById('cobranza-auto-list');
+  const term = (document.getElementById('cobranza-auto-search').value || '').trim().toLowerCase();
+  let list;
+  if (!term) {
+    // Sin búsqueda: mostrar solo los que ya están marcados
+    list = allCustomers.filter(c => cobranzaAutoSet.has(c.sap_card_code));
+    if (!list.length) { cont.innerHTML = '<div class="estado-placeholder">Aún no hay clientes en la lista. Busca arriba para agregar.</div>'; return; }
+  } else {
+    list = allCustomers.filter(c =>
+      (c.name || '').toLowerCase().includes(term) || (c.sap_card_code || '').toLowerCase().includes(term)
+    ).slice(0, 80);
+    if (!list.length) { cont.innerHTML = '<div class="estado-placeholder">Sin resultados</div>'; return; }
+  }
+  cont.innerHTML = list.map(c => {
+    const on = cobranzaAutoSet.has(c.sap_card_code);
+    return `<label style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px;border:1px solid var(--border,#2a2a33);border-radius:10px;margin-bottom:8px;cursor:pointer">
+      <span><span style="font-weight:600">${escapeHtml(c.name || '')}</span><span style="font-size:.78rem;opacity:.6;display:block">${escapeHtml(c.sap_card_code)}</span></span>
+      <input type="checkbox" ${on ? 'checked' : ''} onchange="toggleCobranzaAuto('${escapeHtml(c.sap_card_code)}',this)" style="width:20px;height:20px;accent-color:#FF6B35;flex-shrink:0">
+    </label>`;
+  }).join('');
+}
+
+async function toggleCobranzaAuto(cardCode, cb) {
+  const on = cb.checked;
+  cb.disabled = true;
+  try {
+    const { error } = await supa.from('customers').update({ cobranza_auto: on }).eq('sap_card_code', cardCode);
+    if (error) throw error;
+    if (on) cobranzaAutoSet.add(cardCode); else cobranzaAutoSet.delete(cardCode);
+    showToast(on ? 'Agregado a envío automático' : 'Quitado de envío automático');
+  } catch (e) {
+    cb.checked = !on;
+    showToast('Error: ' + e.message, true);
+  } finally {
+    cb.disabled = false;
+  }
 }
 
 // ================================================

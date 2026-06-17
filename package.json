@@ -1,0 +1,11 @@
+{
+  "name": "jfk-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Portal JFK — sitio estático + Netlify Functions (SAP, cobranzas).",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "pdfkit": "^0.15.0",
+    "resend": "^4.0.0"
+  }
+}

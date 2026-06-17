@@ -1,0 +1,17 @@
+# netlify.toml — JFK portal
+# Sitio estático (raíz) + Netlify Functions en netlify/functions.
+
+[build]
+  publish = "."
+  # Netlify instala las dependencias de package.json automáticamente (resend, pdfkit, supabase).
+  # No hay paso de build del sitio (es estático).
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+  # pdfkit incluye archivos de fuentes (.afm) que el bundler no rastrea; lo incluimos completo.
+  external_node_modules = ["pdfkit"]
+
+# Job diario de cobranzas. Cron en UTC: 13:00 UTC = 8:00 AM Panamá (UTC-5).
+[functions."cobranzas-job"]
+  schedule = "0 13 * * *"
