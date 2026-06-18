@@ -288,18 +288,20 @@ as $$
       and (p_vendedores is null or vl.sales_person_code = any(p_vendedores))
   ),
   cli_pais as (select max(country_code) cc from cli),
-  cli_item as (
-    select item_code,
-           max(item_description) descr, max(item_group_name) fam,
+  -- Agrupar por PRODUCTO (descripción) para no duplicar ni diluir cuando un mismo
+  -- producto tiene varios ItemCode.
+  cli_prod as (
+    select coalesce(nullif(trim(item_description),''), item_code) as prod,
+           max(item_group_name) fam,
            count(distinct doc_date) veces, min(doc_date) f0, max(doc_date) f1,
-           sum(quantity) qty, sum(line_total) total
-    from cli where item_code is not null group by item_code
+           sum(line_total) total
+    from cli where item_code is not null group by 1
   ),
   reorden as (
-    select item_code, descr, fam, veces, f1, total, qty,
+    select prod, fam, veces, f1, total,
            ((f1 - f0)::numeric / nullif(veces-1,0)) as cadencia,
            (current_date - f1) as dias_desde
-    from cli_item where veces >= 2
+    from cli_prod where veces >= 3        -- patrón confiable (>=3 compras)
   ),
   peers as (
     select distinct vl.card_code
@@ -309,35 +311,35 @@ as $$
       and (p_vendedores is null or vl.sales_person_code = any(p_vendedores))
   ),
   peer_count as (select count(*) n from peers),
-  peer_items as (
-    select vl.item_code,
-           max(vl.item_description) descr, max(vl.item_group_name) fam,
+  peer_prod as (
+    select coalesce(nullif(trim(vl.item_description),''), vl.item_code) as prod,
+           max(vl.item_group_name) fam,
            count(distinct vl.card_code) peers_compran, sum(vl.line_total) total_peer
     from ventas_lineas vl, params p
     where vl.doc_date >= p.d0 and vl.item_code is not null
       and vl.card_code in (select card_code from peers)
       and (p_vendedores is null or vl.sales_person_code = any(p_vendedores))
-    group by vl.item_code
+    group by 1
   )
   select jsonb_build_object(
     'card_code', p_card,
     'pais', (select cc from cli_pais),
     'peers', (select n from peer_count),
     'reorden', coalesce((select jsonb_agg(x) from (
-        select item_code as code, descr as descripcion, fam as familia, veces, total,
+        select prod as descripcion, fam as familia, veces, total,
                round(cadencia) as cadencia_dias, dias_desde as dias_sin_comprar,
                round(dias_desde / nullif(cadencia,0), 2) as ratio
         from reorden
-        where cadencia is not null and dias_desde >= cadencia * 0.75
-        order by (dias_desde / nullif(cadencia,0)) desc, total desc
+        -- cadencia real (>=14d, no ráfagas) y que toque ahora (no perdido hace mucho)
+        where cadencia >= 14 and dias_desde >= cadencia*0.75 and dias_desde <= cadencia*3
+        order by total desc
         limit 15
     ) x), '[]'::jsonb),
     'crosssell', coalesce((select jsonb_agg(x) from (
-        select item_code as code, descr as descripcion, fam as familia,
-               peers_compran, total_peer,
+        select prod as descripcion, fam as familia, peers_compran, total_peer,
                round(100.0*peers_compran/nullif((select n from peer_count),0)) as pct_peers
-        from peer_items
-        where item_code not in (select item_code from cli_item)
+        from peer_prod
+        where prod not in (select prod from cli_prod)
         order by peers_compran desc, total_peer desc
         limit 12
     ) x), '[]'::jsonb)
