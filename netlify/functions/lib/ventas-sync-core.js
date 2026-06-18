@@ -7,8 +7,8 @@ const { getEmpresa } = require('./empresa-config');
 const { getSupabase } = require('./supabase');
 const { sapLogin, sapLogout, cargarMapas, paginaDocumentos } = require('./sap-ventas');
 
-const PAGE_SIZE      = 20;     // documentos por página (cada uno trae sus líneas)
-const TIME_BUDGET_MS = 22000;  // no iniciar otra página pasado esto
+const PAGE_SIZE        = 20;     // documentos por página (cada uno trae sus líneas)
+const DEFAULT_BUDGET   = 22000;  // presupuesto por defecto (función normal ~26s)
 const RECURSOS = [
   { recurso: 'Invoices',    docType: 'I', signo:  1 },
   { recurso: 'CreditNotes', docType: 'C', signo: -1 },
@@ -57,6 +57,7 @@ async function runVentasSync(opts = {}) {
     await sb.from('ventas_sync_state').update({ last_doc_entry: 0, full_done: false }).neq('doc_type', '');
   }
 
+  const TIME_BUDGET_MS = opts.budgetMs || DEFAULT_BUDGET;
   const t0 = Date.now();
   let cookie;
   const resumen = { ok: true, procesado: {}, filas: 0, completo: true };
@@ -64,13 +65,24 @@ async function runVentasSync(opts = {}) {
     cookie = await sapLogin();
     const mapas = await cargarMapas(cookie);
 
-    // Refrescar fichas de cliente (contacto) en lotes — best-effort, no tumba el sync.
+    // Refrescar fichas de cliente (contacto) — solo 1 vez al día (o con reset),
+    // para no gastar el presupuesto re-subiendo miles de filas en cada pasada.
     try {
-      const filas = (mapas.clientes || []).filter(c => c.card_code);
-      for (let i = 0; i < filas.length; i += 500) {
-        await sb.from('ventas_clientes').upsert(filas.slice(i, i + 500), { onConflict: 'card_code' });
+      const { data: bpRows } = await sb.from('ventas_sync_state').select('updated_at').eq('doc_type', 'BP').limit(1);
+      const last = (bpRows && bpRows[0] && bpRows[0].updated_at) ? new Date(bpRows[0].updated_at).getTime() : 0;
+      const fresco = !opts.reset && (Date.now() - last < 12 * 3600 * 1000);
+      if (fresco) {
+        resumen.clientes = 'omitido (fresco)';
+      } else {
+        const filas = (mapas.clientes || []).filter(c => c.card_code);
+        for (let i = 0; i < filas.length; i += 500) {
+          await sb.from('ventas_clientes').upsert(filas.slice(i, i + 500), { onConflict: 'card_code' });
+        }
+        await sb.from('ventas_sync_state').upsert(
+          { doc_type: 'BP', rows_total: filas.length, full_done: true, updated_at: new Date().toISOString() },
+          { onConflict: 'doc_type' });
+        resumen.clientes = filas.length;
       }
-      resumen.clientes = filas.length;
     } catch (e) { resumen.clientes_error = e.message; }
 
     for (const { recurso, docType, signo } of RECURSOS) {
