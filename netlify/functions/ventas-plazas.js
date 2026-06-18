@@ -60,7 +60,10 @@ exports.handler = async (event) => {
 
     if (action === 'aplicar_propuesta') {
       const filas = (plazas || []).map(p => {
-        const lider = (p.vendedores || []).find(v => v.code != null);
+        // líder = vendedor real (code != null) con mayor venta positiva
+        const lider = (p.vendedores || [])
+          .filter(v => v.code != null && Number(v.total) > 0)
+          .sort((a, b) => Number(b.total) - Number(a.total))[0];
         if (!lider) return null;
         return { country_code: p.code, country_name: p.name, sales_person_code: lider.code, sales_person_name: lider.name, updated_at: new Date().toISOString() };
       }).filter(Boolean);

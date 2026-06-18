@@ -50,15 +50,23 @@ exports.handler = async (event) => {
       // Si no encontramos códigos, devolvemos un set imposible para no filtrar datos de otros.
       p_vendedores = codes.length ? codes : [-1];
       scope.vendedor = codes;
+      scope.sinCodigos = codes.length === 0;   // correo no vinculado a ningún vendedor SAP
     } else if (body.vendedor != null && body.vendedor !== '') {
       p_vendedores = [Number(body.vendedor)];   // admin filtrando por un vendedor
     }
 
     const { desde, hasta } = rango(body);
 
+    if (body.buscar) {
+      const { data, error } = await sb.rpc('ventas_buscar_clientes', { q: String(body.buscar), desde, hasta, p_vendedores });
+      if (error) return reply(500, { ok: false, error: error.message });
+      return reply(200, { ok: true, clientes: data || [], scope });
+    }
+
     if (body.comparativo) {
       const p_pais = body.pais ? String(body.pais) : null;
-      const { data, error } = await sb.rpc('ventas_comparativo', { desde, hasta, p_vendedores, p_pais });
+      const p_card = body.cardCode ? String(body.cardCode) : null;
+      const { data, error } = await sb.rpc('ventas_comparativo', { desde, hasta, p_vendedores, p_pais, p_card });
       if (error) return reply(500, { ok: false, error: error.message });
       return reply(200, { ok: true, comparativo: data, scope });
     }

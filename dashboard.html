@@ -162,6 +162,8 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
     <button class="btn btn-cta" onclick="aplicar()">Aplicar</button>
   </div>
 
+  <div id="appBanner" style="display:none;margin:14px 0 0;padding:12px 14px;border:1px solid var(--amber);background:rgba(232,163,23,.10);border-radius:10px;font-size:.86rem;color:var(--text)"></div>
+
   <div class="tabs" id="tabs">
     <button class="tab active" data-t="resumen">Resumen</button>
     <button class="tab" data-t="explorar">Explorar por país</button>
@@ -201,7 +203,7 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
           <button id="segByVend" onclick="setExploreBy('vendedor')">Por vendedor</button>
         </span>
       </h3>
-      <input class="search" id="cliSearch" placeholder="Buscar cliente…" oninput="renderExplorar()">
+      <input class="search" id="cliSearch" placeholder="Buscar cliente (cualquiera)…" oninput="onBuscar()">
       <div id="tblExplorar"></div>
     </div>
     <div class="card"><h3>Cobertura de la región <span class="sub">dónde estamos y dónde no</span></h3>
@@ -265,7 +267,7 @@ let mapInstance=null;
 
 // Adapta la interfaz según el rol (oculta lo de admin a los vendedores).
 function aplicarRolUI(){
-  const adminEls=['fieldVendedor','tab-vendedores','tab-plazas','syncBtn','segByVend'];
+  const adminEls=['fieldVendedor','tab-vendedores','tab-plazas','syncBtn','segByVend','syncBadge'];
   adminEls.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=ES_ADMIN?'':'none'; });
   const sub=document.getElementById('logoSub');
   if(sub) sub.textContent=ES_ADMIN?'Dashboard de ventas':'Mis ventas';
@@ -276,6 +278,7 @@ function aplicarRolUI(){
 const fmtUSD=n=> '$'+(Math.round(Number(n)||0)).toLocaleString('en-US');
 const fmtK=n=>{n=Number(n)||0; return n>=1e6?'$'+(n/1e6).toFixed(1)+'M':n>=1e3?'$'+(n/1e3).toFixed(0)+'K':'$'+Math.round(n);};
 const esc=s=> (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtFecha=s=>{ if(!s) return '—'; try{ return new Date(s.slice(0,10)+'T00:00:00').toLocaleDateString('es-PA',{day:'2-digit',month:'short',year:'numeric'}); }catch(e){ return s.slice(0,10); } };
 
 function toggleTheme(){
   const cur=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
@@ -291,7 +294,7 @@ function setPreset(p){
   else if(p==='tri') desde=new Date(hoy.getTime()-90*864e5);
   else if(p==='12m') desde=new Date(hoy.getTime()-365*864e5);
   else if(p==='ano') desde=new Date(hoy.getFullYear(),0,1);
-  else if(p==='5a') desde=new Date(hoy.getFullYear()-5,hoy.getMonth(),hoy.getDate());
+  else if(p==='5a') desde=new Date(hoy.getFullYear()-5,hoy.getMonth(),1);
   document.getElementById('desde').value=ymd(desde);
   document.getElementById('hasta').value=ymd(hoy);
 }
@@ -314,13 +317,24 @@ async function fetchData(extra){
   const r=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   return r.json();
 }
+function bannerMsg(html){
+  const b=document.getElementById('appBanner'); if(!b) return;
+  b.innerHTML=html||''; b.style.display=html?'block':'none';
+}
 async function aplicar(){
   const vend=document.getElementById('fVendedor').value;
   const pais=document.getElementById('fPais').value;
-  const j=await fetchData({vendedor:vend||null, pais:pais||null});
-  if(!j.ok){ alert('Error: '+(j.error||'desconocido')); return; }
+  const kpis=document.getElementById('kpis');
+  if(kpis && !DATA) kpis.innerHTML='<div class="empty" style="grid-column:1/-1;padding:30px">Cargando…</div>';
+  let j;
+  try { j=await fetchData({vendedor:vend||null, pais:pais||null}); }
+  catch(e){ bannerMsg('No se pudo conectar. Revisa tu internet y <a href="#" onclick="aplicar();return false">reintenta</a>.'); return; }
+  if(!j.ok){ bannerMsg('Error al cargar: '+esc(j.error||'desconocido')+'. <a href="#" onclick="aplicar();return false">Reintentar</a>'); return; }
+  bannerMsg('');
   // El servidor manda el rol real; ajustamos la UI por si difiere de la sesión local.
-  if(j.scope){ ES_ADMIN=!!j.scope.esAdmin; aplicarRolUI(); }
+  if(j.scope){ ES_ADMIN=!!j.scope.esAdmin; aplicarRolUI();
+    if(j.scope.sinCodigos) bannerMsg('Tu correo (<b>'+esc(EMAIL)+'</b>) no está vinculado a ningún código de vendedor en SAP. Pídele a administración que te asocie para ver tus ventas.');
+  }
   DATA=j.resumen; renderSync(j.sync); renderAll();
   if(!BASE){ BASE=j.resumen; poblarSelects(); }
 }
@@ -445,7 +459,7 @@ function clienteRowHTML(x,i,max,hoy){
     <td class="muted nowrap">${esc(x.pais||'')}</td>
     <td class="muted nowrap">${esc(x.vendedor||'')}</td>
     <td class="num">${x.documentos||0}</td>
-    <td class="num muted nowrap">${(x.ultima_compra||'').slice(0,10)}${recencia}</td>
+    <td class="num muted nowrap">${fmtFecha(x.ultima_compra)}${recencia}</td>
     <td class="num">${fmtUSD(x.total)}</td></tr>`;
 }
 function clientesTabla(rows){
@@ -470,12 +484,8 @@ function renderExplorar(){
   document.getElementById('covOff').innerHTML = off.map(n=>`<span class="chip off">${esc(n)}</span>`).join('');
 
   const cont=document.getElementById('tblExplorar');
-  const q=(document.getElementById('cliSearch').value||'').toLowerCase().trim();
-  if(q){ // buscador global: lista plana de clientes que coinciden
-    const c=(DATA.por_cliente||[]).filter(x=>(x.name||'').toLowerCase().includes(q)||(x.card_code||'').toLowerCase().includes(q));
-    cont.innerHTML=clientesTabla(c);
-    return;
-  }
+  const q=(document.getElementById('cliSearch').value||'').trim();
+  if(q.length>=2) return;   // en búsqueda; onBuscar maneja el render
   // acordeón por país o por vendedor
   const byVend = exploreBy==='vendedor';
   const groups=((byVend?DATA.por_vendedor:DATA.por_pais)||[]).filter(x=>x.code!=null && x.code!=='');
@@ -497,6 +507,22 @@ function renderExplorar(){
     </details>`;
   }).join('');
   renderMap();
+}
+let buscarTimer=null, buscarSeq=0;
+function onBuscar(){
+  const q=(document.getElementById('cliSearch').value||'').trim();
+  clearTimeout(buscarTimer);
+  if(q.length<2){ renderExplorar(); return; }
+  const cont=document.getElementById('tblExplorar');
+  cont.innerHTML='<div class="empty" style="padding:16px">Buscando…</div>';
+  buscarTimer=setTimeout(async()=>{
+    const seq=++buscarSeq;
+    let j; try{ j=await fetchData({buscar:q}); }catch(e){ cont.innerHTML='<div class="empty">Error de conexión.</div>'; return; }
+    if(seq!==buscarSeq) return;   // llegó una respuesta vieja
+    if(!j.ok){ cont.innerHTML='<div class="empty">Error en la búsqueda.</div>'; return; }
+    const c=j.clientes||[];
+    cont.innerHTML = c.length ? clientesTabla(c) : '<div class="empty" style="padding:16px">Ningún cliente coincide con “'+esc(q)+'”.</div>';
+  }, 280);
 }
 async function cargarGrupoClientes(det,dim,code,key){
   if(!det.open) return;
@@ -705,19 +731,13 @@ async function cargarCompara(){
   const hoy=new Date(document.getElementById('hasta').value+'T00:00:00');
   const hasta=hoy.toISOString().slice(0,10);
   const desde=(hoy.getFullYear()-4)+'-01-01';   // últimos ~5 años calendario
-  const j=await fetchData({cardCode:card, desde, hasta});
-  if(!j.ok||!j.detalle){ cont.innerHTML='<div class="empty">No se pudo cargar.</div>'; return; }
+  let j; try{ j=await fetchData({comparativo:true, cardCode:card, desde, hasta}); }
+  catch(e){ cont.innerHTML='<div class="empty">Error de conexión.</div>'; return; }
+  if(!j.ok||!j.comparativo){ cont.innerHTML='<div class="empty">No se pudo cargar.</div>'; return; }
   comparaLoadedFor=card;
-  const docs=j.detalle.documentos||[];
-  const years=[...new Set(docs.map(d=>(d.doc_date||'').slice(0,4)).filter(Boolean))].sort();
-  const pm={};
-  docs.forEach(d=>{ const y=(d.doc_date||'').slice(0,4); (d.lineas||[]).forEach(l=>{
-    const p=l.descripcion||l.code; if(!p) return;
-    if(!pm[p]) pm[p]={fam:l.familia||'',yr:{},gran:0};
-    pm[p].yr[y]=(pm[p].yr[y]||0)+(Number(l.total)||0); pm[p].gran+=(Number(l.total)||0);
-  });});
-  const prods=Object.entries(pm).map(([name,o])=>({name,fam:o.fam,yr:o.yr,gran:o.gran}));
-  cont.innerHTML=comparaHTML(years,prods,String(hoy.getFullYear()));
+  const c=j.comparativo;
+  const prods=(c.productos||[]).map(p=>({name:p.descripcion||'',fam:p.familia||'',yr:p.y||{},gran:Number(p.total)||0}));
+  cont.innerHTML=comparaHTML(c.years||[],prods,String(hoy.getFullYear()));
 }
 // Comparativo anual de un país o vendedor (abre en el modal grande).
 async function abrirComparativo(dim,code,name){
@@ -892,11 +912,16 @@ function vendOptions(sel){
   });
   return opts;
 }
+// Líder = vendedor real (code!=null) con mayor venta positiva.
+function liderDe(p){
+  return (p.vendedores||[]).filter(v=>v.code!=null && Number(v.total)>0)
+    .sort((a,b)=>Number(b.total)-Number(a.total))[0] || null;
+}
 function renderPlazas(){
   if(!PLAZAS||!PLAZAS.length){ document.getElementById('tblPlazas').innerHTML='<div class="empty">Sin datos de ventas por país en el período.</div>'; return; }
   let h='';
   PLAZAS.forEach(p=>{
-    const lider=(p.vendedores||[]).find(v=>v.code!=null);
+    const lider=liderDe(p);
     const asig=p.asignado;
     const reparto=(p.vendedores||[]).filter(v=>v.code!=null).length>=2 && lider && lider.pct<70;
     let estado,cls;
@@ -928,7 +953,7 @@ function renderPlazas(){
   });
   // resumen arriba
   const sinAsig=PLAZAS.filter(p=>!p.asignado||p.asignado.code==null).length;
-  const dif=PLAZAS.filter(p=>{const l=(p.vendedores||[]).find(v=>v.code!=null);return p.asignado&&p.asignado.code!=null&&l&&p.asignado.code!==l.code;}).length;
+  const dif=PLAZAS.filter(p=>{const l=liderDe(p);return p.asignado&&p.asignado.code!=null&&l&&p.asignado.code!==l.code;}).length;
   const head=`<div class="kpis" style="margin-bottom:14px">
     <div class="kpi"><div class="lbl">Países con ventas</div><div class="val">${PLAZAS.length}</div></div>
     <div class="kpi ${sinAsig?'cta':''}"><div class="lbl">Sin asignar</div><div class="val">${sinAsig}</div></div>

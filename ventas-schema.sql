@@ -350,9 +350,11 @@ $$;
 -- 7) RPC: comparativo producto × año (para país o vendedor o todo).
 --    Devuelve { years:[...], productos:[{descripcion,familia,total,y:{anio:monto}}] }.
 -- ───────────────────────────────────────────────────────────────────────────
+drop function if exists ventas_comparativo(date, date, integer[], text);
 create or replace function ventas_comparativo(desde date, hasta date,
                                               p_vendedores integer[] default null,
-                                              p_pais text default null)
+                                              p_pais text default null,
+                                              p_card text default null)
 returns jsonb
 language sql stable
 as $$
@@ -365,6 +367,7 @@ as $$
     where doc_date >= desde and doc_date <= hasta and item_code is not null
       and (p_vendedores is null or sales_person_code = any(p_vendedores))
       and (p_pais is null or country_code = p_pais)
+      and (p_card is null or card_code = p_card)
   ),
   pa as (select prod, max(fam) fam, anio, sum(line_total) ytot from f group by prod, anio),
   byp as (
@@ -379,8 +382,35 @@ as $$
   );
 $$;
 
+-- ───────────────────────────────────────────────────────────────────────────
+-- 8) RPC: búsqueda de clientes (cualquiera, no solo el top) — server-side.
+-- ───────────────────────────────────────────────────────────────────────────
+create or replace function ventas_buscar_clientes(q text, desde date, hasta date,
+                                                  p_vendedores integer[] default null)
+returns jsonb
+language sql stable
+as $$
+  select coalesce(jsonb_agg(x), '[]'::jsonb) from (
+    select card_code,
+           coalesce(max(card_name), card_code) as name,
+           coalesce(max(country_name), max(country_code)) as pais,
+           coalesce(max(sales_person_name),'') as vendedor,
+           sum(line_total) as total,
+           count(distinct (doc_type||doc_entry)) as documentos,
+           max(doc_date) as ultima_compra
+    from ventas_lineas
+    where doc_date >= desde and doc_date <= hasta
+      and (p_vendedores is null or sales_person_code = any(p_vendedores))
+      and (card_name ilike '%'||q||'%' or card_code ilike '%'||q||'%')
+    group by card_code
+    order by total desc
+    limit 60
+  ) x;
+$$;
+
 -- Permitir que el rol de servicio (funciones Netlify) ejecute los RPC.
-grant execute on function ventas_comparativo(date, date, integer[], text) to service_role;
+grant execute on function ventas_comparativo(date, date, integer[], text, text) to service_role;
+grant execute on function ventas_buscar_clientes(text, date, date, integer[]) to service_role;
 grant execute on function ventas_resumen(date, date, integer[], text) to service_role;
 grant execute on function ventas_cliente_detalle(text, date, date, integer[]) to service_role;
 grant execute on function ventas_plazas(date, date) to service_role;
