@@ -79,6 +79,16 @@ function emailHTML(data, empresa, lang = 'es') {
   </div></body></html>`;
 }
 
+// Switch global: ¿enviar copia al vendedor? (cobranza_config.cc_vendedor, default true)
+async function ccVendedorActivado(empresa) {
+  try {
+    const sb = getSupabase(empresa);
+    if (!sb) return true;
+    const { data } = await sb.from('cobranza_config').select('value').eq('key', 'cc_vendedor').maybeSingle();
+    return (!data || data.value == null) ? true : data.value !== 'false';
+  } catch (e) { return true; }
+}
+
 // Resuelve el correo del vendedor de la última factura:
 //  1) Mapeo administrado (cobranza_vendedores) por código SAP, siguiendo reasignación.
 //  2) Si no está configurado, empareja por nombre con la tabla sellers.
@@ -168,11 +178,13 @@ async function enviarEstadoCuenta(opts = {}) {
     } catch (e) { console.error('PDF de facturas falló (se envía solo el estado):', e.message); }
   }
 
-  // 4) CC: cobros + el vendedor de la última factura (si lo ubicamos en sellers)
+  // 4) CC: cobros + (si está activado) el vendedor de la última factura
   const ccList = [];
   if (empresa.cc) ccList.push(empresa.cc);
-  const vendedorEmail = await resolverEmailVendedor(empresa, data.vendedor, to);
-  if (vendedorEmail && !ccList.includes(vendedorEmail)) ccList.push(vendedorEmail);
+  if (await ccVendedorActivado(empresa)) {
+    const vendedorEmail = await resolverEmailVendedor(empresa, data.vendedor, to);
+    if (vendedorEmail && !ccList.includes(vendedorEmail)) ccList.push(vendedorEmail);
+  }
 
   // 5) Enviar por Resend
   const resend = new Resend(process.env.RESEND_API_KEY);

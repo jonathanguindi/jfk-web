@@ -2950,11 +2950,12 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
 
     <!-- Vendedores (mapeo SAP -> correo) -->
     <div id="cobranza-pane-vend" style="display:none">
-      <div style="font-size:.85rem;color:var(--text-muted);margin-bottom:12px">Pon el correo de cada vendedor de SAP. Si alguien ya no trabaja, desmárcalo en <b>Aplica</b> y reasigna sus cobros a otro vendedor.</div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
-        <input type="search" id="cobranza-vend-search" placeholder="Buscar vendedor…" oninput="renderVendedores()" style="flex:1;min-width:160px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:transparent;color:inherit;box-sizing:border-box">
-        <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--text-muted);cursor:pointer"><input type="checkbox" id="cobranza-vend-ocultarz" checked onchange="renderVendedores()" style="width:16px;height:16px;accent-color:var(--electric)">Ocultar archivados</label>
-      </div>
+      <label style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 15px;border:1px solid var(--border-soft);border-radius:10px;background:var(--surface-1);margin-bottom:14px;cursor:pointer">
+        <span style="font-size:.88rem;color:var(--text-strong);font-weight:600">Enviar copia (CC) al vendedor en cada cobro</span>
+        <input type="checkbox" id="cobranza-cc-vendedor" onchange="onVendCcToggle(this)" style="width:18px;height:18px;accent-color:var(--electric);flex-shrink:0">
+      </label>
+      <div style="font-size:.82rem;color:var(--text-muted);margin-bottom:12px">Vendedores con venta en el último año. Pon el correo de cada uno; si alguien ya no trabaja, desmarca <b>Aplica</b> y reasigna sus cobros a otro.</div>
+      <input type="search" id="cobranza-vend-search" placeholder="Buscar vendedor…" oninput="renderVendedores()" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:transparent;color:inherit;box-sizing:border-box;margin-bottom:12px">
       <div id="cobranza-vend-list"><div class="estado-placeholder"><div class="spinner"></div></div></div>
     </div>
   </div>
@@ -6213,30 +6214,40 @@ async function loadCobranzaVendedores() {
     if (!data.ok) throw new Error(data.error || 'error');
     cobVendedores = data.vendedores || [];
     cobVendCargado = true;
+    const ccChk = document.getElementById('cobranza-cc-vendedor');
+    if (ccChk) ccChk.checked = data.ccVendedor !== false;
     renderVendedores();
   } catch (e) {
     cont.innerHTML = `<div class="estado-placeholder" style="color:var(--error)">Error: ${escapeHtml(e.message)}</div>`;
   }
 }
 
+async function onVendCcToggle(cb) {
+  try {
+    const res = await fetch('/.netlify/functions/cobranza-vendedores', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'config', ccVendedor: cb.checked }) });
+    const d = await res.json();
+    if (!d.ok) { showToast('No se guardó: ' + (d.error || ''), true); cb.checked = !cb.checked; return; }
+    showToast(cb.checked ? 'Activado: copia al vendedor' : 'Desactivado: sin copia al vendedor');
+  } catch (e) { showToast('Error: ' + e.message, true); cb.checked = !cb.checked; }
+}
+
 function renderVendedores() {
   const cont = document.getElementById('cobranza-vend-list');
   if (!cont) return;
   const term = (document.getElementById('cobranza-vend-search').value || '').trim().toLowerCase();
-  const ocultarZ = !!document.getElementById('cobranza-vend-ocultarz')?.checked;
   let list = cobVendedores;
-  if (ocultarZ) list = list.filter(v => !/^z-/i.test(v.name || '') && !/sin agente|trafico|muestras/i.test(v.name || ''));
   if (term) list = list.filter(v => (v.name || '').toLowerCase().includes(term) || String(v.code).includes(term));
   if (!list.length) { cont.innerHTML = '<div class="estado-placeholder">Sin resultados</div>'; return; }
   const opts = cobVendedores.map(v => `<option value="${v.code}">${escapeHtml(v.name)} (#${v.code})</option>`).join('');
   cont.innerHTML = list.map(v => {
     const aplica = v.activo !== false;
-    return `<div style="border:1px solid var(--border-soft);border-radius:10px;padding:12px 14px;margin-bottom:8px;background:var(--surface-1)">
+    const falta = aplica && !v.email;
+    return `<div style="border:1px solid ${falta ? 'var(--error)' : 'var(--border-soft)'};border-radius:10px;padding:12px 14px;margin-bottom:8px;background:var(--surface-1)">
       <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
-        <div style="min-width:0"><div style="font-weight:600;color:var(--text-strong);font-size:.9rem">${escapeHtml(v.name)}</div><div style="font-size:.72rem;color:var(--text-subtle)">SAP #${v.code}${v.configurado ? '' : ' · sin configurar'}</div></div>
+        <div style="min-width:0"><div style="font-weight:600;color:var(--text-strong);font-size:.9rem">${escapeHtml(v.name)}</div><div style="font-size:.72rem;color:var(--text-subtle)">SAP #${v.code}${falta ? ' · <span style="color:var(--error)">falta correo</span>' : ''}</div></div>
         <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--text-muted);cursor:pointer">Aplica<input type="checkbox" ${aplica ? 'checked' : ''} onchange="onVendAplica(${v.code},this)" style="width:16px;height:16px;accent-color:var(--electric)"></label>
       </div>
-      <input type="email" value="${escapeHtml(v.email || '')}" placeholder="correo@jfkintl.com" onchange="onVendEmail(${v.code},this)" ${aplica ? '' : 'disabled'} style="width:100%;margin-top:10px;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:transparent;color:inherit;box-sizing:border-box;font-size:.85rem">
+      <input type="email" value="${escapeHtml(v.email || '')}" placeholder="correo@jfkintl.com" onchange="onVendEmail(${v.code},this)" ${aplica ? '' : 'disabled'} style="width:100%;margin-top:10px;padding:9px 12px;border-radius:8px;border:1px solid ${falta ? 'var(--error)' : 'var(--border)'};background:transparent;color:inherit;box-sizing:border-box;font-size:.85rem">
       <div id="vend-reasig-${v.code}" style="margin-top:8px;${aplica ? 'display:none' : ''}">
         <label style="font-size:.72rem;color:var(--text-subtle);display:block;margin-bottom:4px">Reasignar sus cobros a:</label>
         <select onchange="onVendReasignar(${v.code},this)" style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface-1);color:inherit;font-size:.85rem">
@@ -6257,13 +6268,11 @@ async function saveVend(v) {
     v.configurado = true; return true;
   } catch (e) { showToast('Error: ' + e.message, true); return false; }
 }
-function onVendEmail(code, inp) { const v = vendFind(code); if (!v) return; v.email = inp.value.trim(); saveVend(v).then(ok => { if (ok) showToast('Correo guardado'); }); }
+function onVendEmail(code, inp) { const v = vendFind(code); if (!v) return; v.email = inp.value.trim(); saveVend(v).then(ok => { if (ok) { showToast('Correo guardado'); renderVendedores(); } }); }
 function onVendAplica(code, cb) {
   const v = vendFind(code); if (!v) return;
   v.activo = cb.checked;
-  const r = document.getElementById('vend-reasig-' + code); if (r) r.style.display = cb.checked ? 'none' : 'block';
-  const em = cb.closest('div').parentElement.querySelector('input[type=email]'); if (em) em.disabled = !cb.checked;
-  saveVend(v).then(ok => { if (ok) showToast(cb.checked ? 'Marcado: aplica' : 'Marcado: no aplica'); });
+  saveVend(v).then(ok => { if (ok) { showToast(cb.checked ? 'Marcado: aplica' : 'Marcado: no aplica'); renderVendedores(); } });
 }
 function onVendReasignar(code, sel) { const v = vendFind(code); if (!v) return; v.reasignar_a = sel.value ? Number(sel.value) : null; saveVend(v).then(ok => { if (ok) showToast('Reasignación guardada'); }); }
 
