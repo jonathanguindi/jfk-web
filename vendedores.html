@@ -2914,16 +2914,10 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
         <div style="font-size:.85rem;opacity:.7">Elige un país para ver sus clientes con saldo pendiente, su morosidad y enviarles el estado de cuenta.</div>
         <button onclick="loadCobranzaDashboard()" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border,#2a2a33);background:transparent;color:inherit;cursor:pointer;font-size:.8rem">↻ Refrescar</button>
       </div>
-      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
-        <label style="display:inline-flex;align-items:center;gap:8px;font-size:.82rem;color:var(--text-muted);cursor:pointer">
-          <input type="checkbox" id="cob-incluir-facturas" style="width:16px;height:16px;accent-color:var(--electric)">
-          Incluir facturas con fotos al enviar
-        </label>
-        <label style="display:inline-flex;align-items:center;gap:8px;font-size:.82rem;color:var(--text-muted);cursor:pointer">
-          <input type="checkbox" id="cob-send-cc-vendedor" checked style="width:16px;height:16px;accent-color:var(--electric)">
-          Copiar al vendedor del cliente
-        </label>
-      </div>
+      <label style="display:inline-flex;align-items:center;gap:8px;font-size:.82rem;color:var(--text-muted);cursor:pointer;margin-bottom:14px">
+        <input type="checkbox" id="cob-send-cc-vendedor" checked style="width:16px;height:16px;accent-color:var(--electric)">
+        Copiar al vendedor del cliente
+      </label>
       <div id="cobranza-pais-kpis" style="margin-bottom:14px"></div>
       <div id="cobranza-pais-chips" style="display:flex;gap:8px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:8px;margin-bottom:10px;-webkit-overflow-scrolling:touch"></div>
       <div id="cobranza-pais-list"><div class="estado-placeholder">Cargando clientes…</div></div>
@@ -6888,9 +6882,9 @@ function cobCcVendedor() { const el = document.getElementById('cob-send-cc-vende
 
 async function enviarDashboard(cardCode, btn) {
   const cli = cobranzaDeudores.find(c => c.sap_card_code === cardCode);
-  const conFacturas = !!document.getElementById('cob-incluir-facturas')?.checked;
   const ccVend = cobCcVendedor();
-  if (!confirm(`¿Enviar el estado de cuenta${conFacturas ? ' CON las facturas (fotos)' : ''} a ${cli ? cli.name : cardCode}, con copia a cobros${ccVend ? ' y al vendedor' : ' (sin vendedor)'}?`)) return;
+  if (!confirm(`¿Enviar el estado de cuenta a ${cli ? cli.name : cardCode}, con copia a cobros${ccVend ? ' y al vendedor' : ' (sin vendedor)'}?`)) return;
+  const conFacturas = confirm('¿Incluir también las facturas con fotos de los productos?\n\nAceptar = estado de cuenta + facturas\nCancelar = solo el estado de cuenta');
   const orig = btn.textContent;
   btn.disabled = true; btn.textContent = 'Enviando…';
   const marcarEnviado = () => {
