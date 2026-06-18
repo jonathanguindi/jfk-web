@@ -121,6 +121,9 @@ tr.clickable:hover td{background:var(--bg-sunken);box-shadow:inset 2px 0 0 var(-
 .accion{border:1px solid var(--border);border-left:3px solid var(--cta);border-radius:12px;padding:14px 16px;margin-bottom:16px;background:color-mix(in srgb,var(--cta) 5%,var(--bg-elevated))}
 .prio{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 12px;border-bottom:1px solid var(--border-soft);cursor:pointer;border-radius:8px;transition:background .12s}
 .prio:hover{background:var(--bg-sunken)}
+.plaza-hero{display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:14px;border-radius:12px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 12%,var(--bg-elevated)),var(--bg-elevated));border:1px solid var(--border-soft)}
+.plaza-flag{font-size:2.2rem;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.15))}
+.plaza-name{font-family:var(--font-serif);font-size:1.2rem;font-weight:600;letter-spacing:-.01em}
 .contact{border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:16px;background:var(--bg-sunken)}
 .contact.on{border-color:rgba(31,169,113,.4)} .contact.warn{border-color:rgba(232,163,23,.45)} .contact.off{border-color:rgba(229,72,77,.4)}
 .contact-h{margin-bottom:10px}
@@ -320,6 +323,8 @@ const fmtUSD=n=> '$'+(Math.round(Number(n)||0)).toLocaleString('en-US');
 const fmtK=n=>{n=Number(n)||0; return n>=1e6?'$'+(n/1e6).toFixed(1)+'M':n>=1e3?'$'+(n/1e3).toFixed(0)+'K':'$'+Math.round(n);};
 const esc=s=> (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmtFecha=s=>{ if(!s) return '—'; try{ return new Date(s.slice(0,10)+'T00:00:00').toLocaleDateString('es-PA',{day:'2-digit',month:'short',year:'numeric'}); }catch(e){ return s.slice(0,10); } };
+// Bandera emoji a partir del código ISO2 de país (PA -> 🇵🇦).
+const flagEmoji=code=>{ code=(code||'').trim(); return /^[A-Za-z]{2}$/.test(code)? code.toUpperCase().replace(/./g,c=>String.fromCodePoint(127397+c.charCodeAt(0))) : '🏳️'; };
 
 function toggleTheme(){
   const cur=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
@@ -597,6 +602,7 @@ function renderExplorar(){
     return `<details class="doc" ontoggle="cargarGrupoClientes(this,'${byVend?'vendedor':'pais'}','${esc(String(g.code))}','${key}')">
       <summary>
         <span class="chev">▶</span>
+        ${byVend?'':`<span style="font-size:1.1rem;line-height:1">${flagEmoji(g.code)}</span>`}
         <b class="nowrap">${esc(g.name||g.code)}</b>
         <span class="muted" style="font-size:.78rem">${g.clientes||0} clientes · ${pct}%</span>
         <span class="spacer"></span>
@@ -1052,8 +1058,10 @@ function renderPlazas(){
       const w=Math.min(100,Number(v.pct)||0);
       return `<div style="margin:5px 0"><div style="display:flex;justify-content:space-between;font-size:.8rem"><span>${esc(v.name)}</span><span class="muted num">${fmtUSD(v.total)} · ${v.clientes||0} cli · <b style="color:var(--text)">${(v.pct||0)}%</b></span></div><div class="bar-wrap"><div class="bar ${v.code===(asig&&asig.code)?'cta':''}" style="width:${w}%"></div></div></div>`;
     }).join('');
-    h+=`<details class="doc"><summary>
+    const ck=String(p.code).replace(/[^A-Za-z0-9]/g,'');
+    h+=`<details class="doc" ontoggle="cargarPlazaDormidos(this,'${esc(String(p.code))}','${ck}')"><summary>
         <span class="chev">▶</span>
+        <span style="font-size:1.15rem;line-height:1">${flagEmoji(p.code)}</span>
         <b class="nowrap">${esc(p.name)}</b>
         <span class="muted num" style="font-size:.8rem">${fmtUSD(p.total)} · ${p.clientes||0} cli</span>
         <span class="spacer"></span>
@@ -1062,13 +1070,19 @@ function renderPlazas(){
         ${reparto?'<span class="contact-badge warn" style="margin-left:4px">repartida</span>':''}
       </summary>
       <div class="doc-body">
+        <div class="plaza-hero"><span class="plaza-flag">${flagEmoji(p.code)}</span>
+          <div><div class="plaza-name">${esc(p.name)}</div>
+            <div class="muted" style="font-size:.78rem">${fmtUSD(p.total)} en ventas · ${p.clientes||0} clientes · dueño: <b style="color:var(--text)">${esc(asig&&asig.name?asig.name:'sin asignar')}</b></div></div>
+        </div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 12px">
           <span class="field" style="flex-direction:row;align-items:center;gap:8px"><label style="margin:0">Asignar a</label>
             <select onchange="asignarPlaza('${esc(p.code)}','${esc(p.name)}',this)">${vendOptions(asig&&asig.code)}</select></span>
           ${lider?`<button class="btn btn-sm" style="background:var(--bg-sunken);color:var(--text)" onclick="asignarLider('${esc(p.code)}','${esc(p.name)}',${lider.code},'${esc(lider.name)}')">Usar propuesta (${esc(lider.name)})</button>`:''}
+          <button class="btn btn-sm" style="background:rgba(0,159,227,.12);color:var(--accent);font-weight:600" onclick="abrirComparativo('pais','${esc(String(p.code))}','${esc(p.name)}')">📊 Ventas por año</button>
         </div>
         <div style="font-family:var(--font-mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px">Vendedores en este país</div>
         ${vbreak}
+        <div id="plaza-dorm-${ck}" style="margin-top:14px"><div class="muted" style="font-size:.8rem">Abre para ver clientes que dejamos de atender…</div></div>
       </div></details>`;
   });
   // resumen arriba
@@ -1081,6 +1095,27 @@ function renderPlazas(){
   </div>
   <p class="muted" style="font-size:.8rem;margin:0 0 14px">${sinAsig?`<b>${sinAsig}</b> país(es) sin dueño — asígnalos para que alguien los trabaje. `:''}${dif?`<b>${dif}</b> con un asignado que ya no es quien más vende — revisa si toca reasignar.`:''}${(!sinAsig&&!dif)?'Todo asignado al vendedor que más factura. ✅':''}</p>`;
   document.getElementById('tblPlazas').innerHTML=head+h;
+}
+// Clientes que dejamos de atender en una plaza (sin compra hace >=6 meses) — a quién escribirle.
+async function cargarPlazaDormidos(det, code, ck){
+  if(!det.open) return;
+  const box=document.getElementById('plaza-dorm-'+ck); if(!box || box.dataset.loaded) return;
+  box.dataset.loaded='1';
+  box.innerHTML='<div class="muted" style="font-size:.8rem;padding:6px 0">Buscando clientes que dejamos de atender…</div>';
+  let j; try{ j=await fetchData({pais:code}); }catch(e){ box.dataset.loaded=''; box.innerHTML=''; return; }
+  if(!j.ok||!j.resumen){ box.dataset.loaded=''; box.innerHTML=''; return; }
+  const hoy=new Date();
+  const dorm=(j.resumen.por_cliente||[]).map(x=>{ const dias=x.ultima_compra?Math.round((hoy-new Date(x.ultima_compra+'T00:00:00'))/864e5):9999; return {...x,dias}; })
+              .filter(x=>x.dias>=180).sort((a,b)=>(b.total||0)-(a.total||0)).slice(0,12);
+  const titulo=`<div style="font-family:var(--font-mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--cta);font-weight:700;margin-bottom:6px">🛑 Clientes que dejamos de atender ${dorm.length?`(${dorm.length})`:''}</div>`;
+  if(!dorm.length){ box.innerHTML=titulo+'<div class="muted" style="font-size:.82rem">Todos compraron hace poco en este país. 👍</div>'; return; }
+  const rows=dorm.map(x=>{ const t=x.dias>365?(x.dias/365).toFixed(1)+' años':Math.round(x.dias/30)+' meses';
+    const col=x.dias>365?'var(--red)':'var(--amber)';
+    return `<div class="prio" onclick="verCliente('${esc(x.card_code)}')">
+      <div style="min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.name)}</b><span class="muted" style="font-size:.74rem">${esc(x.vendedor||'sin vendedor')}</span></div>
+      <div style="text-align:right;white-space:nowrap"><span style="color:${col};font-weight:600;font-size:.8rem">hace ${t}</span><div class="muted num" style="font-size:.76rem">${fmtUSD(x.total)}</div></div></div>`;
+  }).join('');
+  box.innerHTML=titulo+rows+`<p class="muted" style="font-size:.74rem;margin:8px 2px 0">Escríbeles o llámalos para reactivarlos — ábrelos para ver qué compraban y sus datos de contacto.</p>`;
 }
 async function asignarPlaza(code,name,selectEl){
   const opt=selectEl.options[selectEl.selectedIndex];
