@@ -53,14 +53,14 @@ async function sapGetAll(cookie, path) {
 // ── Mapas de catálogo (se cargan una vez por sincronización) ──────────────────
 async function cargarMapas(cookie) {
   const bpSelect = 'BusinessPartners?$select=CardCode,CardName,EmailAddress,Phone1,Phone2,Cellular,Address,City,Country,ContactPerson,SalesPersonCode,Valid';
-  const [vend, items, grupos, bps, paises] = await Promise.all([
-    sapGetAll(cookie, 'SalesPersons?$select=SalesEmployeeCode,SalesEmployeeName').catch(() => []),
-    sapGetAll(cookie, 'Items?$select=ItemCode,ItemName,ItemsGroupCode').catch(() => []),
-    sapGetAll(cookie, 'ItemGroups?$select=Number,GroupName').catch(() => []),
-    // Con contacto. Si tu SAP rechaza algún campo, cae al mínimo (CardCode,Country).
-    sapGetAll(cookie, bpSelect).catch(() => sapGetAll(cookie, 'BusinessPartners?$select=CardCode,Country').catch(() => [])),
-    sapGetAll(cookie, 'Countries?$select=Code,Name').catch(() => []),
-  ]);
+  // IMPORTANTE: en SECUENCIA, no en paralelo. El Service Layer de SAP B1 limita las
+  // peticiones concurrentes por sesión y varias fallaban en silencio (nombres vacíos).
+  const vend   = await sapGetAll(cookie, 'SalesPersons?$select=SalesEmployeeCode,SalesEmployeeName').catch(() => []);
+  const grupos = await sapGetAll(cookie, 'ItemGroups?$select=Number,GroupName').catch(() => []);
+  const paises = await sapGetAll(cookie, 'Countries?$select=Code,Name').catch(() => []);
+  const items  = await sapGetAll(cookie, 'Items?$select=ItemCode,ItemName,ItemsGroupCode').catch(() => []);
+  // Con contacto. Si tu SAP rechaza algún campo, cae al mínimo (CardCode,Country).
+  const bps    = await sapGetAll(cookie, bpSelect).catch(() => sapGetAll(cookie, 'BusinessPartners?$select=CardCode,Country').catch(() => []));
 
   const vendedor = new Map();
   vend.forEach(v => vendedor.set(v.SalesEmployeeCode, v.SalesEmployeeName));
