@@ -194,6 +194,8 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
 
   <div id="appBanner" style="display:none;margin:14px 0 0;padding:12px 14px;border:1px solid var(--amber);background:rgba(232,163,23,.10);border-radius:10px;font-size:.86rem;color:var(--text)"></div>
 
+  <div id="scopeNote" style="display:none;align-items:center;gap:8px;margin:14px 0 0;padding:10px 14px;border:1px solid var(--border);background:var(--bg-sunken);border-radius:10px;font-size:.82rem;color:var(--text-muted)">🔒 <span><b style="color:var(--text)">Vista personal:</b> solo ves <b>tus</b> clientes y <b>tus</b> ventas. No aparece lo de otros vendedores.</span></div>
+
   <div class="tabs" id="tabs">
     <button class="tab active" data-t="resumen">Resumen</button>
     <button class="tab" data-t="explorar">Explorar por país</button>
@@ -310,6 +312,8 @@ function aplicarRolUI(){
   if(sub) sub.textContent=ES_ADMIN?'Dashboard de ventas':'Mis ventas';
   const who=document.getElementById('whoAmI');
   if(who) who.textContent=ES_ADMIN?'':(sesion.name||EMAIL);
+  const note=document.getElementById('scopeNote');
+  if(note) note.style.display=ES_ADMIN?'none':'flex';
 }
 
 const fmtUSD=n=> '$'+(Math.round(Number(n)||0)).toLocaleString('en-US');
