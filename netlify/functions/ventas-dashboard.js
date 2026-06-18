@@ -56,6 +56,12 @@ exports.handler = async (event) => {
 
     const { desde, hasta } = rango(body);
 
+    if (body.cardCode && body.reco) {
+      const { data, error } = await sb.rpc('ventas_recomendaciones', { p_card: body.cardCode, p_vendedores });
+      if (error) return reply(500, { ok: false, error: error.message });
+      return reply(200, { ok: true, reco: data, scope });
+    }
+
     if (body.cardCode) {
       const { data, error } = await sb.rpc('ventas_cliente_detalle', { p_card: body.cardCode, desde, hasta, p_vendedores });
       if (error) return reply(500, { ok: false, error: error.message });

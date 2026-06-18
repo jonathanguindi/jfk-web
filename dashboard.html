@@ -586,13 +586,44 @@ function setCliView(v){
   document.getElementById('cliSegRes').classList.toggle('active',v==='resumen');
   document.getElementById('cliSegPed').classList.toggle('active',v==='pedidos');
   const segInac=document.getElementById('cliSegInac'); if(segInac) segInac.classList.toggle('active',v==='inactivos');
+  const segReco=document.getElementById('cliSegReco'); if(segReco) segReco.classList.toggle('active',v==='reco');
   document.getElementById('cliResumen').style.display=v==='resumen'?'block':'none';
   document.getElementById('cliPedidos').style.display=v==='pedidos'?'block':'none';
   const inac=document.getElementById('cliInactivos'); if(inac) inac.style.display=v==='inactivos'?'block':'none';
+  const reco=document.getElementById('cliReco'); if(reco) reco.style.display=v==='reco'?'block':'none';
+  if(v==='reco' && recoLoadedFor!==cliActual) cargarReco();
+}
+let cliActual=null, recoLoadedFor=null;
+async function cargarReco(){
+  const cont=document.getElementById('cliReco'); if(!cont) return;
+  cont.innerHTML='<div class="empty">Calculando recomendaciones…</div>';
+  const card=cliActual;
+  const j=await fetchData({cardCode:card, reco:true});
+  if(!j.ok||!j.reco){ cont.innerHTML='<div class="empty">No se pudieron calcular.</div>'; return; }
+  recoLoadedFor=card;
+  const r=j.reco, reo=r.reorden||[], cs=r.crosssell||[];
+  const reoRows=reo.map(x=>{
+    const ratio=Number(x.ratio)||0;
+    const estado=ratio>=1.5?{t:'ATRASADO',c:'var(--red)'}:{t:'TOCA YA',c:'var(--amber)'};
+    return `<tr><td>${esc(x.descripcion||x.code)}<div class="muted" style="font-size:.7rem">${esc(x.familia||'')}</div></td>
+      <td class="num muted nowrap">cada ~${x.cadencia_dias||0} d</td>
+      <td class="num nowrap"><b style="color:${estado.c}">${x.dias_sin_comprar||0} d</b></td>
+      <td class="num"><span class="contact-badge" style="background:${estado.c}1f;color:${estado.c}">${estado.t}</span></td>
+      <td class="num">${fmtUSD(x.total)}</td></tr>`;
+  }).join('');
+  const csRows=cs.map(x=>`<tr><td>${esc(x.descripcion||x.code)}<div class="muted" style="font-size:.7rem">${esc(x.familia||'')}</div></td>
+      <td class="num nowrap"><b>${x.pct_peers||0}%</b> <span class="muted" style="font-size:.72rem">(${x.peers_compran||0})</span></td>
+      <td class="num muted">${fmtUSD(x.total_peer)}</td></tr>`).join('');
+  cont.innerHTML=`
+    <div style="font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin:2px 0 6px">🔁 Reordenar ahora <span class="muted" style="text-transform:none;letter-spacing:0">· según su ritmo de compra</span></div>
+    ${reo.length?`<table><thead><tr><th>Producto</th><th class="num">Cadencia</th><th class="num">Sin comprar</th><th class="num">Estado</th><th class="num">Hist.</th></tr></thead><tbody>${reoRows}</tbody></table>`:'<div class="empty" style="padding:16px">Nada pendiente de reorden ahora mismo.</div>'}
+    <div style="font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin:20px 0 6px">✨ Podría interesarle <span class="muted" style="text-transform:none;letter-spacing:0">· lo compran clientes de ${esc(r.pais||'su zona')} (${r.peers||0}) y este no</span></div>
+    ${cs.length?`<table><thead><tr><th>Producto</th><th class="num">% clientes zona</th><th class="num">Venta zona</th></tr></thead><tbody>${csRows}</tbody></table>`:'<div class="empty" style="padding:16px">Sin sugerencias de cross-sell.</div>'}`;
 }
 
 /* ── Detalle de cliente ── */
 async function verCliente(card){
+  cliActual=card; recoLoadedFor=null;
   const m=document.getElementById('modal');
   m.innerHTML='<button class="x" onclick="cerrarModal()">✕</button><div class="empty">Cargando…</div>';
   document.getElementById('overlay').classList.add('show');
@@ -665,6 +696,7 @@ async function verCliente(card){
       <button class="active" id="cliSegRes" onclick="setCliView('resumen')">Resumen %</button>
       <button id="cliSegPed" onclick="setCliView('pedidos')">Pedidos (${(d.documentos||[]).length})</button>
       <button id="cliSegInac" onclick="setCliView('inactivos')" ${lapsed.length?'style="color:var(--red)"':''}>Dejó de comprar (${lapsed.length})</button>
+      <button id="cliSegReco" onclick="setCliView('reco')" style="color:var(--accent)">✨ Sugerencias</button>
     </span></div>
     <div id="cliResumen">
       <div style="font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px">Ventas por año</div>
@@ -675,6 +707,7 @@ async function verCliente(card){
       <tbody>${rows||'<tr><td colspan="6" class="empty">Sin compras en el período.</td></tr>'}</tbody></table>
     </div>
     <div id="cliPedidos" style="display:none">${docsHtml(d.documentos)}</div>
+    <div id="cliReco" style="display:none"><div class="empty">Cargando…</div></div>
     <div id="cliInactivos" style="display:none">
       <p class="muted" style="font-size:.82rem;margin:0 0 12px">Productos que <b>compraba en este período pero NO en los últimos 6 meses</b> — oportunidad de recuperar. ${lapsed.length?`En total dejó de comprar <b style="color:var(--text)">${fmtUSD(lapsedTotal)}</b> en ${lapsed.length} producto(s).`:''}</p>
       ${lapsed.length?`<table><thead><tr><th>Producto</th><th class="num">Última compra</th><th class="num">Sin comprar</th><th class="num">Veces</th><th class="num">Total histórico</th></tr></thead><tbody>${lapsedRows}</tbody></table>`:'<div class="empty">Sigue comprando todo lo que compraba en el período. 👍</div>'}

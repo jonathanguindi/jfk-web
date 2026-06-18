@@ -268,7 +268,84 @@ as $$
   ) zz;
 $$;
 
+-- ───────────────────────────────────────────────────────────────────────────
+-- 6) RPC: recomendaciones por cliente (Fase 3).
+--    a) Reorden: productos que el cliente compra con cierto ritmo y que ya toca
+--       reponer (días sin comprar >= ~0.75 × su cadencia histórica).
+--    b) Cross-sell: productos que compran clientes parecidos (mismo país, dentro
+--       del alcance) y que este cliente NO compra.
+--    Usa los últimos 36 meses. p_vendedores = alcance (null = admin/todos).
+-- ───────────────────────────────────────────────────────────────────────────
+create or replace function ventas_recomendaciones(p_card text, p_vendedores integer[] default null)
+returns jsonb
+language sql stable
+as $$
+  with
+  params as (select (current_date - interval '36 months')::date as d0),
+  cli as (
+    select vl.* from ventas_lineas vl, params p
+    where vl.card_code = p_card and vl.doc_date >= p.d0
+      and (p_vendedores is null or vl.sales_person_code = any(p_vendedores))
+  ),
+  cli_pais as (select max(country_code) cc from cli),
+  cli_item as (
+    select item_code,
+           max(item_description) descr, max(item_group_name) fam,
+           count(distinct doc_date) veces, min(doc_date) f0, max(doc_date) f1,
+           sum(quantity) qty, sum(line_total) total
+    from cli where item_code is not null group by item_code
+  ),
+  reorden as (
+    select item_code, descr, fam, veces, f1, total, qty,
+           ((f1 - f0)::numeric / nullif(veces-1,0)) as cadencia,
+           (current_date - f1) as dias_desde
+    from cli_item where veces >= 2
+  ),
+  peers as (
+    select distinct vl.card_code
+    from ventas_lineas vl, params p
+    where vl.doc_date >= p.d0 and vl.card_code <> p_card
+      and vl.country_code = (select cc from cli_pais)
+      and (p_vendedores is null or vl.sales_person_code = any(p_vendedores))
+  ),
+  peer_count as (select count(*) n from peers),
+  peer_items as (
+    select vl.item_code,
+           max(vl.item_description) descr, max(vl.item_group_name) fam,
+           count(distinct vl.card_code) peers_compran, sum(vl.line_total) total_peer
+    from ventas_lineas vl, params p
+    where vl.doc_date >= p.d0 and vl.item_code is not null
+      and vl.card_code in (select card_code from peers)
+      and (p_vendedores is null or vl.sales_person_code = any(p_vendedores))
+    group by vl.item_code
+  )
+  select jsonb_build_object(
+    'card_code', p_card,
+    'pais', (select cc from cli_pais),
+    'peers', (select n from peer_count),
+    'reorden', coalesce((select jsonb_agg(x) from (
+        select item_code as code, descr as descripcion, fam as familia, veces, total,
+               round(cadencia) as cadencia_dias, dias_desde as dias_sin_comprar,
+               round(dias_desde / nullif(cadencia,0), 2) as ratio
+        from reorden
+        where cadencia is not null and dias_desde >= cadencia * 0.75
+        order by (dias_desde / nullif(cadencia,0)) desc, total desc
+        limit 15
+    ) x), '[]'::jsonb),
+    'crosssell', coalesce((select jsonb_agg(x) from (
+        select item_code as code, descr as descripcion, fam as familia,
+               peers_compran, total_peer,
+               round(100.0*peers_compran/nullif((select n from peer_count),0)) as pct_peers
+        from peer_items
+        where item_code not in (select item_code from cli_item)
+        order by peers_compran desc, total_peer desc
+        limit 12
+    ) x), '[]'::jsonb)
+  );
+$$;
+
 -- Permitir que el rol de servicio (funciones Netlify) ejecute los RPC.
 grant execute on function ventas_resumen(date, date, integer[], text) to service_role;
 grant execute on function ventas_cliente_detalle(text, date, date, integer[]) to service_role;
 grant execute on function ventas_plazas(date, date) to service_role;
+grant execute on function ventas_recomendaciones(text, integer[]) to service_role;
