@@ -186,14 +186,21 @@ async function computeEstadoCuenta({ cardCode, desde, hasta }, hoy = new Date())
   };
 }
 
-// Trae las facturas del rango CON sus líneas (para el PDF de facturas con fotos).
-// Limita a `max` (más recientes primero) para no traer demasiado.
-async function fetchFacturasConLineas({ cardCode, desde, hasta, max = 40 }) {
+// Trae las facturas CON sus líneas para el PDF de facturas con fotos.
+// Por defecto, SOLO las facturas ABIERTAS (sin pagar) sin importar la antigüedad
+// — que es lo que el cliente realmente debe. Limita a `max` (más recientes primero).
+async function fetchFacturasConLineas({ cardCode, desde, hasta, max = 40, soloAbiertas = true }) {
   const cc = String(cardCode).replace(/'/g, "''");
-  const fechaDesde = desde || '2024-01-01';
-  const fechaHasta = hasta || new Date().toISOString().slice(0, 10);
   const cookies = await sapLogin();
-  const path = `Invoices?$select=DocNum,DocDate,DocDueDate,DocTotal,DocCurrency,DocumentLines&$filter=CardCode eq '${cc}' and DocDate ge '${fechaDesde}' and DocDate le '${fechaHasta}'&$orderby=DocDate desc`;
+  let filtro = `CardCode eq '${cc}'`;
+  if (soloAbiertas) {
+    filtro += ` and DocumentStatus eq 'bost_Open'`;
+  } else {
+    const fechaDesde = desde || '2020-01-01';
+    const fechaHasta = hasta || new Date().toISOString().slice(0, 10);
+    filtro += ` and DocDate ge '${fechaDesde}' and DocDate le '${fechaHasta}'`;
+  }
+  const path = `Invoices?$select=DocNum,DocDate,DocDueDate,DocTotal,DocCurrency,DocumentLines&$filter=${filtro}&$orderby=DocDate desc`;
   const res = await fetch(`${SAP_URL}/${path}`, {
     method: 'GET',
     headers: { 'Cookie': cookies, 'Content-Type': 'application/json', 'Prefer': `odata.maxpagesize=${max}` },
