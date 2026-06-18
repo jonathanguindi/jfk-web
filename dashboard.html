@@ -118,6 +118,9 @@ tr.clickable:hover td{background:var(--bg-sunken);box-shadow:inset 2px 0 0 var(-
 .seg button.active{background:var(--bg-elevated);color:var(--text);box-shadow:0 1px 2px rgba(14,16,22,.1)}
 [data-theme="dark"] .seg button.active{background:var(--ink-700)}
 .spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
+.accion{border:1px solid var(--border);border-left:3px solid var(--cta);border-radius:12px;padding:14px 16px;margin-bottom:16px;background:color-mix(in srgb,var(--cta) 5%,var(--bg-elevated))}
+.prio{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 12px;border-bottom:1px solid var(--border-soft);cursor:pointer;border-radius:8px;transition:background .12s}
+.prio:hover{background:var(--bg-sunken)}
 .contact{border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:16px;background:var(--bg-sunken)}
 .contact.on{border-color:rgba(31,169,113,.4)} .contact.warn{border-color:rgba(232,163,23,.45)} .contact.off{border-color:rgba(229,72,77,.4)}
 .contact-h{margin-bottom:10px}
@@ -202,17 +205,21 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
   <!-- RESUMEN -->
   <section class="panel active" id="p-resumen">
     <div class="kpis" id="kpis"></div>
-    <div class="card"><h3>Tendencia <span class="sub">ventas USD</span>
-      <span class="seg" style="float:right">
+    <div class="card" id="cardPrioridades" style="display:none"><h3>📞 Prioridades de hoy <span class="sub">clientes para reactivar · clic para ver y llamar</span></h3><div id="prioridades"></div></div>
+    <div class="card"><h3>Tendencia <span class="sub">ventas mensuales en USD</span>
+      <span class="seg">
         <button class="active" id="segTrendMes" onclick="setTrendView('mes')">Mensual</button>
         <button id="segTrendAno" onclick="setTrendView('ano')">Anual</button>
-      </span></h3><div id="trend"></div></div>
-    <div class="card"><h3>Mix por familia de producto <span class="sub">% de ventas</span></h3><div id="resFamilia"></div></div>
+      </span></h3><div id="trend"></div>
+      <p class="muted" style="font-size:.74rem;margin:8px 0 0">Cada barra = ventas de ese período en USD. La línea punteada marca la mitad y el máximo.</p></div>
+    <div class="card"><h3>Qué familias se venden más <span class="sub">% del total de ventas</span></h3><div id="resFamilia"></div></div>
   </section>
 
   <!-- VENDEDORES -->
   <section class="panel" id="p-vendedores">
-    <div class="card"><h3>Ventas por vendedor</h3><div id="tblVendedores"></div></div>
+    <div class="card"><h3>Ventas por vendedor</h3>
+      <p class="muted" style="font-size:.78rem;margin:-6px 0 12px">Revisa a los de abajo del ranking: abre sus clientes (en Explorar → Por vendedor) y mira quiénes dejaron de comprar.</p>
+      <div id="tblVendedores"></div></div>
   </section>
 
   <!-- EXPLORAR (país -> clientes -> detalle) -->
@@ -234,7 +241,8 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
       <input class="search" id="cliSearch" placeholder="Buscar cliente (cualquiera)…" oninput="onBuscar()">
       <div id="tblExplorar"></div>
     </div>
-    <div class="card"><h3>Cobertura de la región <span class="sub">dónde estamos y dónde no</span></h3>
+    <div class="card"><h3>Cobertura de la región <span class="sub">dónde vendemos y dónde no</span></h3>
+      <p class="muted" style="font-size:.78rem;margin:-6px 0 12px">Los países sin ventas son prospección: pídele a administración contactos y ábrete un cliente nuevo ahí.</p>
       <div class="cov">
         <div><div class="muted" style="font-size:.72rem;margin-bottom:8px">PAÍSES QUE TRABAJAMOS (con ventas)</div><div class="chips" id="covOn"></div></div>
         <div><div class="muted" style="font-size:.72rem;margin-bottom:8px">PAÍSES SIN VENTAS (oportunidad)</div><div class="chips" id="covOff"></div></div>
@@ -260,12 +268,13 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
   <!-- PRODUCTOS -->
   <section class="panel" id="p-productos">
     <div class="card">
-      <h3>Productos <span class="sub">% del mix vendido</span>
-        <span class="seg" style="float:right">
+      <h3>Productos más vendidos <span class="sub">% del total de ventas</span>
+        <span class="seg">
           <button class="active" id="segProd" onclick="setProdView('producto')">Por producto</button>
           <button id="segFam" onclick="setProdView('familia')">Por familia</button>
         </span>
       </h3>
+      <p class="muted" style="font-size:.78rem;margin:-6px 0 12px">Esto es lo que más mueve tu venta. Úsalo para saber qué ofrecer (cross-sell) a quien aún no lo compra.</p>
       <div id="tblProductos"></div>
     </div>
   </section>
@@ -389,18 +398,39 @@ function renderSync(sync){
 }
 
 /* ── Render ── */
-function renderAll(){ renderKPIs(); renderTrend(); renderFamiliaResumen(); renderVendedores(); renderExplorar(); renderProductos(); }
+function renderAll(){ renderKPIs(); renderPrioridades(); renderTrend(); renderFamiliaResumen(); renderVendedores(); renderExplorar(); renderProductos(); }
+function renderPrioridades(){
+  const card=document.getElementById('cardPrioridades'), box=document.getElementById('prioridades');
+  if(!box) return;
+  const hoy=new Date(); // hoy real
+  const cli=(DATA.por_cliente||[]).map(x=>{
+    const dias=x.ultima_compra?Math.round((hoy-new Date(x.ultima_compra+'T00:00:00'))/864e5):9999;
+    return {...x, dias};
+  }).filter(x=>x.dias>=60).sort((a,b)=>(b.total||0)-(a.total||0)).slice(0,8);
+  if(!cli.length){ card.style.display='none'; return; }
+  card.style.display='';
+  box.innerHTML=cli.map(x=>{
+    const txt=x.dias>365?(x.dias/365).toFixed(1)+' años':Math.round(x.dias/30)+' meses';
+    const col=x.dias>365?'var(--red)':'var(--amber)';
+    return `<div class="prio" onclick="verCliente('${esc(x.card_code)}')">
+      <div style="min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.name)}</b>
+        <span class="muted" style="font-size:.76rem">${esc(x.pais||'')}${x.vendedor?' · '+esc(x.vendedor):''}</span></div>
+      <div style="text-align:right;white-space:nowrap"><span style="color:${col};font-weight:600;font-size:.82rem">no compra hace ${txt}</span>
+        <div class="muted num" style="font-size:.78rem">histórico ${fmtUSD(x.total)}</div></div>
+    </div>`;
+  }).join('')+`<p class="muted" style="font-size:.74rem;margin:10px 2px 0">Estos clientes llevan tiempo sin comprar. Ábrelos para ver qué pedían y llámalos para recuperarlos.</p>`;
+}
 
 function renderKPIs(){
   const k=DATA.kpis||{};
   const items=[
     ['Ventas',fmtUSD(k.ventas_total),'cta'],
-    ['Documentos',(k.num_documentos||0).toLocaleString()],
+    ['Facturas',(k.num_facturas||0).toLocaleString()],
     ['Clientes',(k.num_clientes||0).toLocaleString()],
-    ['Vendedores',(k.num_vendedores||0).toLocaleString()],
-    ['Países',(k.num_paises||0).toLocaleString()],
-    ['Ticket prom.',fmtUSD(k.ticket_promedio)],
   ];
+  if(ES_ADMIN) items.push(['Vendedores',(k.num_vendedores||0).toLocaleString()]);
+  items.push(['Países',(k.num_paises||0).toLocaleString()]);
+  items.push(['Factura prom.',fmtUSD(k.ticket_promedio)]);
   document.getElementById('kpis').innerHTML=items.map(([l,v,c])=>
     `<div class="kpi ${c||''}"><div class="lbl">${l}</div><div class="val">${v}</div></div>`).join('');
 }
@@ -500,7 +530,7 @@ function clienteRowHTML(x,i,max,hoy){
 function clientesTabla(rows){
   if(!rows.length) return '<div class="empty" style="padding:14px">Sin clientes.</div>';
   const max=Math.max(1,...rows.map(x=>Number(x.total)||0));
-  const hoy=new Date(document.getElementById('hasta').value+'T00:00:00');
+  const hoy=new Date();   // recencia contra hoy real
   return '<div class="tbl-scroll"><table><thead><tr><th></th><th>Cliente</th><th>País</th><th>Vendedor</th><th class="num">Docs</th><th class="num">Última compra</th><th class="num">Ventas</th></tr></thead><tbody>'
     + rows.map((x,i)=>clienteRowHTML(x,i,max,hoy)).join('') + '</tbody></table></div>';
 }
@@ -629,9 +659,9 @@ function contactoHtml(c){
   const tieneDir=!!(c.address&&c.address.trim());
   const inactivo=(c.valid&&/NO/i.test(c.valid));
   let estado, cls;
-  if(tieneCorreo&&tieneTel){ estado='Contacto completo'; cls='on'; }
-  else if(tieneCorreo||tieneTel||tieneDir){ estado='Contacto parcial'; cls='warn'; }
-  else { estado='Sin información de contacto'; cls='off'; }
+  if(tieneCorreo&&tieneTel){ estado='Datos en SAP: completos'; cls='on'; }
+  else if(tieneCorreo||tieneTel||tieneDir){ estado='Datos en SAP: incompletos'; cls='warn'; }
+  else { estado='Datos en SAP: faltan'; cls='off'; }
   const item=(lbl,val,href)=> `<div class="ci"><span class="ci-l">${lbl}</span>`+
     (val&&val.trim()
       ? (href?`<a class="ci-v" href="${href}${esc(val.trim())}">${esc(val.trim())}</a>`:`<span class="ci-v">${esc(val.trim())}</span>`)
@@ -722,6 +752,11 @@ function comparaDiagnostico(years, prods, yTot, nowYear){
   const last=years[years.length-1];
   let a, b, nota='';
   if(last===nowYear && years.length>=3){ a=years[years.length-2]; b=years[years.length-3]; nota=` · ${last} en curso: ${fmtK(yTot[last]||0)}`; }
+  else if(last===nowYear){
+    // Solo hay año en curso + un año completo: comparar medio año contra uno entero engaña.
+    return `<div style="border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:12px;padding:12px 14px;margin-bottom:14px;background:var(--bg-sunken);font-size:.88rem">
+      ⏳ <b>${last} va en curso</b>: ${fmtK(yTot[last]||0)} vs ${fmtK(yTot[years[0]]||0)} de todo ${years[0]}. Aún no es comparable (el año no terminó).</div>`;
+  }
   else { a=last; b=years[years.length-2]; }
   const va=yTot[a]||0, vb=yTot[b]||0;
   if(vb===0 && va===0) return '';
@@ -745,7 +780,10 @@ function comparaHTML(years, prods, nowYear){
   years=(years||[]).slice().sort();
   if(!years.length || !prods.length) return '<div class="empty" style="padding:16px">Sin compras en los últimos años.</div>';
   const maxY=years[years.length-1];
-  prods=prods.map(p=>{ const ult=years.filter(y=>(p.yr[y]||0)>0).pop()||''; return {name:p.name,fam:p.fam||'',yr:p.yr||{},gran:Number(p.gran)||0,ult,dropped:!!(ult&&ult<maxY)}; })
+  // "Dejó de comprar" se mide contra el último año COMPLETO (no el año en curso parcial),
+  // para no marcar "ya no" en enero solo porque aún no recompró este año.
+  const refY=(maxY===nowYear && years.length>1)?years[years.length-2]:maxY;
+  prods=prods.map(p=>{ const ult=years.filter(y=>(p.yr[y]||0)>0).pop()||''; return {name:p.name,fam:p.fam||'',yr:p.yr||{},gran:Number(p.gran)||0,ult,dropped:!!(ult&&ult<refY)}; })
              .sort((a,b)=>b.gran-a.gran);
   const dropped=prods.filter(p=>p.dropped).length;
   const top=prods.slice(0,50);
@@ -759,7 +797,8 @@ function comparaHTML(years, prods, nowYear){
     const tag=p.dropped?` <span class="contact-badge off" style="font-size:.52rem">ya no · ${esc(p.ult)}</span>`:'';
     return `<tr><td>${esc(p.name)}${tag}<div class="muted" style="font-size:.68rem">${esc(p.fam)}</div></td>${cells}<td class="num"><b>${fmtK(p.gran)}</b></td></tr>`;
   }).join('');
-  return comparaChart(years,yTot,nowYear)
+  return `<p class="muted" style="font-size:.74rem;margin:0 0 10px">Muestra siempre los últimos años con compras (no depende del período de arriba).</p>`
+    + comparaChart(years,yTot,nowYear)
     + comparaDiagnostico(years,prods,yTot,nowYear)
     + `<div style="font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin:6px 0 6px">Detalle producto × año</div>`
     + `<p class="muted" style="font-size:.78rem;margin:0 0 8px">Rojo / <span class="contact-badge off" style="font-size:.52rem">ya no</span> = lo compraba antes y este año no.${dropped?` Dejó de comprar <b style="color:var(--text)">${dropped}</b> producto(s).`:''} ${years[years.length-1]===nowYear?'<span style="opacity:.7">· * año en curso</span>':''}</p>`
@@ -808,21 +847,23 @@ async function cargarReco(){
   const r=j.reco, reo=r.reorden||[], cs=r.crosssell||[];
   const reoRows=reo.map(x=>{
     const ratio=Number(x.ratio)||0;
-    const estado=ratio>=1.5?{t:'ATRASADO',c:'var(--red)'}:{t:'TOCA YA',c:'var(--amber)'};
+    const estado=ratio>=1.5?{t:'Urgente: ya debió pedir',c:'var(--red)'}:{t:'Llamar para reponer',c:'var(--amber)'};
     return `<tr><td>${esc(x.descripcion||x.code)}<div class="muted" style="font-size:.7rem">${esc(x.familia||'')}</div></td>
       <td class="num muted nowrap">cada ~${x.cadencia_dias||0} d</td>
       <td class="num nowrap"><b style="color:${estado.c}">${x.dias_sin_comprar||0} d</b></td>
-      <td class="num"><span class="contact-badge" style="background:${estado.c}1f;color:${estado.c}">${estado.t}</span></td>
+      <td class="nowrap"><span class="contact-badge" style="background:${estado.c}1f;color:${estado.c}">${estado.t}</span></td>
       <td class="num">${fmtUSD(x.total)}</td></tr>`;
   }).join('');
+  const pocosPeers=(r.peers||0)<5;
   const csRows=cs.map(x=>`<tr><td>${esc(x.descripcion||x.code)}<div class="muted" style="font-size:.7rem">${esc(x.familia||'')}</div></td>
-      <td class="num nowrap"><b>${x.pct_peers||0}%</b> <span class="muted" style="font-size:.72rem">(${x.peers_compran||0})</span></td>
+      <td class="num nowrap"><b>${x.pct_peers||0}%</b> <span class="muted" style="font-size:.72rem">(${x.peers_compran||0} clientes)</span></td>
       <td class="num muted">${fmtUSD(x.total_peer)}</td></tr>`).join('');
   cont.innerHTML=`
-    <div style="font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin:2px 0 6px">🔁 Reordenar ahora <span class="muted" style="text-transform:none;letter-spacing:0">· según su ritmo de compra</span></div>
-    ${reo.length?`<table><thead><tr><th>Producto</th><th class="num">Cadencia</th><th class="num">Sin comprar</th><th class="num">Estado</th><th class="num">Hist.</th></tr></thead><tbody>${reoRows}</tbody></table>`:'<div class="empty" style="padding:16px">Nada pendiente de reorden ahora mismo.</div>'}
-    <div style="font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin:20px 0 6px">✨ Podría interesarle <span class="muted" style="text-transform:none;letter-spacing:0">· lo compran clientes de ${esc(r.pais||'su zona')} (${r.peers||0}) y este no</span></div>
-    ${cs.length?`<table><thead><tr><th>Producto</th><th class="num">% clientes zona</th><th class="num">Venta zona</th></tr></thead><tbody>${csRows}</tbody></table>`:'<div class="empty" style="padding:16px">Sin sugerencias de cross-sell.</div>'}`;
+    <div style="font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin:2px 0 6px">🔁 Reordenar ahora <span class="muted" style="text-transform:none;letter-spacing:0">· productos que compra seguido y ya le toca volver a pedir</span></div>
+    ${reo.length?`<table><thead><tr><th>Producto</th><th class="num">Ritmo</th><th class="num">Sin comprar</th><th>Qué hacer</th><th class="num">Hist.</th></tr></thead><tbody>${reoRows}</tbody></table>`:'<div class="empty" style="padding:16px">Sin recompras urgentes. Buen momento para ofrecerle algo nuevo (mira abajo).</div>'}
+    <div style="font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin:20px 0 6px">✨ Podría interesarle <span class="muted" style="text-transform:none;letter-spacing:0">· lo compran clientes de ${esc(r.pais||'su zona')} y este aún no</span></div>
+    ${pocosPeers?'<p class="muted" style="font-size:.74rem;margin:0 0 8px">⚠️ Pocos clientes en esta zona — tómalo como referencia, no como regla.</p>':''}
+    ${cs.length?`<table><thead><tr><th>Producto</th><th class="num">% de clientes de la zona</th><th class="num">Venta zona</th></tr></thead><tbody>${csRows}</tbody></table>`:'<div class="empty" style="padding:16px">Ya compra casi todo lo de su zona. Enfócate en mantener el volumen.</div>'}`;
 }
 
 /* ── Detalle de cliente ── */
@@ -882,20 +923,12 @@ async function verCliente(card){
   const lapsed=prods.filter(x=>x.ultima_compra && new Date(x.ultima_compra+'T00:00:00')<corte)
                     .sort((a,b)=>(Number(b.total)||0)-(Number(a.total)||0));
   const lapsedTotal=lapsed.reduce((a,x)=>a+(Number(x.total)||0),0);
-  const lapsedRows=lapsed.map(x=>{
-    const u=new Date(x.ultima_compra+'T00:00:00');
-    const meses=Math.max(1,Math.round((refDate-u)/(30.4*864e5)));
-    return `<tr><td>${esc(x.descripcion||x.code)}<div class="muted" style="font-size:.72rem">${esc(x.familia||'')}</div></td>
-      <td class="num muted nowrap">${(x.ultima_compra||'').slice(0,10)}</td>
-      <td class="num nowrap"><b style="color:${meses>=12?'var(--red)':'var(--amber)'}">hace ${meses>=12?(meses/12).toFixed(1)+' a':meses+' m'}</b></td>
-      <td class="num muted">${x.veces||0}×</td>
-      <td class="num">${fmtUSD(x.total)}</td></tr>`;
-  }).join('');
 
   m.innerHTML=`<button class="x" onclick="cerrarModal()">✕</button>
     <h3 style="font-family:var(--font-serif);margin:0 0 2px">${esc(d.card_name||card)}</h3>
     <div class="muted" style="font-size:.8rem;margin-bottom:14px">${esc(d.pais||'')} · ${esc(d.vendedor||'sin vendedor')} · ${esc(card)} · Total ${fmtUSD(d.total)} · ${esc((d.periodo&&d.periodo.desde)||document.getElementById('desde').value)} → ${esc(hastaRef)}</div>
     ${contactoHtml(d.contacto)}
+    <div id="cliAccion" class="accion"><div class="muted" style="font-size:.82rem">Analizando qué hacer…</div></div>
     <div style="margin-bottom:14px"><span class="seg">
       <button class="active" id="cliSegRes" onclick="setCliView('resumen')">Resumen %</button>
       <button id="cliSegPed" onclick="setCliView('pedidos')">Pedidos (${(d.documentos||[]).length})</button>
@@ -913,6 +946,30 @@ async function verCliente(card){
     <div id="cliPedidos" style="display:none">${docsHtml(d.documentos)}</div>
     <div id="cliReco" style="display:none"><div class="empty">Cargando…</div></div>
     <div id="cliCompara" style="display:none"><div class="empty">Cargando…</div></div>`;
+  cargarAccion(card, lapsed.length, lapsedTotal, d.contacto||{});
+}
+// Botones de contacto rápido (llamar / WhatsApp / correo) desde la ficha del cliente.
+function botonesContacto(c){
+  c=c||{}; const tel=(c.cellular||c.phone1||c.phone2||'').trim();
+  const wa=(c.cellular||c.phone1||'').replace(/[^0-9]/g,'');
+  const b=[];
+  if(tel) b.push(`<a class="btn btn-sm" style="background:var(--bg-sunken);color:var(--text);text-decoration:none" href="tel:${esc(tel)}">📞 Llamar</a>`);
+  if(wa.length>=8) b.push(`<a class="btn btn-sm" style="background:rgba(31,169,113,.14);color:var(--green);text-decoration:none" href="https://wa.me/${wa}" target="_blank" rel="noopener">WhatsApp</a>`);
+  if(c.email&&c.email.trim()) b.push(`<a class="btn btn-sm" style="background:var(--bg-sunken);color:var(--text);text-decoration:none" href="mailto:${esc(c.email.trim())}">✉️ Correo</a>`);
+  return b.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">${b.join('')}</div>`:'';
+}
+// Tarjeta "Qué hacer": sintetiza reorden + dejó de comprar + cross-sell en acciones.
+async function cargarAccion(card, lapsedN, lapsedTot, contacto){
+  const box=document.getElementById('cliAccion'); if(!box) return;
+  let reco={reorden:[],crosssell:[]};
+  try{ const j=await fetchData({cardCode:card, reco:true}); if(j.ok&&j.reco) reco=j.reco; }catch(e){}
+  const reo=reco.reorden||[], cs=reco.crosssell||[], acc=[];
+  if(reo.length){ const r=reo[0]; acc.push(`📞 <b>Le toca recomprar</b> ${esc(r.descripcion||'')} — lo pide cada ~${r.cadencia_dias} días y lleva ${r.dias_sin_comprar} sin pedir${reo.length>1?` (y ${reo.length-1} más, ver Sugerencias)`:''}.`); }
+  if(lapsedN>0){ acc.push(`🛑 <b>Dejó de comprar ${lapsedN} producto(s)</b> (~${fmtUSD(lapsedTot)}). Pregúntale por qué y recupéralos — detalle en "📊 Comparativo anual".`); }
+  if(cs.length){ const c=cs[0]; acc.push(`✨ <b>Ofrécele ${esc(c.descripcion||'')}</b> — lo compran el ${c.pct_peers}% de los clientes de su zona y este aún no.`); }
+  const titulo=`<div style="font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--cta);font-weight:700;margin-bottom:8px">🎯 Qué hacer con este cliente</div>`;
+  if(!acc.length){ box.innerHTML=titulo+`<div style="font-size:.9rem">✅ <b>Cliente al día.</b> Sigue comprando lo de siempre — mantén el contacto.</div>`+botonesContacto(contacto); return; }
+  box.innerHTML=titulo+`<ul style="margin:0;padding-left:20px;font-size:.9rem;line-height:1.5">${acc.map(a=>`<li>${a}</li>`).join('')}</ul>`+botonesContacto(contacto);
 }
 function cerrarModal(){ document.getElementById('overlay').classList.remove('show'); }
 
@@ -995,11 +1052,12 @@ function renderPlazas(){
   // resumen arriba
   const sinAsig=PLAZAS.filter(p=>!p.asignado||p.asignado.code==null).length;
   const dif=PLAZAS.filter(p=>{const l=liderDe(p);return p.asignado&&p.asignado.code!=null&&l&&p.asignado.code!==l.code;}).length;
-  const head=`<div class="kpis" style="margin-bottom:14px">
+  const head=`<div class="kpis" style="margin-bottom:8px">
     <div class="kpi"><div class="lbl">Países con ventas</div><div class="val">${PLAZAS.length}</div></div>
     <div class="kpi ${sinAsig?'cta':''}"><div class="lbl">Sin asignar</div><div class="val">${sinAsig}</div></div>
     <div class="kpi"><div class="lbl">Asignado ≠ líder</div><div class="val">${dif}</div></div>
-  </div>`;
+  </div>
+  <p class="muted" style="font-size:.8rem;margin:0 0 14px">${sinAsig?`<b>${sinAsig}</b> país(es) sin dueño — asígnalos para que alguien los trabaje. `:''}${dif?`<b>${dif}</b> con un asignado que ya no es quien más vende — revisa si toca reasignar.`:''}${(!sinAsig&&!dif)?'Todo asignado al vendedor que más factura. ✅':''}</p>`;
   document.getElementById('tblPlazas').innerHTML=head+h;
 }
 async function asignarPlaza(code,name,selectEl){

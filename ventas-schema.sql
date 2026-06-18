@@ -92,13 +92,14 @@ as $$
     'kpis', (
       select jsonb_build_object(
         'ventas_total',     coalesce(sum(line_total),0),
-        'num_documentos',   count(distinct (doc_type||doc_entry)),
+        -- Facturas y factura promedio SOLO sobre facturas (no notas de crédito).
+        'num_facturas',     count(distinct doc_entry) filter (where doc_type='I'),
         'num_clientes',     count(distinct card_code),
         'num_vendedores',   count(distinct sales_person_code),
         'num_paises',       count(distinct country_code),
         'num_productos',    count(distinct item_code),
-        'ticket_promedio',  case when count(distinct (doc_type||doc_entry))>0
-                              then coalesce(sum(line_total),0)/count(distinct (doc_type||doc_entry)) else 0 end
+        'ticket_promedio',  case when count(distinct doc_entry) filter (where doc_type='I')>0
+                              then coalesce(sum(line_total) filter (where doc_type='I'),0)/count(distinct doc_entry) filter (where doc_type='I') else 0 end
       ) from f
     ),
     'por_vendedor', coalesce((
