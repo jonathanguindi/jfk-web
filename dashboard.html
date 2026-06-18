@@ -164,9 +164,8 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
 
   <div class="tabs" id="tabs">
     <button class="tab active" data-t="resumen">Resumen</button>
+    <button class="tab" data-t="explorar">Explorar por país</button>
     <button class="tab" data-t="vendedores" id="tab-vendedores">Vendedores</button>
-    <button class="tab" data-t="paises">Países</button>
-    <button class="tab" data-t="clientes">Clientes</button>
     <button class="tab" data-t="productos">Productos</button>
     <button class="tab" data-t="plazas" id="tab-plazas">Plazas</button>
   </div>
@@ -187,29 +186,24 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
     <div class="card"><h3>Ventas por vendedor</h3><div id="tblVendedores"></div></div>
   </section>
 
-  <!-- PAISES -->
-  <section class="panel" id="p-paises">
+  <!-- EXPLORAR (país -> clientes -> detalle) -->
+  <section class="panel" id="p-explorar">
     <div class="card">
       <h3>Mapa de ventas por país <span class="sub">intensidad = ventas · clic para filtrar</span>
         <button class="btn btn-sm" id="mapClear" style="float:right;background:var(--bg-sunken);color:var(--text);display:none" onclick="limpiarPais()">✕ Quitar filtro de país</button>
       </h3>
-      <div id="map" style="height:440px;width:100%"></div>
+      <div id="map" style="height:420px;width:100%"></div>
     </div>
-    <div class="card"><h3>Ventas por país</h3><div id="tblPaises"></div></div>
+    <div class="card">
+      <h3>Explorar por país <span class="sub">abre un país para ver sus clientes · clic en un cliente para el detalle</span></h3>
+      <input class="search" id="cliSearch" placeholder="Buscar cliente en todos los países…" oninput="renderExplorar()">
+      <div id="tblExplorar"></div>
+    </div>
     <div class="card"><h3>Cobertura de la región <span class="sub">dónde estamos y dónde no</span></h3>
       <div class="cov">
         <div><div class="muted" style="font-size:.72rem;margin-bottom:8px">PAÍSES QUE TRABAJAMOS (con ventas)</div><div class="chips" id="covOn"></div></div>
         <div><div class="muted" style="font-size:.72rem;margin-bottom:8px">PAÍSES SIN VENTAS (oportunidad)</div><div class="chips" id="covOff"></div></div>
       </div>
-    </div>
-  </section>
-
-  <!-- CLIENTES -->
-  <section class="panel" id="p-clientes">
-    <div class="card">
-      <h3>Clientes <span class="sub">top 200 · clic para ver qué compran</span></h3>
-      <input class="search" id="cliSearch" placeholder="Buscar cliente…" oninput="renderClientes()">
-      <div id="tblClientes"></div>
     </div>
   </section>
 
@@ -306,7 +300,7 @@ document.querySelectorAll('#tabs .tab').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('p-'+b.dataset.t).classList.add('active');
   if(b.dataset.t==='plazas') loadPlazas();
-  if(b.dataset.t==='paises') renderMap();
+  if(b.dataset.t==='explorar') renderMap();
 });
 
 /* ── Carga ── */
@@ -347,7 +341,7 @@ function renderSync(sync){
 }
 
 /* ── Render ── */
-function renderAll(){ renderKPIs(); renderTrend(); renderFamiliaResumen(); renderVendedores(); renderPaises(); renderClientes(); renderProductos(); }
+function renderAll(){ renderKPIs(); renderTrend(); renderFamiliaResumen(); renderVendedores(); renderExplorar(); renderProductos(); }
 
 function renderKPIs(){
   const k=DATA.kpis||{};
@@ -432,27 +426,79 @@ const REGION={GT:'Guatemala',SV:'El Salvador',HN:'Honduras',NI:'Nicaragua',CR:'C
   AR:'Argentina',PY:'Paraguay',UY:'Uruguay',BR:'Brasil',DO:'Rep. Dominicana',CU:'Cuba',
   PR:'Puerto Rico',JM:'Jamaica',HT:'Haití',TT:'Trinidad y Tobago',BS:'Bahamas',BB:'Barbados',
   BZ:'Belice',GY:'Guyana',SR:'Surinam',US:'Estados Unidos'};
-function renderPaises(){
-  const p=DATA.por_pais||[];
-  document.getElementById('tblPaises').innerHTML = p.length?
-    tablaRanking(p,{barKey:'total',cols:[
-      {key:'name',label:'País',bar:true},
-      {key:'clientes',label:'Clientes',num:true},
-      {key:'total',label:'Ventas',num:true,fmt:fmtUSD},
-    ]}) : '<div class="empty">Sin datos.</div>';
-  const conVentas=new Set((BASE?BASE.por_pais:p).filter(x=>x.code).map(x=>x.code));
+/* ── Explorar: país (acordeón) -> clientes -> detalle ── */
+function clienteRowHTML(x,i,max,hoy){
+  const w=((Number(x.total)||0)/max*100).toFixed(1);
+  let recencia='';
+  if(x.ultima_compra){ const dias=Math.round((hoy-new Date(x.ultima_compra+'T00:00:00'))/864e5);
+    const col=dias>365?'var(--red)':dias>180?'var(--amber)':'var(--text-subtle)';
+    const txt=dias>365?(dias/365).toFixed(1)+' a':dias>=60?Math.round(dias/30)+' m':dias+' d';
+    recencia=`<div style="font-size:.68rem;color:${col}">hace ${txt}</div>`; }
+  return `<tr class="clickable" onclick="verCliente('${esc(x.card_code)}')">
+    <td class="rank">${i+1}</td>
+    <td>${esc(x.name)}<div class="bar-wrap" style="margin-top:3px"><div class="bar cta" style="width:${w}%"></div></div></td>
+    <td class="muted nowrap">${esc(x.vendedor||'')}</td>
+    <td class="num">${x.documentos||0}</td>
+    <td class="num muted nowrap">${(x.ultima_compra||'').slice(0,10)}${recencia}</td>
+    <td class="num">${fmtUSD(x.total)}</td></tr>`;
+}
+function clientesTabla(rows){
+  if(!rows.length) return '<div class="empty">Sin clientes.</div>';
+  const max=Math.max(1,...rows.map(x=>Number(x.total)||0));
+  const hoy=new Date(document.getElementById('hasta').value+'T00:00:00');
+  return '<table><thead><tr><th></th><th>Cliente</th><th>Vendedor</th><th class="num">Docs</th><th class="num">Última compra</th><th class="num">Ventas</th></tr></thead><tbody>'
+    + rows.map((x,i)=>clienteRowHTML(x,i,max,hoy)).join('') + '</tbody></table>';
+}
+function renderExplorar(){
+  // cobertura región (siempre)
+  const conVentas=new Set(((BASE?BASE.por_pais:DATA.por_pais)||[]).filter(x=>x.code).map(x=>x.code));
   const on=[...conVentas].map(c=>REGION[c]||c);
   const off=Object.keys(REGION).filter(c=>!conVentas.has(c)).map(c=>REGION[c]);
   document.getElementById('covOn').innerHTML = on.length? on.map(n=>`<span class="chip on">${esc(n)}</span>`).join(''):'<span class="muted">—</span>';
   document.getElementById('covOff').innerHTML = off.map(n=>`<span class="chip off">${esc(n)}</span>`).join('');
+
+  const cont=document.getElementById('tblExplorar');
+  const q=(document.getElementById('cliSearch').value||'').toLowerCase().trim();
+  if(q){ // buscador global: lista plana de clientes que coinciden
+    const c=(DATA.por_cliente||[]).filter(x=>(x.name||'').toLowerCase().includes(q)||(x.card_code||'').toLowerCase().includes(q));
+    cont.innerHTML=clientesTabla(c);
+    return;
+  }
+  // acordeón por país
+  const paises=(DATA.por_pais||[]).filter(x=>x.code).slice();
+  if(!paises.length){ cont.innerHTML='<div class="empty">Sin datos en el período.</div>'; renderMap(); return; }
+  const tot=paises.reduce((a,p)=>a+(Number(p.total)||0),0)||1;
+  cont.innerHTML=paises.map(p=>{
+    const pct=((Number(p.total)||0)/tot*100).toFixed(1);
+    return `<details class="doc" ontoggle="cargarPaisClientes(this,'${esc(p.code)}')">
+      <summary>
+        <span class="chev">▶</span>
+        <b class="nowrap">${esc(p.name||p.code)}</b>
+        <span class="muted" style="font-size:.78rem">${p.clientes||0} clientes · ${pct}%</span>
+        <span class="spacer"></span>
+        <b class="num">${fmtUSD(p.total)}</b>
+      </summary>
+      <div class="doc-body" id="pais-cli-${esc(p.code)}"><div class="empty" style="padding:14px">Abriendo…</div></div>
+    </details>`;
+  }).join('');
   renderMap();
+}
+async function cargarPaisClientes(det,code){
+  if(!det.open) return;
+  const box=document.getElementById('pais-cli-'+code);
+  if(!box || box.dataset.loaded) return;
+  box.dataset.loaded='1';
+  box.innerHTML='<div class="empty" style="padding:14px">Cargando clientes…</div>';
+  const j=await fetchData({pais:code});
+  if(!j.ok||!j.resumen){ box.innerHTML='<div class="empty">Error.</div>'; box.dataset.loaded=''; return; }
+  box.innerHTML=clientesTabla(j.resumen.por_cliente||[]);
 }
 
 /* ── Mapa de países (jsVectorMap) ── */
 function renderMap(){
   const cont=document.getElementById('map'); if(!cont) return;
-  const panel=document.getElementById('p-paises');
-  if(!panel.classList.contains('active')) return;   // se dibuja al abrir la pestaña Países
+  const panel=document.getElementById('p-explorar');
+  if(!panel.classList.contains('active')) return;   // se dibuja al abrir la pestaña Explorar
   if(typeof jsVectorMap==='undefined'){ cont.innerHTML='<div class="empty">No se pudo cargar el mapa (sin conexión).</div>'; return; }
   const rows=((DATA&&DATA.por_pais)||[]).filter(x=>x.code);
   const values={}, names={};
@@ -474,33 +520,6 @@ function renderMap(){
   }catch(err){ cont.innerHTML='<div class="empty">No se pudo dibujar el mapa.</div>'; }
 }
 function limpiarPais(){ document.getElementById('fPais').value=''; aplicar(); }
-
-function renderClientes(){
-  const q=(document.getElementById('cliSearch').value||'').toLowerCase();
-  let c=(DATA.por_cliente||[]);
-  if(q) c=c.filter(x=>(x.name||'').toLowerCase().includes(q)||(x.card_code||'').toLowerCase().includes(q));
-  if(!c.length){ document.getElementById('tblClientes').innerHTML='<div class="empty">Sin clientes.</div>'; return; }
-  const max=Math.max(1,...c.map(x=>Number(x.total)||0));
-  const hoy=new Date(document.getElementById('hasta').value+'T00:00:00');
-  let h='<table><thead><tr><th></th><th>Cliente</th><th>País</th><th>Vendedor</th><th class="num">Docs</th><th class="num">Última compra</th><th class="num">Ventas</th></tr></thead><tbody>';
-  c.forEach((x,i)=>{
-    const w=((Number(x.total)||0)/max*100).toFixed(1);
-    let recencia='';
-    if(x.ultima_compra){ const dias=Math.round((hoy-new Date(x.ultima_compra+'T00:00:00'))/864e5);
-      const col=dias>365?'var(--red)':dias>180?'var(--amber)':'var(--text-subtle)';
-      const txt=dias>365?(dias/365).toFixed(1)+' a':dias>=60?Math.round(dias/30)+' m':dias+' d';
-      recencia=`<div style="font-size:.68rem;color:${col}">hace ${txt}</div>`; }
-    h+=`<tr class="clickable" onclick="verCliente('${esc(x.card_code)}')">
-      <td class="rank">${i+1}</td>
-      <td>${esc(x.name)}<div class="bar-wrap" style="margin-top:3px"><div class="bar cta" style="width:${w}%"></div></div></td>
-      <td class="muted nowrap">${esc(x.pais||'')}</td>
-      <td class="muted nowrap">${esc(x.vendedor||'')}</td>
-      <td class="num">${x.documentos||0}</td>
-      <td class="num muted nowrap">${(x.ultima_compra||'').slice(0,10)}${recencia}</td>
-      <td class="num">${fmtUSD(x.total)}</td></tr>`;
-  });
-  document.getElementById('tblClientes').innerHTML=h+'</tbody></table>';
-}
 
 function setProdView(v){ prodView=v;
   document.getElementById('segProd').classList.toggle('active',v==='producto');
