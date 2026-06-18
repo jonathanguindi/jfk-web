@@ -112,4 +112,15 @@ async function paginaDocumentos(cookie, recurso, cursor, pageSize) {
   return { docs, nextCursor, fin: docs.length < pageSize };
 }
 
-module.exports = { SAP_URL, sapLogin, sapLogout, sapGetAll, cargarMapas, paginaDocumentos };
+// Primer DocEntry de un recurso con DocDate >= fecha (para saltar el cursor a años recientes).
+async function primerDocEntryDesde(cookie, recurso, fecha) {
+  const url = `${SAP_URL}/${recurso}?$select=DocEntry&$filter=DocDate ge '${fecha}'&$orderby=DocEntry asc`;
+  const headers = { Cookie: cookie, 'Content-Type': 'application/json', Prefer: 'odata.maxpagesize=1' };
+  const r = await sapFetch(url, { headers });
+  if (!r.ok) throw new Error(`SAP ${recurso} ${r.status}: ${await r.text()}`);
+  const j = await r.json();
+  const v = j.value || [];
+  return v.length ? v[0].DocEntry : null;
+}
+
+module.exports = { SAP_URL, sapLogin, sapLogout, sapGetAll, cargarMapas, paginaDocumentos, primerDocEntryDesde };
