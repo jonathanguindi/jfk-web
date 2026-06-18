@@ -2927,7 +2927,7 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
     <div id="cobranza-pane-pend" style="display:none">
       <div style="font-size:.85rem;opacity:.7;margin-bottom:10px">Clientes en mora esperando tu aprobación para enviarles su estado de cuenta.</div>
       <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-        <button onclick="correrJobCobranzas(this)" style="padding:8px 14px;border-radius:8px;border:none;background:var(--electric);color:#fff;cursor:pointer;font-size:.82rem;font-weight:600">▶ Correr ahora</button>
+        <button id="cobranza-correr-btn" onclick="correrJobCobranzas(this)" style="padding:8px 14px;border-radius:8px;border:none;background:var(--electric);color:#fff;cursor:pointer;font-size:.82rem;font-weight:600">▶ Correr ahora</button>
         <button onclick="loadCobranzaPendientes()" style="padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-size:.82rem">↻ Refrescar</button>
       </div>
       <div id="cobranza-pendientes-list"><div class="estado-placeholder">Cargando…</div></div>
@@ -6178,12 +6178,35 @@ async function enviarEstadoCuentaCorreo() {
 // --- Pantalla de Cobranzas (admin) ---
 let cobranzaAutoSet = new Set();   // sap_card_code que están en envío automático
 
-function openCobranzas() {
+let cobMisClientes = null;   // null = sin filtro (admin); Set = solo estos card codes (vendedor)
+
+async function openCobranzas() {
   goToScreen('cobranzas');
   switchCobranzaTab('pais');
+  const esAdmin = currentVendor && currentVendor.role === 'admin';
+  // La pestaña de configuración de Vendedores y el switch global son solo para admin
+  const tabVend = document.getElementById('cobranza-tab-vend');
+  if (tabVend) tabVend.style.display = esAdmin ? '' : 'none';
+  const correrBtn = document.getElementById('cobranza-correr-btn');
+  if (correrBtn) correrBtn.style.display = esAdmin ? '' : 'none';
+  // Scoping: un vendedor (no admin) solo ve los clientes que ha facturado
+  cobMisClientes = null;
+  if (!esAdmin) {
+    document.getElementById('cobranza-pais-list').innerHTML = '<div class="estado-placeholder"><div class="spinner"></div><div style="margin-top:10px;font-size:.82rem">Cargando tus clientes…</div></div>';
+    try {
+      const res = await fetch('/.netlify/functions/mis-clientes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: currentVendor.email }) });
+      const d = await res.json();
+      cobMisClientes = new Set(d.ok ? (d.codes || []) : []);
+    } catch (e) { cobMisClientes = new Set(); }   // ante un fallo, no mostrar clientes de otros
+  }
   loadCobranzaDashboard();
   loadCobranzaPendientes();
   loadCobranzaRecurrentes();
+}
+
+// Aplica el filtro del vendedor (si corresponde) a una lista de objetos con sap_card_code
+function cobAplicarScope(arr) {
+  return cobMisClientes ? (arr || []).filter(x => cobMisClientes.has(x.sap_card_code)) : (arr || []);
 }
 
 function switchCobranzaTab(which) {
@@ -6286,7 +6309,7 @@ async function loadCobranzaPendientes() {
       .eq('status', 'pendiente')
       .order('created_at', { ascending: false });
     if (error) throw error;
-    renderCobranzaPendientes(data || []);
+    renderCobranzaPendientes(cobAplicarScope(data || []));
   } catch (e) {
     cont.innerHTML = `<div class="estado-placeholder" style="color:#E24B4A">Error: ${escapeHtml(e.message)}</div>`;
   }
@@ -6413,7 +6436,7 @@ async function loadCobranzaRecurrentes() {
       .select('sap_card_code,name,country,email,current_balance,cobranza_cadencia,cobranza_last_sent')
       .eq('cobranza_auto', true).eq('active', true).limit(2000);
     if (error) throw error;
-    cobranzaRecurrentes = data || [];
+    cobranzaRecurrentes = cobAplicarScope(data || []);
   } catch (e) {
     if (cont) cont.innerHTML = `<div class="estado-placeholder" style="color:var(--error)">Error: ${escapeHtml(e.message)}</div>`;
     return;
@@ -6476,7 +6499,9 @@ function renderCobranzaAuto() {
   if (!cont) return;
   const term = (document.getElementById('cobranza-auto-search').value || '').trim().toLowerCase();
   if (!term) { cont.innerHTML = ''; return; }
-  const list = allCustomers.filter(c => (c.name || '').toLowerCase().includes(term) || (c.sap_card_code || '').toLowerCase().includes(term)).slice(0, 60);
+  let list = allCustomers.filter(c => (c.name || '').toLowerCase().includes(term) || (c.sap_card_code || '').toLowerCase().includes(term));
+  if (cobMisClientes) list = list.filter(c => cobMisClientes.has(c.sap_card_code));
+  list = list.slice(0, 60);
   if (!list.length) { cont.innerHTML = '<div class="estado-placeholder">Sin resultados</div>'; return; }
   cont.innerHTML = list.map(c => {
     const rec = cobranzaRecurrentes.find(x => x.sap_card_code === c.sap_card_code);
@@ -6654,7 +6679,7 @@ async function loadCobranzaDashboard() {
       .order('current_balance', { ascending: false })
       .limit(3000);
     if (error) throw error;
-    cobranzaDeudores = data || [];
+    cobranzaDeudores = cobAplicarScope(data || []);
     renderCobranzaKpis();
     renderCobranzaPaisChips();
     if (cobranzaPaisActual && cobranzaDeudores.some(c => (c.country || '—') === cobranzaPaisActual)) {
