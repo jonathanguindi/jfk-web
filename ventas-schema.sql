@@ -346,7 +346,41 @@ as $$
   );
 $$;
 
+-- ───────────────────────────────────────────────────────────────────────────
+-- 7) RPC: comparativo producto × año (para país o vendedor o todo).
+--    Devuelve { years:[...], productos:[{descripcion,familia,total,y:{anio:monto}}] }.
+-- ───────────────────────────────────────────────────────────────────────────
+create or replace function ventas_comparativo(desde date, hasta date,
+                                              p_vendedores integer[] default null,
+                                              p_pais text default null)
+returns jsonb
+language sql stable
+as $$
+  with f as (
+    select coalesce(nullif(trim(item_description),''), item_code) as prod,
+           item_group_name as fam,
+           to_char(date_trunc('year', doc_date),'YYYY') as anio,
+           line_total
+    from ventas_lineas
+    where doc_date >= desde and doc_date <= hasta and item_code is not null
+      and (p_vendedores is null or sales_person_code = any(p_vendedores))
+      and (p_pais is null or country_code = p_pais)
+  ),
+  pa as (select prod, max(fam) fam, anio, sum(line_total) ytot from f group by prod, anio),
+  byp as (
+    select prod, max(fam) fam, sum(ytot) total, jsonb_object_agg(anio, ytot) as y
+    from pa group by prod
+  )
+  select jsonb_build_object(
+    'years', coalesce((select jsonb_agg(a order by a) from (select distinct anio a from f) s), '[]'::jsonb),
+    'productos', coalesce((select jsonb_agg(to_jsonb(x)) from (
+        select prod as descripcion, fam as familia, total, y
+        from byp order by total desc limit 60) x), '[]'::jsonb)
+  );
+$$;
+
 -- Permitir que el rol de servicio (funciones Netlify) ejecute los RPC.
+grant execute on function ventas_comparativo(date, date, integer[], text) to service_role;
 grant execute on function ventas_resumen(date, date, integer[], text) to service_role;
 grant execute on function ventas_cliente_detalle(text, date, date, integer[]) to service_role;
 grant execute on function ventas_plazas(date, date) to service_role;

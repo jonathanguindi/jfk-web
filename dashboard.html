@@ -490,6 +490,7 @@ function renderExplorar(){
         <b class="nowrap">${esc(g.name||g.code)}</b>
         <span class="muted" style="font-size:.78rem">${g.clientes||0} clientes · ${pct}%</span>
         <span class="spacer"></span>
+        <button class="btn btn-sm" style="background:var(--bg-sunken);color:var(--text);margin-right:10px" onclick="event.stopPropagation();event.preventDefault();abrirComparativo('${byVend?'vendedor':'pais'}','${esc(String(g.code))}','${esc(g.name||g.code)}')">📊 Año</button>
         <b class="num">${fmtUSD(g.total)}</b>
       </summary>
       <div class="doc-body" id="grp-${key}"><div class="empty" style="padding:14px">Abriendo…</div></div>
@@ -630,6 +631,28 @@ function setCliView(v){
 }
 let cliActual=null, recoLoadedFor=null, comparaLoadedFor=null;
 // Comparativo producto × año (siempre 5 años, independiente del filtro de período)
+// Render compartido de la matriz producto × año (cliente, país o vendedor).
+function comparaHTML(years, prods){
+  years=(years||[]).slice().sort();
+  if(!years.length || !prods.length) return '<div class="empty" style="padding:16px">Sin compras en los últimos años.</div>';
+  const maxY=years[years.length-1];
+  prods=prods.map(p=>{ const ult=years.filter(y=>(p.yr[y]||0)>0).pop()||''; return {name:p.name,fam:p.fam||'',yr:p.yr||{},gran:Number(p.gran)||0,ult,dropped:!!(ult&&ult<maxY)}; })
+             .sort((a,b)=>b.gran-a.gran);
+  const dropped=prods.filter(p=>p.dropped).length;
+  const top=prods.slice(0,50);
+  const yTot={}; years.forEach(y=>yTot[y]=prods.reduce((a,p)=>a+(p.yr[y]||0),0));
+  const head=`<tr><th>Producto</th>${years.map(y=>`<th class="num">${y}</th>`).join('')}<th class="num">Total</th></tr>`;
+  const totRow=`<tr style="background:var(--bg-sunken);font-weight:700"><td>TOTAL</td>${years.map(y=>`<td class="num">${fmtK(yTot[y])}</td>`).join('')}<td class="num">${fmtK(prods.reduce((a,p)=>a+p.gran,0))}</td></tr>`;
+  const rows=top.map(p=>{
+    const cells=years.map(y=>{ const v=p.yr[y]||0; const last=(y===maxY);
+      return `<td class="num" style="${v===0&&last&&p.dropped?'background:rgba(229,72,77,.10);':''}${v===0?'color:var(--text-subtle)':''}">${v>0?fmtK(v):'·'}</td>`;
+    }).join('');
+    const tag=p.dropped?` <span class="contact-badge off" style="font-size:.52rem">ya no · ${esc(p.ult)}</span>`:'';
+    return `<tr><td>${esc(p.name)}${tag}<div class="muted" style="font-size:.68rem">${esc(p.fam)}</div></td>${cells}<td class="num"><b>${fmtK(p.gran)}</b></td></tr>`;
+  }).join('');
+  return `<p class="muted" style="font-size:.82rem;margin:0 0 10px">Cuánto compró <b>cada año</b>. Rojo / <span class="contact-badge off" style="font-size:.52rem">ya no</span> = lo compraba antes y este año no.${dropped?` Dejó de comprar <b style="color:var(--text)">${dropped}</b> producto(s).`:''}</p>
+    <div style="overflow-x:auto"><table><thead>${head}</thead><tbody>${totRow}${rows}</tbody></table></div>`;
+}
 async function cargarCompara(){
   const cont=document.getElementById('cliCompara'); if(!cont) return;
   const card=cliActual;
@@ -642,35 +665,32 @@ async function cargarCompara(){
   comparaLoadedFor=card;
   const docs=j.detalle.documentos||[];
   const years=[...new Set(docs.map(d=>(d.doc_date||'').slice(0,4)).filter(Boolean))].sort();
-  if(!years.length){ cont.innerHTML='<div class="empty">Sin compras en los últimos años.</div>'; return; }
-  const maxY=years[years.length-1];
   const pm={};
   docs.forEach(d=>{ const y=(d.doc_date||'').slice(0,4); (d.lineas||[]).forEach(l=>{
     const p=l.descripcion||l.code; if(!p) return;
     if(!pm[p]) pm[p]={fam:l.familia||'',yr:{},gran:0};
     pm[p].yr[y]=(pm[p].yr[y]||0)+(Number(l.total)||0); pm[p].gran+=(Number(l.total)||0);
   });});
-  let prods=Object.entries(pm).map(([name,o])=>{
-    const ult=years.filter(y=>(o.yr[y]||0)>0).pop()||'';
-    return {name,fam:o.fam,yr:o.yr,gran:o.gran,ult,dropped:ult&&ult<maxY};
-  }).sort((a,b)=>b.gran-a.gran);
-  const dropped=prods.filter(p=>p.dropped);
-  const top=prods.slice(0,40);
-  const yTot={}; years.forEach(y=>yTot[y]=prods.reduce((a,p)=>a+(p.yr[y]||0),0));
-  const head=`<tr><th>Producto</th>${years.map(y=>`<th class="num">${y}</th>`).join('')}<th class="num">Total</th></tr>`;
-  const totRow=`<tr style="background:var(--bg-sunken);font-weight:700"><td>TOTAL</td>${years.map(y=>`<td class="num">${fmtK(yTot[y])}</td>`).join('')}<td class="num">${fmtK(prods.reduce((a,p)=>a+p.gran,0))}</td></tr>`;
-  const rows=top.map(p=>{
-    const cells=years.map(y=>{ const v=p.yr[y]||0;
-      const last=(y===maxY);
-      const style=v>0?(last?'':''):'color:var(--text-subtle)';
-      return `<td class="num" style="${v===0&&last&&p.dropped?'background:rgba(229,72,77,.10)':''}">${v>0?fmtK(v):'·'}</td>`;
-    }).join('');
-    const tag=p.dropped?` <span class="contact-badge off" style="font-size:.52rem">ya no · ${esc(p.ult)}</span>`:'';
-    return `<tr><td>${esc(p.name)}${tag}<div class="muted" style="font-size:.68rem">${esc(p.fam)}</div></td>${cells}<td class="num"><b>${fmtK(p.gran)}</b></td></tr>`;
-  }).join('');
-  cont.innerHTML=`
-    <p class="muted" style="font-size:.82rem;margin:0 0 10px">Cuánto te compró <b>cada año</b>. Las celdas en rojo y la etiqueta <span class="contact-badge off" style="font-size:.52rem">ya no</span> marcan productos que <b>antes compraba y este año no</b>.${dropped.length?` Dejó de comprar <b style="color:var(--text)">${dropped.length}</b> producto(s).`:''}</p>
-    <div style="overflow-x:auto"><table>${'<thead>'+head+'</thead>'}<tbody>${totRow}${rows}</tbody></table></div>`;
+  const prods=Object.entries(pm).map(([name,o])=>({name,fam:o.fam,yr:o.yr,gran:o.gran}));
+  cont.innerHTML=comparaHTML(years,prods);
+}
+// Comparativo anual de un país o vendedor (abre en el modal grande).
+async function abrirComparativo(dim,code,name){
+  const m=document.getElementById('modal');
+  m.innerHTML='<button class="x" onclick="cerrarModal()">✕</button><div class="empty" style="padding:30px">Cargando comparativo…</div>';
+  document.getElementById('overlay').classList.add('show');
+  const hoy=new Date(document.getElementById('hasta').value+'T00:00:00');
+  const hasta=hoy.toISOString().slice(0,10);
+  const desde=(hoy.getFullYear()-4)+'-01-01';
+  const extra={comparativo:true,desde,hasta}; if(dim==='vendedor') extra.vendedor=code; else extra.pais=code;
+  const j=await fetchData(extra);
+  if(!j.ok||!j.comparativo){ m.innerHTML='<button class="x" onclick="cerrarModal()">✕</button><div class="empty" style="padding:30px">No se pudo cargar.</div>'; return; }
+  const c=j.comparativo;
+  const prods=(c.productos||[]).map(p=>({name:p.descripcion||'',fam:p.familia||'',yr:p.y||{},gran:Number(p.total)||0}));
+  m.innerHTML=`<button class="x" onclick="cerrarModal()">✕</button>
+    <h3 style="font-family:var(--font-serif);margin:0 0 2px">${esc(name)}</h3>
+    <div class="muted" style="font-size:.8rem;margin-bottom:14px">📊 Comparativo anual · ${dim==='vendedor'?'Vendedor':'País'} · ${esc(desde)} → ${esc(hasta)}</div>
+    ${comparaHTML(c.years||[],prods)}`;
 }
 async function cargarReco(){
   const cont=document.getElementById('cliReco'); if(!cont) return;
