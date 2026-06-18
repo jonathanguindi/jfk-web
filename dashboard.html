@@ -619,15 +619,59 @@ function docsHtml(docs){
 function setCliView(v){
   document.getElementById('cliSegRes').classList.toggle('active',v==='resumen');
   document.getElementById('cliSegPed').classList.toggle('active',v==='pedidos');
-  const segInac=document.getElementById('cliSegInac'); if(segInac) segInac.classList.toggle('active',v==='inactivos');
+  const segInac=document.getElementById('cliSegInac'); if(segInac) segInac.classList.toggle('active',v==='compara');
   const segReco=document.getElementById('cliSegReco'); if(segReco) segReco.classList.toggle('active',v==='reco');
   document.getElementById('cliResumen').style.display=v==='resumen'?'block':'none';
   document.getElementById('cliPedidos').style.display=v==='pedidos'?'block':'none';
-  const inac=document.getElementById('cliInactivos'); if(inac) inac.style.display=v==='inactivos'?'block':'none';
+  const cmp=document.getElementById('cliCompara'); if(cmp) cmp.style.display=v==='compara'?'block':'none';
   const reco=document.getElementById('cliReco'); if(reco) reco.style.display=v==='reco'?'block':'none';
   if(v==='reco' && recoLoadedFor!==cliActual) cargarReco();
+  if(v==='compara' && comparaLoadedFor!==cliActual) cargarCompara();
 }
-let cliActual=null, recoLoadedFor=null;
+let cliActual=null, recoLoadedFor=null, comparaLoadedFor=null;
+// Comparativo producto × año (siempre 5 años, independiente del filtro de período)
+async function cargarCompara(){
+  const cont=document.getElementById('cliCompara'); if(!cont) return;
+  const card=cliActual;
+  cont.innerHTML='<div class="empty" style="padding:16px">Cargando comparativo…</div>';
+  const hoy=new Date(document.getElementById('hasta').value+'T00:00:00');
+  const hasta=hoy.toISOString().slice(0,10);
+  const desde=(hoy.getFullYear()-4)+'-01-01';   // últimos ~5 años calendario
+  const j=await fetchData({cardCode:card, desde, hasta});
+  if(!j.ok||!j.detalle){ cont.innerHTML='<div class="empty">No se pudo cargar.</div>'; return; }
+  comparaLoadedFor=card;
+  const docs=j.detalle.documentos||[];
+  const years=[...new Set(docs.map(d=>(d.doc_date||'').slice(0,4)).filter(Boolean))].sort();
+  if(!years.length){ cont.innerHTML='<div class="empty">Sin compras en los últimos años.</div>'; return; }
+  const maxY=years[years.length-1];
+  const pm={};
+  docs.forEach(d=>{ const y=(d.doc_date||'').slice(0,4); (d.lineas||[]).forEach(l=>{
+    const p=l.descripcion||l.code; if(!p) return;
+    if(!pm[p]) pm[p]={fam:l.familia||'',yr:{},gran:0};
+    pm[p].yr[y]=(pm[p].yr[y]||0)+(Number(l.total)||0); pm[p].gran+=(Number(l.total)||0);
+  });});
+  let prods=Object.entries(pm).map(([name,o])=>{
+    const ult=years.filter(y=>(o.yr[y]||0)>0).pop()||'';
+    return {name,fam:o.fam,yr:o.yr,gran:o.gran,ult,dropped:ult&&ult<maxY};
+  }).sort((a,b)=>b.gran-a.gran);
+  const dropped=prods.filter(p=>p.dropped);
+  const top=prods.slice(0,40);
+  const yTot={}; years.forEach(y=>yTot[y]=prods.reduce((a,p)=>a+(p.yr[y]||0),0));
+  const head=`<tr><th>Producto</th>${years.map(y=>`<th class="num">${y}</th>`).join('')}<th class="num">Total</th></tr>`;
+  const totRow=`<tr style="background:var(--bg-sunken);font-weight:700"><td>TOTAL</td>${years.map(y=>`<td class="num">${fmtK(yTot[y])}</td>`).join('')}<td class="num">${fmtK(prods.reduce((a,p)=>a+p.gran,0))}</td></tr>`;
+  const rows=top.map(p=>{
+    const cells=years.map(y=>{ const v=p.yr[y]||0;
+      const last=(y===maxY);
+      const style=v>0?(last?'':''):'color:var(--text-subtle)';
+      return `<td class="num" style="${v===0&&last&&p.dropped?'background:rgba(229,72,77,.10)':''}">${v>0?fmtK(v):'·'}</td>`;
+    }).join('');
+    const tag=p.dropped?` <span class="contact-badge off" style="font-size:.52rem">ya no · ${esc(p.ult)}</span>`:'';
+    return `<tr><td>${esc(p.name)}${tag}<div class="muted" style="font-size:.68rem">${esc(p.fam)}</div></td>${cells}<td class="num"><b>${fmtK(p.gran)}</b></td></tr>`;
+  }).join('');
+  cont.innerHTML=`
+    <p class="muted" style="font-size:.82rem;margin:0 0 10px">Cuánto te compró <b>cada año</b>. Las celdas en rojo y la etiqueta <span class="contact-badge off" style="font-size:.52rem">ya no</span> marcan productos que <b>antes compraba y este año no</b>.${dropped.length?` Dejó de comprar <b style="color:var(--text)">${dropped.length}</b> producto(s).`:''}</p>
+    <div style="overflow-x:auto"><table>${'<thead>'+head+'</thead>'}<tbody>${totRow}${rows}</tbody></table></div>`;
+}
 async function cargarReco(){
   const cont=document.getElementById('cliReco'); if(!cont) return;
   cont.innerHTML='<div class="empty">Calculando recomendaciones…</div>';
@@ -657,7 +701,7 @@ async function cargarReco(){
 
 /* ── Detalle de cliente ── */
 async function verCliente(card){
-  cliActual=card; recoLoadedFor=null;
+  cliActual=card; recoLoadedFor=null; comparaLoadedFor=null;
   const m=document.getElementById('modal');
   m.innerHTML='<button class="x" onclick="cerrarModal()">✕</button><div class="empty">Cargando…</div>';
   document.getElementById('overlay').classList.add('show');
@@ -729,7 +773,7 @@ async function verCliente(card){
     <div style="margin-bottom:14px"><span class="seg">
       <button class="active" id="cliSegRes" onclick="setCliView('resumen')">Resumen %</button>
       <button id="cliSegPed" onclick="setCliView('pedidos')">Pedidos (${(d.documentos||[]).length})</button>
-      <button id="cliSegInac" onclick="setCliView('inactivos')" ${lapsed.length?'style="color:var(--red)"':''}>Dejó de comprar (${lapsed.length})</button>
+      <button id="cliSegInac" onclick="setCliView('compara')" ${lapsed.length?'style="color:var(--red)"':''}>📊 Comparativo anual${lapsed.length?' ('+lapsed.length+' ya no)':''}</button>
       <button id="cliSegReco" onclick="setCliView('reco')" style="color:var(--accent)">✨ Sugerencias</button>
     </span></div>
     <div id="cliResumen">
@@ -742,10 +786,7 @@ async function verCliente(card){
     </div>
     <div id="cliPedidos" style="display:none">${docsHtml(d.documentos)}</div>
     <div id="cliReco" style="display:none"><div class="empty">Cargando…</div></div>
-    <div id="cliInactivos" style="display:none">
-      <p class="muted" style="font-size:.82rem;margin:0 0 12px">Productos que <b>compraba en este período pero NO en los últimos 6 meses</b> — oportunidad de recuperar. ${lapsed.length?`En total dejó de comprar <b style="color:var(--text)">${fmtUSD(lapsedTotal)}</b> en ${lapsed.length} producto(s).`:''}</p>
-      ${lapsed.length?`<table><thead><tr><th>Producto</th><th class="num">Última compra</th><th class="num">Sin comprar</th><th class="num">Veces</th><th class="num">Total histórico</th></tr></thead><tbody>${lapsedRows}</tbody></table>`:'<div class="empty">Sigue comprando todo lo que compraba en el período. 👍</div>'}
-    </div>`;
+    <div id="cliCompara" style="display:none"><div class="empty">Cargando…</div></div>`;
 }
 function cerrarModal(){ document.getElementById('overlay').classList.remove('show'); }
 
