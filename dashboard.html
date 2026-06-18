@@ -211,7 +211,7 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
         <button class="active" id="segTrendMes" onclick="setTrendView('mes')">Mensual</button>
         <button id="segTrendAno" onclick="setTrendView('ano')">Anual</button>
       </span></h3><div id="trend"></div>
-      <p class="muted" style="font-size:.74rem;margin:8px 0 0">Cada barra = ventas de ese período en USD. La línea punteada marca la mitad y el máximo.</p></div>
+      <p class="muted" style="font-size:.74rem;margin:8px 0 0">Ventas por mes en USD. Cambia a <b>Anual</b> para ver el total de cada año. El eje izquierdo marca la escala.</p></div>
     <div class="card"><h3>Qué familias se venden más <span class="sub">% del total de ventas</span></h3><div id="resFamilia"></div></div>
   </section>
 
@@ -457,32 +457,63 @@ function setTrendView(v){ trendView=v;
   document.getElementById('segTrendAno').classList.toggle('active',v==='ano');
   renderTrend();
 }
+// Motor de gráfica compartido: serie temporal como ÁREA+LÍNEA (pro) o BARRAS, con eje Y real.
+function svgSerie(labels, vals, opts){
+  opts=opts||{};
+  const n=vals.length; if(!n) return '<div class="empty">Sin datos en el período.</div>';
+  const partialIdx = opts.partialIdx==null?-1:opts.partialIdx;
+  const max=Math.max(1,...vals.map(v=>Math.abs(Number(v)||0)));
+  const W=Math.max(380, n*(opts.bars?72:48)), H=opts.H||220;
+  const padL=46, padR=14, padT=26, padB=30, baseY=H-padB, plotH=baseY-padT;
+  const step=(W-padL-padR)/n, cx=i=>padL+step*i+step/2;
+  let grid='';
+  [0,0.25,0.5,0.75,1].forEach(f=>{ const gy=(baseY-plotH*f).toFixed(1);
+    grid+=`<line x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}" stroke="var(--border${f===0?'':'-soft'})" ${f===0?'':'stroke-dasharray="2 4"'}/>`;
+    grid+=`<text x="${padL-8}" y="${(+gy+3).toFixed(1)}" font-size="9" fill="var(--text-subtle)" text-anchor="end" font-family="var(--font-mono)">${f===0?'0':fmtK(max*f)}</text>`;
+  });
+  let xlab='';
+  labels.forEach((lb,i)=>{ xlab+=`<text x="${cx(i).toFixed(1)}" y="${H-10}" font-size="10" fill="${i===partialIdx?'var(--text-subtle)':'var(--text-muted)'}" text-anchor="middle" font-family="var(--font-mono)">${esc(lb)}${i===partialIdx?' *':''}</text>`; });
+  let body='', defs='';
+  if(opts.bars){
+    const bw=Math.max(8,Math.min(60, step-22));
+    vals.forEach((v,i)=>{ v=Number(v)||0; const bh=(Math.abs(v)/max)*plotH, x=(cx(i)-bw/2).toFixed(1), y=(baseY-bh).toFixed(1);
+      body+=`<rect x="${x}" y="${y}" width="${bw.toFixed(1)}" height="${Math.max(2,bh).toFixed(1)}" rx="4" fill="var(--accent)" fill-opacity="${i===partialIdx?0.4:0.92}"/>`;
+      body+=`<text x="${cx(i).toFixed(1)}" y="${(+y-6).toFixed(1)}" font-size="10" fill="var(--text-muted)" text-anchor="middle" font-family="var(--font-mono)">${fmtK(v)}</text>`;
+    });
+  } else {
+    defs=`<defs><linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--accent)" stop-opacity="0.18"/><stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>`;
+    const pts=vals.map((v,i)=>({x:cx(i),y:baseY-(Math.abs(Number(v)||0)/max)*plotH}));
+    const P=pts.map(p=>p.x.toFixed(1)+','+p.y.toFixed(1));
+    body+=`<path d="M${P.join(' L')} L${pts[n-1].x.toFixed(1)},${baseY} L${pts[0].x.toFixed(1)},${baseY} Z" fill="url(#areaFill)"/>`;
+    if(partialIdx===n-1 && n>1){
+      body+=`<polyline points="${P.slice(0,n-1).join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+      body+=`<line x1="${pts[n-2].x.toFixed(1)}" y1="${pts[n-2].y.toFixed(1)}" x2="${pts[n-1].x.toFixed(1)}" y2="${pts[n-1].y.toFixed(1)}" stroke="var(--accent)" stroke-width="2.5" stroke-dasharray="4 3" stroke-linecap="round"/>`;
+    } else {
+      body+=`<polyline points="${P.join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+    }
+    const maxI=vals.indexOf(Math.max(...vals.map(v=>Number(v)||0)));
+    [...new Set([0,n-1,maxI])].forEach(i=>{ const p=pts[i];
+      body+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" fill="var(--bg-elevated)" stroke="var(--accent)" stroke-width="2"/>`;
+      body+=`<text x="${p.x.toFixed(1)}" y="${(p.y-9).toFixed(1)}" font-size="10" font-weight="600" fill="var(--text)" text-anchor="middle" font-family="var(--font-mono)">${fmtK(vals[i])}</text>`;
+    });
+  }
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto;max-height:240px">${defs}${grid}${body}${xlab}</svg>`;
+}
 function renderTrend(){
   let t=DATA.tendencia||[];
+  let nowY=(new Date()).getFullYear()+'';
+  let partialIdx=-1;
   if(trendView==='ano'){
     const m={}; t.forEach(x=>{ const y=(x.mes||'').slice(0,4); if(y) m[y]=(m[y]||0)+(Number(x.total)||0); });
-    t=Object.keys(m).sort().map(y=>({mes:y,total:m[y]}));
+    const ys=Object.keys(m).sort();
+    t=ys.map(y=>({mes:y,total:m[y]}));
+    if(ys.length && ys[ys.length-1]===nowY) partialIdx=ys.length-1;
   }
   if(!t.length){ document.getElementById('trend').innerHTML='<div class="empty">Sin datos en el período.</div>'; return; }
-  const max=Math.max(1,...t.map(x=>Number(x.total)||0));
-  const W=Math.max(560, t.length*60), H=190, padL=8, padR=8, padB=26, padT=22, bw=Math.min(54,(W-padL-padR)/t.length-8);
-  const lbl=x=> trendView==='ano'? x.mes : x.mes.slice(2);
-  const baseY=H-padB, plotH=baseY-padT;
-  // gridlines suaves + etiqueta de tope
-  let grid='';
-  [0.5,1].forEach(f=>{ const gy=baseY-plotH*f; grid+=`<line x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}" stroke="var(--border-soft)" stroke-dasharray="2 4"/>`; });
-  grid+=`<text x="${W-padR}" y="${padT-6}" font-size="9" fill="var(--text-subtle)" text-anchor="end" font-family="var(--font-mono)">${fmtK(max)}</text>`;
-  grid+=`<line x1="${padL}" y1="${baseY}" x2="${W-padR}" y2="${baseY}" stroke="var(--border)"/>`;
-  const step=(W-padL-padR)/t.length;
-  let bars='';
-  t.forEach((x,i)=>{
-    const v=Number(x.total)||0, bh=(v/max)*plotH;
-    const xx=padL+i*step+(step-bw)/2, yy=baseY-bh;
-    bars+=`<rect x="${xx}" y="${yy}" width="${bw}" height="${Math.max(2,bh)}" rx="4" fill="var(--accent)" fill-opacity="0.92"></rect>`;
-    bars+=`<text x="${xx+bw/2}" y="${H-9}" font-size="9.5" fill="var(--text-muted)" text-anchor="middle" font-family="var(--font-mono)">${lbl(x)}</text>`;
-    if(v===max) bars+=`<text x="${xx+bw/2}" y="${yy-5}" font-size="9.5" fill="var(--text)" text-anchor="middle" font-family="var(--font-mono)" font-weight="600">${fmtK(v)}</text>`;
-  });
-  document.getElementById('trend').innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:230px">${grid}${bars}</svg>`;
+  const labels=t.map(x=> trendView==='ano'? x.mes : x.mes.slice(2));
+  const vals=t.map(x=>Number(x.total)||0);
+  // Mensual = área+línea (serie de tiempo, look pro). Anual = barras (pocos puntos).
+  document.getElementById('trend').innerHTML=svgSerie(labels, vals, {bars:trendView==='ano', partialIdx, H:220});
 }
 
 function renderFamiliaResumen(){
@@ -565,7 +596,7 @@ function renderExplorar(){
         <b class="nowrap">${esc(g.name||g.code)}</b>
         <span class="muted" style="font-size:.78rem">${g.clientes||0} clientes · ${pct}%</span>
         <span class="spacer"></span>
-        <button class="btn btn-sm" style="background:var(--bg-sunken);color:var(--text);margin-right:10px" onclick="event.stopPropagation();event.preventDefault();abrirComparativo('${byVend?'vendedor':'pais'}','${esc(String(g.code))}','${esc(g.name||g.code)}')">📊 Año</button>
+        <button class="btn btn-sm" title="Ver ventas por año" style="background:rgba(0,159,227,.12);color:var(--accent);font-weight:600;margin-right:10px" onclick="event.stopPropagation();event.preventDefault();abrirComparativo('${byVend?'vendedor':'pais'}','${esc(String(g.code))}','${esc(g.name||g.code)}')">📊 Comparativo anual</button>
         <b class="num">${fmtUSD(g.total)}</b>
       </summary>
       <div class="doc-body" id="grp-${key}"><div class="empty" style="padding:14px">Abriendo…</div></div>
@@ -725,26 +756,12 @@ function setCliView(v){
 let cliActual=null, recoLoadedFor=null, comparaLoadedFor=null;
 // Comparativo producto × año (siempre 5 años, independiente del filtro de período)
 function fmtPct(n){ return (n>=0?'+':'')+n.toFixed(0)+'%'; }
-// Gráfica de barras + línea de tendencia por año.
+// Comparativo anual: misma estética que la tendencia (área+línea, eje Y, año en curso punteado).
 function comparaChart(years, yTot, nowYear){
-  const max=Math.max(1,...years.map(y=>Math.abs(yTot[y]||0)));
-  const n=years.length, W=Math.max(360,n*95), H=195, padX=12, padB=32, padT=26;
-  const baseY=H-padB, plotH=baseY-padT, step=(W-padX*2)/n, bw=Math.min(60, step-22);
-  let grid='';
-  [0.5,1].forEach(f=>{ const gy=baseY-plotH*f; grid+=`<line x1="${padX}" y1="${gy}" x2="${W-padX}" y2="${gy}" stroke="var(--border-soft)" stroke-dasharray="2 4"/>`; });
-  grid+=`<text x="${W-padX}" y="${padT-6}" font-size="9" fill="var(--text-subtle)" text-anchor="end" font-family="var(--font-mono)">${fmtK(max)}</text>`;
-  grid+=`<line x1="${padX}" y1="${baseY}" x2="${W-padX}" y2="${baseY}" stroke="var(--border)"/>`;
-  let bars='', pts=[];
-  years.forEach((y,i)=>{
-    const v=yTot[y]||0, bh=(Math.abs(v)/max)*plotH;
-    const cx=padX+step*i+step/2, yy=baseY-bh, partial=(y===nowYear);
-    bars+=`<rect x="${cx-bw/2}" y="${yy}" width="${bw}" height="${Math.max(2,bh)}" rx="4" fill="var(--accent)" fill-opacity="${partial?0.4:0.92}"></rect>`;
-    bars+=`<text x="${cx}" y="${H-10}" font-size="11" fill="var(--text-muted)" text-anchor="middle" font-family="var(--font-mono)">${y}${partial?'*':''}</text>`;
-    bars+=`<text x="${cx}" y="${yy-6}" font-size="10" fill="var(--text-muted)" text-anchor="middle" font-family="var(--font-mono)">${fmtK(v)}</text>`;
-    pts.push(cx+','+yy);
-  });
-  const line=n>1?`<polyline points="${pts.join(' ')}" fill="none" stroke="var(--cta)" stroke-width="2"/>`+pts.map(p=>{const a=p.split(',');return `<circle cx="${a[0]}" cy="${a[1]}" r="3.5" fill="var(--cta)"/>`}).join(''):'';
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:215px">${grid}${bars}${line}</svg>`;
+  const labels=years.slice();
+  const vals=years.map(y=>Number(yTot[y])||0);
+  const partialIdx=(years.length && years[years.length-1]===nowYear)?years.length-1:-1;
+  return svgSerie(labels, vals, {bars:false, partialIdx, H:210});
 }
 // Diagnóstico: ¿sube o baja? ¿por qué? (compara los dos últimos años completos)
 function comparaDiagnostico(years, prods, yTot, nowYear){
@@ -968,8 +985,9 @@ async function cargarAccion(card, lapsedN, lapsedTot, contacto){
   if(lapsedN>0){ acc.push(`🛑 <b>Dejó de comprar ${lapsedN} producto(s)</b> (~${fmtUSD(lapsedTot)}). Pregúntale por qué y recupéralos — detalle en "📊 Comparativo anual".`); }
   if(cs.length){ const c=cs[0]; acc.push(`✨ <b>Ofrécele ${esc(c.descripcion||'')}</b> — lo compran el ${c.pct_peers}% de los clientes de su zona y este aún no.`); }
   const titulo=`<div style="font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--cta);font-weight:700;margin-bottom:8px">🎯 Qué hacer con este cliente</div>`;
+  const ctaCompara=(lapsedN>0)?`<button class="btn btn-cta btn-sm" style="margin-top:10px" onclick="setCliView('compara')">📊 Ver comparativo anual</button>`:'';
   if(!acc.length){ box.innerHTML=titulo+`<div style="font-size:.9rem">✅ <b>Cliente al día.</b> Sigue comprando lo de siempre — mantén el contacto.</div>`+botonesContacto(contacto); return; }
-  box.innerHTML=titulo+`<ul style="margin:0;padding-left:20px;font-size:.9rem;line-height:1.5">${acc.map(a=>`<li>${a}</li>`).join('')}</ul>`+botonesContacto(contacto);
+  box.innerHTML=titulo+`<ul style="margin:0;padding-left:20px;font-size:.9rem;line-height:1.5">${acc.map(a=>`<li>${a}</li>`).join('')}</ul>`+ctaCompara+botonesContacto(contacto);
 }
 function cerrarModal(){ document.getElementById('overlay').classList.remove('show'); }
 
