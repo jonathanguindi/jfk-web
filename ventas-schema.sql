@@ -73,8 +73,9 @@ insert into ventas_sync_state (doc_type) values ('I'), ('C')
 -- ───────────────────────────────────────────────────────────────────────────
 -- 3) RPC: resumen agregado para el dashboard (un solo viaje, todo el JSON).
 -- ───────────────────────────────────────────────────────────────────────────
+drop function if exists ventas_resumen(date, date, integer, text);
 create or replace function ventas_resumen(desde date, hasta date,
-                                          p_vendedor integer default null,
+                                          p_vendedores integer[] default null,
                                           p_pais text default null)
 returns jsonb
 language sql stable
@@ -82,7 +83,7 @@ as $$
   with f as (
     select * from ventas_lineas
     where doc_date >= desde and doc_date <= hasta
-      and (p_vendedor is null or sales_person_code = p_vendedor)
+      and (p_vendedores is null or sales_person_code = any(p_vendedores))
       and (p_pais is null or country_code = p_pais)
   ),
   total as (select coalesce(sum(line_total),0) as t from f)
@@ -159,13 +160,16 @@ $$;
 -- ───────────────────────────────────────────────────────────────────────────
 -- 4) RPC: detalle de un cliente (qué compra y cuánto, en el período).
 -- ───────────────────────────────────────────────────────────────────────────
-create or replace function ventas_cliente_detalle(p_card text, desde date, hasta date)
+drop function if exists ventas_cliente_detalle(text, date, date);
+create or replace function ventas_cliente_detalle(p_card text, desde date, hasta date,
+                                                  p_vendedores integer[] default null)
 returns jsonb
 language sql stable
 as $$
   with f as (
     select * from ventas_lineas
     where card_code = p_card and doc_date >= desde and doc_date <= hasta
+      and (p_vendedores is null or sales_person_code = any(p_vendedores))
   )
   select jsonb_build_object(
     'card_code', p_card,
@@ -265,6 +269,6 @@ as $$
 $$;
 
 -- Permitir que el rol de servicio (funciones Netlify) ejecute los RPC.
-grant execute on function ventas_resumen(date, date, integer, text) to service_role;
-grant execute on function ventas_cliente_detalle(text, date, date) to service_role;
+grant execute on function ventas_resumen(date, date, integer[], text) to service_role;
+grant execute on function ventas_cliente_detalle(text, date, date, integer[]) to service_role;
 grant execute on function ventas_plazas(date, date) to service_role;

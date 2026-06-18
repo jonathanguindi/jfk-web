@@ -23,8 +23,15 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return reply(405, { ok: false, error: 'Método no permitido' });
   try {
     const body = JSON.parse(event.body || '{}');
-    const sb = getSupabase(getEmpresa());
+    const empresa = getEmpresa();
+    const sb = getSupabase(empresa);
     if (!sb) return reply(500, { ok: false, error: 'Supabase no configurado' });
+
+    // Solo el administrador gestiona plazas.
+    const email = (body.email || '').trim().toLowerCase();
+    const adminEmail = (process.env.VENTAS_ADMIN_EMAIL || empresa.admin || '').trim().toLowerCase();
+    if (!adminEmail || email !== adminEmail) return reply(403, { ok: false, error: 'Solo el administrador' });
+
     const action = body.action || 'list';
 
     if (action === 'asignar') {

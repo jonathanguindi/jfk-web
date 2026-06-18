@@ -3552,7 +3552,7 @@ function showHome() {
   const cBtn = document.getElementById('home-cobranzas');
   if (cBtn) cBtn.style.display = 'flex';
   const dBtn = document.getElementById('home-dashboard');
-  if (dBtn) dBtn.style.display = (currentVendor.role === 'admin') ? 'flex' : 'none';
+  if (dBtn) dBtn.style.display = 'flex';   // todos ven el dashboard (admin: todo; vendedor: solo su cuenta)
   goToScreen('home');
 }
 function logout() {
