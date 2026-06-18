@@ -46,26 +46,37 @@ exports.handler = async (event) => {
     const sapCodes = (rows || [])
       .filter(r => r.activo !== false && (r.email || '').toLowerCase().split(/[,;]/).map(s => s.trim()).includes(target))
       .map(r => r.sap_code).filter(c => c != null);
-    if (!sapCodes.length) return reply(200, { ok: true, sap_codes: [], codes: [] });
+
+    const cardSet = new Set();
 
     // 2) Clientes facturados por esos códigos (últimos N años)
-    const cookies = await sapLogin();
-    const desde = new Date(Date.now() - ANOS * 365 * 86400000).toISOString().slice(0, 10);
-    const cardSet = new Set();
-    for (const code of sapCodes) {
-      let got = false;
-      try {
-        const j = await sapGet(cookies, `Invoices?$apply=filter(SalesPersonCode eq ${code} and DocDate ge '${desde}')/groupby((CardCode))`);
-        (j.value || []).forEach(x => { if (x.CardCode) cardSet.add(x.CardCode); });
-        got = true;
-      } catch (_) { /* $apply no soportado */ }
-      if (!got) {
+    if (sapCodes.length) {
+      const cookies = await sapLogin();
+      const desde = new Date(Date.now() - ANOS * 365 * 86400000).toISOString().slice(0, 10);
+      for (const code of sapCodes) {
+        let got = false;
         try {
-          const j = await sapGet(cookies, `Invoices?$select=CardCode&$filter=SalesPersonCode eq ${code} and DocDate ge '${desde}'`);
+          const j = await sapGet(cookies, `Invoices?$apply=filter(SalesPersonCode eq ${code} and DocDate ge '${desde}')/groupby((CardCode))`);
           (j.value || []).forEach(x => { if (x.CardCode) cardSet.add(x.CardCode); });
-        } catch (_) {}
+          got = true;
+        } catch (_) { /* $apply no soportado */ }
+        if (!got) {
+          try {
+            const j = await sapGet(cookies, `Invoices?$select=CardCode&$filter=SalesPersonCode eq ${code} and DocDate ge '${desde}'`);
+            (j.value || []).forEach(x => { if (x.CardCode) cardSet.add(x.CardCode); });
+          } catch (_) {}
+        }
       }
     }
+
+    // 3) Clientes asignados manualmente a este vendedor
+    try {
+      const { data: asigs } = await sb.from('cobranza_cliente_vendedor').select('sap_card_code,vendedor_email');
+      (asigs || []).forEach(a => {
+        if ((a.vendedor_email || '').toLowerCase().split(/[,;]/).map(s => s.trim()).includes(target)) cardSet.add(a.sap_card_code);
+      });
+    } catch (_) {}
+
     return reply(200, { ok: true, sap_codes: sapCodes, codes: [...cardSet] });
   } catch (e) {
     return reply(500, { ok: false, error: e.message });

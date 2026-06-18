@@ -2924,9 +2924,6 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
           Copiar al vendedor del cliente
         </label>
       </div>
-      <select id="cobranza-vend-filtro" onchange="onCobranzaFiltroVendedor()" style="display:none;width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface-1);color:inherit;margin-bottom:14px;font-size:.9rem">
-        <option value="">👥 Todos los vendedores</option>
-      </select>
       <div id="cobranza-pais-kpis" style="margin-bottom:14px"></div>
       <div id="cobranza-pais-chips" style="display:flex;gap:8px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:8px;margin-bottom:10px;-webkit-overflow-scrolling:touch"></div>
       <div id="cobranza-pais-list"><div class="estado-placeholder">Cargando clientes…</div></div>
@@ -6188,6 +6185,8 @@ async function enviarEstadoCuentaCorreo() {
 let cobranzaAutoSet = new Set();   // sap_card_code que están en envío automático
 
 let cobMisClientes = null;   // null = sin filtro (admin); Set = solo estos card codes (vendedor)
+let cobSellersOpts = [];     // vendedores del portal (para el selector por cliente)
+let cobClienteVendMap = {};  // sap_card_code -> correo de vendedor asignado manualmente
 
 async function openCobranzas() {
   goToScreen('cobranzas');
@@ -6198,17 +6197,12 @@ async function openCobranzas() {
   if (tabVend) tabVend.style.display = esAdmin ? '' : 'none';
   const correrBtn = document.getElementById('cobranza-correr-btn');
   if (correrBtn) correrBtn.style.display = esAdmin ? '' : 'none';
-  // Selector de vendedor (solo admin): filtra el dashboard por vendedor
-  const filtro = document.getElementById('cobranza-vend-filtro');
-  if (filtro) {
-    filtro.style.display = esAdmin ? 'block' : 'none';
-    if (esAdmin && filtro.options.length <= 1) {
-      try {
-        const { data: sellers } = await supa.from('sellers').select('name,email').eq('active', true).eq('role', 'vendedor').order('name');
-        (sellers || []).forEach(s => { if (s.email) { const o = document.createElement('option'); o.value = s.email; o.textContent = s.name; filtro.appendChild(o); } });
-      } catch (e) {}
+  // Solo el admin asigna vendedor por cliente: cargamos la lista de vendedores y las asignaciones guardadas
+  if (esAdmin) {
+    if (!cobSellersOpts.length) {
+      try { const { data: sellers } = await supa.from('sellers').select('name,email').eq('active', true).eq('role', 'vendedor').order('name'); cobSellersOpts = (sellers || []).filter(s => s.email); } catch (e) {}
     }
-    if (esAdmin) filtro.value = '';
+    try { const { data: asig } = await supa.from('cobranza_cliente_vendedor').select('sap_card_code,vendedor_email'); cobClienteVendMap = {}; (asig || []).forEach(a => { cobClienteVendMap[a.sap_card_code] = a.vendedor_email || ''; }); } catch (e) {}
   }
   // Scoping: un vendedor (no admin) solo ve los clientes que ha facturado
   cobMisClientes = null;
@@ -6230,22 +6224,22 @@ function cobAplicarScope(arr) {
   return cobMisClientes ? (arr || []).filter(x => cobMisClientes.has(x.sap_card_code)) : (arr || []);
 }
 
-// Admin: al escoger un vendedor en el selector, filtra el dashboard a sus clientes
-async function onCobranzaFiltroVendedor() {
-  const email = document.getElementById('cobranza-vend-filtro').value;
-  if (!email) {
-    cobMisClientes = null;
-    loadCobranzaDashboard(); loadCobranzaPendientes(); loadCobranzaRecurrentes();
-    return;
-  }
-  cobranzaPaisActual = null;
-  document.getElementById('cobranza-pais-list').innerHTML = '<div class="estado-placeholder"><div class="spinner"></div><div style="margin-top:10px;font-size:.82rem">Cargando clientes del vendedor…</div></div>';
+// Opciones del selector de vendedor por cliente
+function cobVendOptionsHTML(sel) {
+  const s0 = (sel || '').toLowerCase();
+  return cobSellersOpts.map(s => `<option value="${escapeHtml(s.email)}" ${s.email.toLowerCase() === s0 ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('');
+}
+// Admin: asignar (y guardar) el vendedor de un cliente
+async function asignarVendedorCliente(cardCode, sel) {
+  const email = sel.value;
   try {
-    const res = await fetch('/.netlify/functions/mis-clientes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+    const res = await fetch('/.netlify/functions/cobranza-asignar-vendedor', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cardCode, email }) });
     const d = await res.json();
-    cobMisClientes = new Set(d.ok ? (d.codes || []) : []);
-  } catch (e) { cobMisClientes = new Set(); }
-  loadCobranzaDashboard(); loadCobranzaPendientes(); loadCobranzaRecurrentes();
+    if (!d.ok) { showToast('No se guardó: ' + (d.error || ''), true); return; }
+    cobClienteVendMap[cardCode] = email;
+    const nombre = email ? (cobSellersOpts.find(s => s.email.toLowerCase() === email.toLowerCase())?.name || email) : 'automático';
+    showToast('Vendedor del cliente: ' + nombre);
+  } catch (e) { showToast('Error: ' + e.message, true); }
 }
 
 function switchCobranzaTab(which) {
@@ -6846,6 +6840,7 @@ function renderCobranzaPaisList(pais) {
             <div class="cob-moro" style="font-size:.72rem;margin-top:5px;color:var(--text-subtle)">···</div>
           </div>
         </div>
+        ${(currentVendor && currentVendor.role === 'admin') ? `<div style="margin-top:11px;display:flex;align-items:center;gap:8px;font-size:.74rem;color:var(--text-subtle)"><span style="white-space:nowrap">Vendedor</span><select onchange="asignarVendedorCliente('${escapeHtml(c.sap_card_code)}',this)" style="flex:1;min-width:0;padding:6px 9px;border-radius:7px;border:1px solid var(--border);background:var(--surface-1);color:inherit;font-size:.78rem"><option value="">Automático (por factura)</option>${cobVendOptionsHTML(cobClienteVendMap[c.sap_card_code] || '')}</select></div>` : ''}
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border-soft);flex-wrap:wrap">
           <div class="cob-ult" style="font-size:.64rem;letter-spacing:.03em;color:var(--text-subtle)">${last ? 'Último envío · ' + last : 'Sin envíos previos'}</div>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">

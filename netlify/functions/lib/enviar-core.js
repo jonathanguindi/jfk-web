@@ -120,6 +120,17 @@ async function ccVendedorActivado(empresa) {
   } catch (e) { return true; }
 }
 
+// Asignación manual de vendedor por cliente (tabla cobranza_cliente_vendedor).
+async function asignacionManualVendedor(empresa, cardCode, destinatario) {
+  try {
+    const sb = getSupabase(empresa);
+    if (!sb) return [];
+    const { data } = await sb.from('cobranza_cliente_vendedor').select('vendedor_email').eq('sap_card_code', cardCode).maybeSingle();
+    if (!data || !data.vendedor_email) return [];
+    return data.vendedor_email.split(/[,;]/).map(s => s.trim()).filter(e => EMAIL_RE.test(e) && e.toLowerCase() !== (destinatario || '').toLowerCase());
+  } catch (e) { return []; }
+}
+
 // Resuelve los correos del vendedor de la última factura (puede ser más de uno
 // si el código es compartido). Devuelve un array.
 //  1) Mapeo administrado (cobranza_vendedores) por código SAP, siguiendo reasignación.
@@ -226,7 +237,8 @@ async function enviarEstadoCuenta(opts = {}) {
   const ccList = [];
   if (empresa.cc) ccList.push(empresa.cc);
   if (ccVendedor && await ccVendedorActivado(empresa)) {
-    const emails = await resolverEmailsVendedor(empresa, data.vendedor, to);
+    let emails = await asignacionManualVendedor(empresa, cardCode, to);   // asignación manual por cliente
+    if (!emails.length) emails = await resolverEmailsVendedor(empresa, data.vendedor, to);   // si no, automático por factura
     for (const e of emails) if (!ccList.includes(e)) ccList.push(e);
   }
 
