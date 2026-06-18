@@ -120,38 +120,40 @@ async function ccVendedorActivado(empresa) {
   } catch (e) { return true; }
 }
 
-// Resuelve el correo del vendedor de la última factura:
+// Resuelve los correos del vendedor de la última factura (puede ser más de uno
+// si el código es compartido). Devuelve un array.
 //  1) Mapeo administrado (cobranza_vendedores) por código SAP, siguiendo reasignación.
 //  2) Si no está configurado, empareja por nombre con la tabla sellers.
-async function resolverEmailVendedor(empresa, vendedor, destinatario) {
-  if (!vendedor) return null;
+async function resolverEmailsVendedor(empresa, vendedor, destinatario) {
+  if (!vendedor) return [];
   const sb = getSupabase(empresa);
   const okMail = (e) => EMAIL_RE.test(e) && e.toLowerCase() !== (destinatario || '').toLowerCase();
+  const split = (s) => (s || '').split(/[,;]/).map(x => x.trim()).filter(Boolean);
 
-  // 1) Mapeo por código SAP (con reasignación a su reemplazo)
+  // 1) Mapeo por código SAP (con reasignación). Un código puede tener varios correos.
   if (sb && vendedor.code != null) {
     try {
       const { data: first } = await sb.from('cobranza_vendedores').select('sap_code,email,activo,reasignar_a').eq('sap_code', vendedor.code).maybeSingle();
-      if (first) {   // está configurado -> resolver estrictamente por el mapeo
+      if (first) {
         let row = first; const seen = new Set(); let hops = 0;
         while (row && hops < 6) {
-          if (row.activo) { const e = (row.email || '').trim(); return okMail(e) ? e : null; }
-          if (row.reasignar_a == null || seen.has(row.reasignar_a)) return null;
+          if (row.activo) return split(row.email).filter(okMail);
+          if (row.reasignar_a == null || seen.has(row.reasignar_a)) return [];
           seen.add(row.reasignar_a);
           const { data: next } = await sb.from('cobranza_vendedores').select('sap_code,email,activo,reasignar_a').eq('sap_code', row.reasignar_a).maybeSingle();
           row = next; hops++;
         }
-        return null;
+        return [];
       }
     } catch (e) { console.error('mapeo vendedor:', e.message); }
   }
 
   // 2) Respaldo: emparejar por nombre con sellers
-  if (!vendedor.nombre) return null;
+  if (!vendedor.nombre) return [];
   try {
-    if (!sb) return null;
+    if (!sb) return [];
     const { data: sellers } = await sb.from('sellers').select('name,email,active').eq('active', true);
-    if (!sellers || !sellers.length) return null;
+    if (!sellers || !sellers.length) return [];
     const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
     const target = norm(vendedor.nombre);
     const ttoks = target.split(' ').filter(Boolean);
@@ -161,15 +163,15 @@ async function resolverEmailVendedor(empresa, vendedor, destinatario) {
       const email = (s.email || '').trim();
       if (!okMail(email)) continue;
       const sn = norm(s.name);
-      if (sn === target) return email;
+      if (sn === target) return [email];
       const stoks = sn.split(' ').filter(Boolean);
-      if (stoks.length && stoks.every(t => tset.has(t))) return email;
+      if (stoks.length && stoks.every(t => tset.has(t))) return [email];
       const shared = stoks.filter(t => tset.has(t)).length;
       if (shared > bestScore) { bestScore = shared; best = email; }
     }
     const need = Math.min(2, ttoks.length || 1);
-    return bestScore >= need ? best : null;
-  } catch (e) { console.error('resolverEmailVendedor:', e.message); return null; }
+    return (bestScore >= need && best) ? [best] : [];
+  } catch (e) { console.error('resolverEmailsVendedor:', e.message); return []; }
 }
 
 // opts: { cardCode, desde?, hasta?, toOverride?, tipo?, envioId?, aprobadoPor?, incluirFacturas? }
@@ -224,8 +226,8 @@ async function enviarEstadoCuenta(opts = {}) {
   const ccList = [];
   if (empresa.cc) ccList.push(empresa.cc);
   if (await ccVendedorActivado(empresa)) {
-    const vendedorEmail = await resolverEmailVendedor(empresa, data.vendedor, to);
-    if (vendedorEmail && !ccList.includes(vendedorEmail)) ccList.push(vendedorEmail);
+    const emails = await resolverEmailsVendedor(empresa, data.vendedor, to);
+    for (const e of emails) if (!ccList.includes(e)) ccList.push(e);
   }
 
   // 5) Enviar por Resend

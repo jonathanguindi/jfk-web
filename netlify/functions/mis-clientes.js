@@ -39,9 +39,13 @@ exports.handler = async (event) => {
     const sb = getSupabase(empresa);
     if (!sb) return reply(500, { ok: false, error: 'Supabase no configurado' });
 
-    // 1) Códigos de vendedor (SAP) asociados a ese correo (puede ser más de uno)
-    const { data: rows } = await sb.from('cobranza_vendedores').select('sap_code').ilike('email', email.trim()).eq('activo', true);
-    const sapCodes = (rows || []).map(r => r.sap_code).filter(c => c != null);
+    // 1) Códigos de vendedor (SAP) asociados a ese correo (un código puede tener
+    //    varios correos separados por coma; un vendedor puede tener varios códigos)
+    const { data: rows } = await sb.from('cobranza_vendedores').select('sap_code,email,activo');
+    const target = email.trim().toLowerCase();
+    const sapCodes = (rows || [])
+      .filter(r => r.activo !== false && (r.email || '').toLowerCase().split(/[,;]/).map(s => s.trim()).includes(target))
+      .map(r => r.sap_code).filter(c => c != null);
     if (!sapCodes.length) return reply(200, { ok: true, sap_codes: [], codes: [] });
 
     // 2) Clientes facturados por esos códigos (últimos N años)
