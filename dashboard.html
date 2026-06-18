@@ -195,8 +195,13 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
       <div id="map" style="height:420px;width:100%"></div>
     </div>
     <div class="card">
-      <h3>Explorar por país <span class="sub">abre un país para ver sus clientes · clic en un cliente para el detalle</span></h3>
-      <input class="search" id="cliSearch" placeholder="Buscar cliente en todos los países…" oninput="renderExplorar()">
+      <h3>Explorar <span class="sub">abre un grupo para ver sus clientes · clic en un cliente para el detalle</span>
+        <span class="seg" id="exploreSeg" style="float:right">
+          <button class="active" id="segByPais" onclick="setExploreBy('pais')">Por país</button>
+          <button id="segByVend" onclick="setExploreBy('vendedor')">Por vendedor</button>
+        </span>
+      </h3>
+      <input class="search" id="cliSearch" placeholder="Buscar cliente…" oninput="renderExplorar()">
       <div id="tblExplorar"></div>
     </div>
     <div class="card"><h3>Cobertura de la región <span class="sub">dónde estamos y dónde no</span></h3>
@@ -260,7 +265,7 @@ let mapInstance=null;
 
 // Adapta la interfaz según el rol (oculta lo de admin a los vendedores).
 function aplicarRolUI(){
-  const adminEls=['fieldVendedor','tab-vendedores','tab-plazas','syncBtn'];
+  const adminEls=['fieldVendedor','tab-vendedores','tab-plazas','syncBtn','segByVend'];
   adminEls.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=ES_ADMIN?'':'none'; });
   const sub=document.getElementById('logoSub');
   if(sub) sub.textContent=ES_ADMIN?'Dashboard de ventas':'Mis ventas';
@@ -437,17 +442,24 @@ function clienteRowHTML(x,i,max,hoy){
   return `<tr class="clickable" onclick="verCliente('${esc(x.card_code)}')">
     <td class="rank">${i+1}</td>
     <td>${esc(x.name)}<div class="bar-wrap" style="margin-top:3px"><div class="bar cta" style="width:${w}%"></div></div></td>
+    <td class="muted nowrap">${esc(x.pais||'')}</td>
     <td class="muted nowrap">${esc(x.vendedor||'')}</td>
     <td class="num">${x.documentos||0}</td>
     <td class="num muted nowrap">${(x.ultima_compra||'').slice(0,10)}${recencia}</td>
     <td class="num">${fmtUSD(x.total)}</td></tr>`;
 }
 function clientesTabla(rows){
-  if(!rows.length) return '<div class="empty">Sin clientes.</div>';
+  if(!rows.length) return '<div class="empty" style="padding:14px">Sin clientes.</div>';
   const max=Math.max(1,...rows.map(x=>Number(x.total)||0));
   const hoy=new Date(document.getElementById('hasta').value+'T00:00:00');
-  return '<table><thead><tr><th></th><th>Cliente</th><th>Vendedor</th><th class="num">Docs</th><th class="num">Última compra</th><th class="num">Ventas</th></tr></thead><tbody>'
+  return '<table><thead><tr><th></th><th>Cliente</th><th>País</th><th>Vendedor</th><th class="num">Docs</th><th class="num">Última compra</th><th class="num">Ventas</th></tr></thead><tbody>'
     + rows.map((x,i)=>clienteRowHTML(x,i,max,hoy)).join('') + '</tbody></table>';
+}
+let exploreBy='pais';
+function setExploreBy(v){ exploreBy=v;
+  document.getElementById('segByPais').classList.toggle('active',v==='pais');
+  const b=document.getElementById('segByVend'); if(b) b.classList.toggle('active',v==='vendedor');
+  renderExplorar();
 }
 function renderExplorar(){
   // cobertura región (siempre)
@@ -464,32 +476,35 @@ function renderExplorar(){
     cont.innerHTML=clientesTabla(c);
     return;
   }
-  // acordeón por país
-  const paises=(DATA.por_pais||[]).filter(x=>x.code).slice();
-  if(!paises.length){ cont.innerHTML='<div class="empty">Sin datos en el período.</div>'; renderMap(); return; }
-  const tot=paises.reduce((a,p)=>a+(Number(p.total)||0),0)||1;
-  cont.innerHTML=paises.map(p=>{
-    const pct=((Number(p.total)||0)/tot*100).toFixed(1);
-    return `<details class="doc" ontoggle="cargarPaisClientes(this,'${esc(p.code)}')">
+  // acordeón por país o por vendedor
+  const byVend = exploreBy==='vendedor';
+  const groups=((byVend?DATA.por_vendedor:DATA.por_pais)||[]).filter(x=>x.code!=null && x.code!=='');
+  if(!groups.length){ cont.innerHTML='<div class="empty">Sin datos en el período.</div>'; renderMap(); return; }
+  const tot=groups.reduce((a,g)=>a+(Number(g.total)||0),0)||1;
+  cont.innerHTML=groups.map(g=>{
+    const pct=((Number(g.total)||0)/tot*100).toFixed(1);
+    const key=(byVend?'v':'p')+'-'+String(g.code).replace(/[^A-Za-z0-9]/g,'');
+    return `<details class="doc" ontoggle="cargarGrupoClientes(this,'${byVend?'vendedor':'pais'}','${esc(String(g.code))}','${key}')">
       <summary>
         <span class="chev">▶</span>
-        <b class="nowrap">${esc(p.name||p.code)}</b>
-        <span class="muted" style="font-size:.78rem">${p.clientes||0} clientes · ${pct}%</span>
+        <b class="nowrap">${esc(g.name||g.code)}</b>
+        <span class="muted" style="font-size:.78rem">${g.clientes||0} clientes · ${pct}%</span>
         <span class="spacer"></span>
-        <b class="num">${fmtUSD(p.total)}</b>
+        <b class="num">${fmtUSD(g.total)}</b>
       </summary>
-      <div class="doc-body" id="pais-cli-${esc(p.code)}"><div class="empty" style="padding:14px">Abriendo…</div></div>
+      <div class="doc-body" id="grp-${key}"><div class="empty" style="padding:14px">Abriendo…</div></div>
     </details>`;
   }).join('');
   renderMap();
 }
-async function cargarPaisClientes(det,code){
+async function cargarGrupoClientes(det,dim,code,key){
   if(!det.open) return;
-  const box=document.getElementById('pais-cli-'+code);
+  const box=document.getElementById('grp-'+key);
   if(!box || box.dataset.loaded) return;
   box.dataset.loaded='1';
   box.innerHTML='<div class="empty" style="padding:14px">Cargando clientes…</div>';
-  const j=await fetchData({pais:code});
+  const extra = dim==='vendedor' ? {vendedor:code} : {pais:code};
+  const j=await fetchData(extra);
   if(!j.ok||!j.resumen){ box.innerHTML='<div class="empty">Error.</div>'; box.dataset.loaded=''; return; }
   box.innerHTML=clientesTabla(j.resumen.por_cliente||[]);
 }
