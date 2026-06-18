@@ -62,7 +62,7 @@ async function computeEstadoCuenta({ cardCode, desde, hasta }, hoy = new Date())
   const saldoActual = r2(bp.CurrentAccountBalance);
 
   // Documentos dentro del rango [desde, hasta]
-  const invRes = await sapGet(cookies, `Invoices?$select=DocNum,DocDate,DocDueDate,DocTotal,PaidToDate,DocumentStatus,Comments&$filter=CardCode eq '${cc}' and DocDate ge '${fechaDesde}' and DocDate le '${fechaHasta}'&$orderby=DocDate`);
+  const invRes = await sapGet(cookies, `Invoices?$select=DocNum,DocDate,DocDueDate,DocTotal,PaidToDate,DocumentStatus,Comments,SalesPersonCode&$filter=CardCode eq '${cc}' and DocDate ge '${fechaDesde}' and DocDate le '${fechaHasta}'&$orderby=DocDate`);
   const payRes = await sapGet(cookies, `IncomingPayments?$select=DocNum,DocDate,CashSum,TransferSum,Remarks&$filter=CardCode eq '${cc}' and DocDate ge '${fechaDesde}' and DocDate le '${fechaHasta}'&$orderby=DocDate`);
   let cnRes = { value: [] };
   try {
@@ -149,6 +149,16 @@ async function computeEstadoCuenta({ cardCode, desde, hasta }, hoy = new Date())
     }
   }
 
+  // Vendedor de la última factura (para CC de seguimiento)
+  let vendedor = null;
+  const vCode = facturas.length ? facturas[0].SalesPersonCode : null;
+  if (vCode != null && vCode > 0) {
+    try {
+      const sp = await sapGet(cookies, `SalesPersons(${vCode})?$select=SalesEmployeeCode,SalesEmployeeName`);
+      vendedor = { code: vCode, nombre: sp.SalesEmployeeName || null };
+    } catch (e) { vendedor = { code: vCode, nombre: null }; }
+  }
+
   return {
     success: true,
     cliente: {
@@ -171,7 +181,8 @@ async function computeEstadoCuenta({ cardCode, desde, hasta }, hoy = new Date())
     // Campos de cobranzas
     vencido,
     maxAtraso,
-    diasCredito
+    diasCredito,
+    vendedor
   };
 }
 

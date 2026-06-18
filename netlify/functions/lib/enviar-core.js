@@ -79,7 +79,36 @@ function emailHTML(data, empresa, lang = 'es') {
   </div></body></html>`;
 }
 
-// opts: { cardCode, desde?, hasta?, toOverride?, tipo?, envioId?, aprobadoPor? }
+// Empareja el nombre del vendedor de SAP con la tabla sellers para obtener su correo.
+async function resolverEmailVendedor(empresa, vendedor, destinatario) {
+  if (!vendedor || !vendedor.nombre) return null;
+  try {
+    const sb = getSupabase(empresa);
+    if (!sb) return null;
+    const { data: sellers } = await sb.from('sellers').select('name,email,active').eq('active', true);
+    if (!sellers || !sellers.length) return null;
+    const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+    const target = norm(vendedor.nombre);
+    const ttoks = target.split(' ').filter(Boolean);
+    const tset = new Set(ttoks);
+    let best = null, bestScore = 0;
+    for (const s of sellers) {
+      const email = (s.email || '').trim();
+      if (!EMAIL_RE.test(email)) continue;
+      if (email.toLowerCase() === (destinatario || '').toLowerCase()) continue; // no CC al mismo destinatario
+      const sn = norm(s.name);
+      if (sn === target) return email;
+      const stoks = sn.split(' ').filter(Boolean);
+      if (stoks.length && stoks.every(t => tset.has(t))) return email;   // nombre del seller ⊆ nombre SAP
+      const shared = stoks.filter(t => tset.has(t)).length;
+      if (shared > bestScore) { bestScore = shared; best = email; }
+    }
+    const need = Math.min(2, ttoks.length || 1);   // 1 token -> 1; 2+ -> 2 en común
+    return bestScore >= need ? best : null;
+  } catch (e) { console.error('resolverEmailVendedor:', e.message); return null; }
+}
+
+// opts: { cardCode, desde?, hasta?, toOverride?, tipo?, envioId?, aprobadoPor?, incluirFacturas? }
 async function enviarEstadoCuenta(opts = {}) {
   const { cardCode, desde, hasta, toOverride, tipo = 'manual', envioId = null, aprobadoPor = null, incluirFacturas = false } = opts;
   if (!cardCode) return { ok: false, error: 'Falta cardCode' };
@@ -116,13 +145,19 @@ async function enviarEstadoCuenta(opts = {}) {
     } catch (e) { console.error('PDF de facturas falló (se envía solo el estado):', e.message); }
   }
 
-  // 4) Enviar por Resend (con CC a cobros)
+  // 4) CC: cobros + el vendedor de la última factura (si lo ubicamos en sellers)
+  const ccList = [];
+  if (empresa.cc) ccList.push(empresa.cc);
+  const vendedorEmail = await resolverEmailVendedor(empresa, data.vendedor, to);
+  if (vendedorEmail && !ccList.includes(vendedorEmail)) ccList.push(vendedorEmail);
+
+  // 5) Enviar por Resend
   const resend = new Resend(process.env.RESEND_API_KEY);
   const subject = (EMAIL_T[lang] || EMAIL_T.es).subject(empresa.nombreCorto);
   const { data: sent, error: sendErr } = await resend.emails.send({
     from: empresa.from,
     to: [to],
-    cc: empresa.cc ? [empresa.cc] : undefined,
+    cc: ccList.length ? ccList : undefined,
     bcc: empresa.bcc ? [empresa.bcc] : undefined,
     subject,
     html: emailHTML(data, empresa, lang),
