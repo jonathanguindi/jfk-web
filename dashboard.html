@@ -174,7 +174,11 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
   <!-- RESUMEN -->
   <section class="panel active" id="p-resumen">
     <div class="kpis" id="kpis"></div>
-    <div class="card"><h3>Tendencia mensual <span class="sub">ventas USD</span></h3><div id="trend"></div></div>
+    <div class="card"><h3>Tendencia <span class="sub">ventas USD</span>
+      <span class="seg" style="float:right">
+        <button class="active" id="segTrendMes" onclick="setTrendView('mes')">Mensual</button>
+        <button id="segTrendAno" onclick="setTrendView('ano')">Anual</button>
+      </span></h3><div id="trend"></div></div>
     <div class="card"><h3>Mix por familia de producto <span class="sub">% de ventas</span></h3><div id="resFamilia"></div></div>
   </section>
 
@@ -375,18 +379,29 @@ function tablaRanking(rows, opts){
   return h+'</tbody></table>';
 }
 
+let trendView='mes';
+function setTrendView(v){ trendView=v;
+  document.getElementById('segTrendMes').classList.toggle('active',v==='mes');
+  document.getElementById('segTrendAno').classList.toggle('active',v==='ano');
+  renderTrend();
+}
 function renderTrend(){
-  const t=DATA.tendencia||[];
+  let t=DATA.tendencia||[];
+  if(trendView==='ano'){
+    const m={}; t.forEach(x=>{ const y=(x.mes||'').slice(0,4); if(y) m[y]=(m[y]||0)+(Number(x.total)||0); });
+    t=Object.keys(m).sort().map(y=>({mes:y,total:m[y]}));
+  }
   if(!t.length){ document.getElementById('trend').innerHTML='<div class="empty">Sin datos en el período.</div>'; return; }
   const max=Math.max(1,...t.map(x=>Number(x.total)||0));
-  const W=Math.max(560, t.length*60), H=180, pad=28, bw=Math.min(46,(W-pad*2)/t.length-8);
+  const W=Math.max(560, t.length*60), H=180, pad=28, bw=Math.min(54,(W-pad*2)/t.length-8);
+  const lbl=x=> trendView==='ano'? x.mes : x.mes.slice(2);
   let bars='';
   t.forEach((x,i)=>{
     const v=Number(x.total)||0, bh=(v/max)*(H-pad-24);
     const xx=pad+i*((W-pad*2)/t.length), yy=H-24-bh;
     bars+=`<rect x="${xx}" y="${yy}" width="${bw}" height="${Math.max(2,bh)}" rx="3" fill="var(--accent)"></rect>`;
-    bars+=`<text x="${xx+bw/2}" y="${H-8}" font-size="9" fill="var(--text-muted)" text-anchor="middle" font-family="var(--font-mono)">${x.mes.slice(2)}</text>`;
-    if(i%Math.ceil(t.length/8||1)===0||v===max)
+    bars+=`<text x="${xx+bw/2}" y="${H-8}" font-size="9" fill="var(--text-muted)" text-anchor="middle" font-family="var(--font-mono)">${lbl(x)}</text>`;
+    if(trendView==='ano'||i%Math.ceil(t.length/8||1)===0||v===max)
       bars+=`<text x="${xx+bw/2}" y="${yy-4}" font-size="9" fill="var(--text-muted)" text-anchor="middle" font-family="var(--font-mono)">${fmtK(v)}</text>`;
   });
   document.getElementById('trend').innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:220px">${bars}</svg>`;
@@ -466,16 +481,22 @@ function renderClientes(){
   if(q) c=c.filter(x=>(x.name||'').toLowerCase().includes(q)||(x.card_code||'').toLowerCase().includes(q));
   if(!c.length){ document.getElementById('tblClientes').innerHTML='<div class="empty">Sin clientes.</div>'; return; }
   const max=Math.max(1,...c.map(x=>Number(x.total)||0));
-  let h='<table><thead><tr><th></th><th>Cliente</th><th>País</th><th>Vendedor</th><th class="num">Docs</th><th class="num">Última</th><th class="num">Ventas</th></tr></thead><tbody>';
+  const hoy=new Date(document.getElementById('hasta').value+'T00:00:00');
+  let h='<table><thead><tr><th></th><th>Cliente</th><th>País</th><th>Vendedor</th><th class="num">Docs</th><th class="num">Última compra</th><th class="num">Ventas</th></tr></thead><tbody>';
   c.forEach((x,i)=>{
     const w=((Number(x.total)||0)/max*100).toFixed(1);
+    let recencia='';
+    if(x.ultima_compra){ const dias=Math.round((hoy-new Date(x.ultima_compra+'T00:00:00'))/864e5);
+      const col=dias>365?'var(--red)':dias>180?'var(--amber)':'var(--text-subtle)';
+      const txt=dias>365?(dias/365).toFixed(1)+' a':dias>=60?Math.round(dias/30)+' m':dias+' d';
+      recencia=`<div style="font-size:.68rem;color:${col}">hace ${txt}</div>`; }
     h+=`<tr class="clickable" onclick="verCliente('${esc(x.card_code)}')">
       <td class="rank">${i+1}</td>
       <td>${esc(x.name)}<div class="bar-wrap" style="margin-top:3px"><div class="bar cta" style="width:${w}%"></div></div></td>
       <td class="muted nowrap">${esc(x.pais||'')}</td>
       <td class="muted nowrap">${esc(x.vendedor||'')}</td>
       <td class="num">${x.documentos||0}</td>
-      <td class="num muted nowrap">${(x.ultima_compra||'').slice(0,10)}</td>
+      <td class="num muted nowrap">${(x.ultima_compra||'').slice(0,10)}${recencia}</td>
       <td class="num">${fmtUSD(x.total)}</td></tr>`;
   });
   document.getElementById('tblClientes').innerHTML=h+'</tbody></table>';
@@ -564,8 +585,10 @@ function docsHtml(docs){
 function setCliView(v){
   document.getElementById('cliSegRes').classList.toggle('active',v==='resumen');
   document.getElementById('cliSegPed').classList.toggle('active',v==='pedidos');
+  const segInac=document.getElementById('cliSegInac'); if(segInac) segInac.classList.toggle('active',v==='inactivos');
   document.getElementById('cliResumen').style.display=v==='resumen'?'block':'none';
   document.getElementById('cliPedidos').style.display=v==='pedidos'?'block':'none';
+  const inac=document.getElementById('cliInactivos'); if(inac) inac.style.display=v==='inactivos'?'block':'none';
 }
 
 /* ── Detalle de cliente ── */
@@ -601,21 +624,61 @@ async function verCliente(card){
       <td class="num">${fmtUSD(x.total)}</td>
       <td class="num"><b>${pct.toFixed(1)}%</b></td></tr>`;
   }).join('');
+
+  // ── Ventas por año (con variación vs año anterior) ──
+  const hastaRef=(d.periodo&&d.periodo.hasta)||document.getElementById('hasta').value;
+  const refDate=new Date(hastaRef+'T00:00:00');
+  const anoMap={};
+  (d.documentos||[]).forEach(dc=>{ const y=(dc.doc_date||'').slice(0,4); if(y) anoMap[y]=(anoMap[y]||0)+(Number(dc.total)||0); });
+  const anos=Object.keys(anoMap).sort();
+  const anoMax=Math.max(1,...anos.map(y=>Math.abs(anoMap[y])));
+  const anoHtml=anos.length? anos.map((y,i)=>{
+    const v=anoMap[y], prev=i>0?anoMap[anos[i-1]]:null;
+    const chg=(prev&&prev!==0)?((v-prev)/Math.abs(prev)*100):null;
+    const chgTxt=chg===null?'':`<span style="color:${chg>=0?'var(--green)':'var(--red)'};font-size:.72rem">${chg>=0?'▲':'▼'} ${Math.abs(chg).toFixed(0)}%</span>`;
+    return `<div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:3px">
+        <span><b>${y}</b> ${chgTxt}</span><span class="num">${fmtUSD(v)}</span></div>
+      <div class="bar-wrap"><div class="bar" style="width:${(Math.abs(v)/anoMax*100).toFixed(1)}%"></div></div></div>`;
+  }).join('') : '<div class="muted" style="font-size:.8rem">—</div>';
+
+  // ── Dejó de comprar: productos sin compra en los últimos 6 meses del período ──
+  const corte=new Date(refDate.getTime()-182*864e5);
+  const lapsed=prods.filter(x=>x.ultima_compra && new Date(x.ultima_compra+'T00:00:00')<corte)
+                    .sort((a,b)=>(Number(b.total)||0)-(Number(a.total)||0));
+  const lapsedTotal=lapsed.reduce((a,x)=>a+(Number(x.total)||0),0);
+  const lapsedRows=lapsed.map(x=>{
+    const u=new Date(x.ultima_compra+'T00:00:00');
+    const meses=Math.max(1,Math.round((refDate-u)/(30.4*864e5)));
+    return `<tr><td>${esc(x.descripcion||x.code)}<div class="muted" style="font-size:.72rem">${esc(x.familia||'')}</div></td>
+      <td class="num muted nowrap">${(x.ultima_compra||'').slice(0,10)}</td>
+      <td class="num nowrap"><b style="color:${meses>=12?'var(--red)':'var(--amber)'}">hace ${meses>=12?(meses/12).toFixed(1)+' a':meses+' m'}</b></td>
+      <td class="num muted">${x.veces||0}×</td>
+      <td class="num">${fmtUSD(x.total)}</td></tr>`;
+  }).join('');
+
   m.innerHTML=`<button class="x" onclick="cerrarModal()">✕</button>
     <h3 style="font-family:var(--font-serif);margin:0 0 2px">${esc(d.card_name||card)}</h3>
-    <div class="muted" style="font-size:.8rem;margin-bottom:14px">${esc(d.pais||'')} · ${esc(d.vendedor||'sin vendedor')} · ${esc(card)} · Total ${fmtUSD(d.total)} · ${esc((d.periodo&&d.periodo.desde)||document.getElementById('desde').value)} → ${esc((d.periodo&&d.periodo.hasta)||document.getElementById('hasta').value)}</div>
+    <div class="muted" style="font-size:.8rem;margin-bottom:14px">${esc(d.pais||'')} · ${esc(d.vendedor||'sin vendedor')} · ${esc(card)} · Total ${fmtUSD(d.total)} · ${esc((d.periodo&&d.periodo.desde)||document.getElementById('desde').value)} → ${esc(hastaRef)}</div>
     ${contactoHtml(d.contacto)}
     <div style="margin-bottom:14px"><span class="seg">
       <button class="active" id="cliSegRes" onclick="setCliView('resumen')">Resumen %</button>
       <button id="cliSegPed" onclick="setCliView('pedidos')">Pedidos (${(d.documentos||[]).length})</button>
+      <button id="cliSegInac" onclick="setCliView('inactivos')" ${lapsed.length?'style="color:var(--red)"':''}>Dejó de comprar (${lapsed.length})</button>
     </span></div>
     <div id="cliResumen">
-      <div style="font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px">Mix por familia (% del cliente)</div>
+      <div style="font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px">Ventas por año</div>
+      ${anoHtml}
+      <div style="font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin:18px 0 8px">Mix por familia (% del cliente)</div>
       ${famHtml||'<div class="muted" style="font-size:.8rem">—</div>'}
       <table style="margin-top:14px"><thead><tr><th>Producto</th><th class="num">Cant.</th><th class="num">Veces</th><th class="num">Última</th><th class="num">Ventas</th><th class="num">% cliente</th></tr></thead>
       <tbody>${rows||'<tr><td colspan="6" class="empty">Sin compras en el período.</td></tr>'}</tbody></table>
     </div>
-    <div id="cliPedidos" style="display:none">${docsHtml(d.documentos)}</div>`;
+    <div id="cliPedidos" style="display:none">${docsHtml(d.documentos)}</div>
+    <div id="cliInactivos" style="display:none">
+      <p class="muted" style="font-size:.82rem;margin:0 0 12px">Productos que <b>compraba en este período pero NO en los últimos 6 meses</b> — oportunidad de recuperar. ${lapsed.length?`En total dejó de comprar <b style="color:var(--text)">${fmtUSD(lapsedTotal)}</b> en ${lapsed.length} producto(s).`:''}</p>
+      ${lapsed.length?`<table><thead><tr><th>Producto</th><th class="num">Última compra</th><th class="num">Sin comprar</th><th class="num">Veces</th><th class="num">Total histórico</th></tr></thead><tbody>${lapsedRows}</tbody></table>`:'<div class="empty">Sigue comprando todo lo que compraba en el período. 👍</div>'}
+    </div>`;
 }
 function cerrarModal(){ document.getElementById('overlay').classList.remove('show'); }
 
