@@ -44,11 +44,16 @@ async function sapGetAll(cookie, path) {
   let url = `${SAP_URL}/${path}`;
   const headers = { Cookie: cookie, 'Content-Type': 'application/json', Prefer: 'odata.maxpagesize=500' };
   for (let i = 0; i < 2000 && url; i++) {
-    let r;
-    try { r = await sapFetch(url, { headers }, CATALOG_TIMEOUT_MS); }
-    catch (e) { break; } // timeout/red: devolver parcial
-    if (!r.ok) break;     // error SAP: devolver parcial
-    const j = await r.json();
+    let j = null;
+    // Reintentar cada página hasta 3 veces (timeout/flaky) para no truncar el catálogo.
+    for (let intento = 0; intento < 3 && j === null; intento++) {
+      try {
+        const r = await sapFetch(url, { headers }, CATALOG_TIMEOUT_MS);
+        if (!r.ok) { if (intento === 2) return out; continue; }
+        j = await r.json();
+      } catch (e) { if (intento === 2) return out; } // agotados los reintentos: parcial
+    }
+    if (j === null) break;
     (j.value || []).forEach(x => out.push(x));
     const next = j['@odata.nextLink'];
     url = next ? (next.startsWith('http') ? next : `${SAP_URL}/${next}`) : null;
@@ -64,7 +69,7 @@ async function cargarMapas(cookie) {
   const vend   = await sapGetAll(cookie, 'SalesPersons?$select=SalesEmployeeCode,SalesEmployeeName').catch(() => []);
   const grupos = await sapGetAll(cookie, 'ItemGroups?$select=Number,GroupName').catch(() => []);
   const paises = await sapGetAll(cookie, 'Countries?$select=Code,Name').catch(() => []);
-  const items  = await sapGetAll(cookie, 'Items?$select=ItemCode,ItemName,ItemsGroupCode').catch(() => []);
+  const items  = await sapGetAll(cookie, 'Items?$select=ItemCode,ItemsGroupCode').catch(() => []);
   // Con contacto. Si tu SAP rechaza algún campo, cae al mínimo (CardCode,Country).
   const bps    = await sapGetAll(cookie, bpSelect).catch(() => sapGetAll(cookie, 'BusinessPartners?$select=CardCode,Country').catch(() => []));
 
