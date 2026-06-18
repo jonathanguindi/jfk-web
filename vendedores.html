@@ -2924,6 +2924,9 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
           Copiar al vendedor del cliente
         </label>
       </div>
+      <select id="cobranza-vend-filtro" onchange="onCobranzaFiltroVendedor()" style="display:none;width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface-1);color:inherit;margin-bottom:14px;font-size:.9rem">
+        <option value="">👥 Todos los vendedores</option>
+      </select>
       <div id="cobranza-pais-kpis" style="margin-bottom:14px"></div>
       <div id="cobranza-pais-chips" style="display:flex;gap:8px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:8px;margin-bottom:10px;-webkit-overflow-scrolling:touch"></div>
       <div id="cobranza-pais-list"><div class="estado-placeholder">Cargando clientes…</div></div>
@@ -6195,6 +6198,18 @@ async function openCobranzas() {
   if (tabVend) tabVend.style.display = esAdmin ? '' : 'none';
   const correrBtn = document.getElementById('cobranza-correr-btn');
   if (correrBtn) correrBtn.style.display = esAdmin ? '' : 'none';
+  // Selector de vendedor (solo admin): filtra el dashboard por vendedor
+  const filtro = document.getElementById('cobranza-vend-filtro');
+  if (filtro) {
+    filtro.style.display = esAdmin ? 'block' : 'none';
+    if (esAdmin && filtro.options.length <= 1) {
+      try {
+        const { data: sellers } = await supa.from('sellers').select('name,email').eq('active', true).eq('role', 'vendedor').order('name');
+        (sellers || []).forEach(s => { if (s.email) { const o = document.createElement('option'); o.value = s.email; o.textContent = s.name; filtro.appendChild(o); } });
+      } catch (e) {}
+    }
+    if (esAdmin) filtro.value = '';
+  }
   // Scoping: un vendedor (no admin) solo ve los clientes que ha facturado
   cobMisClientes = null;
   if (!esAdmin) {
@@ -6213,6 +6228,24 @@ async function openCobranzas() {
 // Aplica el filtro del vendedor (si corresponde) a una lista de objetos con sap_card_code
 function cobAplicarScope(arr) {
   return cobMisClientes ? (arr || []).filter(x => cobMisClientes.has(x.sap_card_code)) : (arr || []);
+}
+
+// Admin: al escoger un vendedor en el selector, filtra el dashboard a sus clientes
+async function onCobranzaFiltroVendedor() {
+  const email = document.getElementById('cobranza-vend-filtro').value;
+  if (!email) {
+    cobMisClientes = null;
+    loadCobranzaDashboard(); loadCobranzaPendientes(); loadCobranzaRecurrentes();
+    return;
+  }
+  cobranzaPaisActual = null;
+  document.getElementById('cobranza-pais-list').innerHTML = '<div class="estado-placeholder"><div class="spinner"></div><div style="margin-top:10px;font-size:.82rem">Cargando clientes del vendedor…</div></div>';
+  try {
+    const res = await fetch('/.netlify/functions/mis-clientes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+    const d = await res.json();
+    cobMisClientes = new Set(d.ok ? (d.codes || []) : []);
+  } catch (e) { cobMisClientes = new Set(); }
+  loadCobranzaDashboard(); loadCobranzaPendientes(); loadCobranzaRecurrentes();
 }
 
 function switchCobranzaTab(which) {
