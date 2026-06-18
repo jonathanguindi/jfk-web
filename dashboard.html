@@ -631,8 +631,50 @@ function setCliView(v){
 }
 let cliActual=null, recoLoadedFor=null, comparaLoadedFor=null;
 // Comparativo producto × año (siempre 5 años, independiente del filtro de período)
-// Render compartido de la matriz producto × año (cliente, país o vendedor).
-function comparaHTML(years, prods){
+function fmtPct(n){ return (n>=0?'+':'')+n.toFixed(0)+'%'; }
+// Gráfica de barras + línea de tendencia por año.
+function comparaChart(years, yTot, nowYear){
+  const max=Math.max(1,...years.map(y=>Math.abs(yTot[y]||0)));
+  const n=years.length, W=Math.max(360,n*95), H=185, padX=22, padB=34, padT=26;
+  const step=(W-padX*2)/n, bw=Math.min(64, step-18);
+  let bars='', pts=[];
+  years.forEach((y,i)=>{
+    const v=yTot[y]||0, bh=(Math.abs(v)/max)*(H-padB-padT);
+    const cx=padX+step*i+step/2, yy=H-padB-bh, partial=(y===nowYear);
+    bars+=`<rect x="${cx-bw/2}" y="${yy}" width="${bw}" height="${Math.max(2,bh)}" rx="4" fill="var(--accent)" ${partial?'opacity="0.4"':''}></rect>`;
+    bars+=`<text x="${cx}" y="${H-padB+16}" font-size="11" fill="var(--text-muted)" text-anchor="middle" font-family="var(--font-mono)">${y}${partial?'*':''}</text>`;
+    bars+=`<text x="${cx}" y="${yy-6}" font-size="10" fill="var(--text-muted)" text-anchor="middle" font-family="var(--font-mono)">${fmtK(v)}</text>`;
+    pts.push(cx+','+yy);
+  });
+  const line=n>1?`<polyline points="${pts.join(' ')}" fill="none" stroke="var(--cta)" stroke-width="2"/>`+pts.map(p=>{const a=p.split(',');return `<circle cx="${a[0]}" cy="${a[1]}" r="3.5" fill="var(--cta)"/>`}).join(''):'';
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:210px">${bars}${line}</svg>`;
+}
+// Diagnóstico: ¿sube o baja? ¿por qué? (compara los dos últimos años completos)
+function comparaDiagnostico(years, prods, yTot, nowYear){
+  if(years.length<2) return '';
+  const last=years[years.length-1];
+  let a, b, nota='';
+  if(last===nowYear && years.length>=3){ a=years[years.length-2]; b=years[years.length-3]; nota=` · ${last} en curso: ${fmtK(yTot[last]||0)}`; }
+  else { a=last; b=years[years.length-2]; }
+  const va=yTot[a]||0, vb=yTot[b]||0;
+  if(vb===0 && va===0) return '';
+  const delta=va-vb, pct=vb!==0?(delta/Math.abs(vb)*100):100, baja=delta<0;
+  const contrib=prods.map(p=>({name:p.name, d:(p.yr[a]||0)-(p.yr[b]||0), va:p.yr[a]||0, vb:p.yr[b]||0}));
+  const top=contrib.filter(c=> baja?c.d<0:c.d>0).sort((x,y)=> baja?x.d-y.d:y.d-x.d).slice(0,3);
+  const motivos=top.map(c=>{
+    const acc=(c.va===0&&c.vb>0)?'dejó de comprar':(c.d<0?'bajó':'subió');
+    const det=(c.va===0&&c.vb>0)?'':` (${fmtK(c.vb)}→${fmtK(c.va)})`;
+    return `<li><b>${esc(c.name)}</b> ${acc} ${fmtK(Math.abs(c.d))}${det}</li>`;
+  }).join('');
+  const color=baja?'var(--red)':'var(--green)', icon=baja?'📉':'📈';
+  return `<div style="border:1px solid var(--border);border-left:3px solid ${color};border-radius:12px;padding:12px 14px;margin-bottom:14px;background:var(--bg-sunken)">
+    <div style="font-size:.95rem;margin-bottom:6px">${icon} <b style="color:${color}">${baja?'Está bajando':'Está creciendo'} ${fmtPct(pct)}</b> &nbsp;<span class="muted" style="font-size:.82rem">${b}: ${fmtK(vb)} → ${a}: ${fmtK(va)}${nota}</span></div>
+    <div class="muted" style="font-size:.74rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">¿Por qué? — principales ${baja?'caídas':'subidas'}</div>
+    <ul style="margin:0;padding-left:18px;font-size:.85rem">${motivos||'<li>—</li>'}</ul>
+  </div>`;
+}
+// Render compartido: gráfica + diagnóstico + matriz producto × año.
+function comparaHTML(years, prods, nowYear){
   years=(years||[]).slice().sort();
   if(!years.length || !prods.length) return '<div class="empty" style="padding:16px">Sin compras en los últimos años.</div>';
   const maxY=years[years.length-1];
@@ -650,8 +692,11 @@ function comparaHTML(years, prods){
     const tag=p.dropped?` <span class="contact-badge off" style="font-size:.52rem">ya no · ${esc(p.ult)}</span>`:'';
     return `<tr><td>${esc(p.name)}${tag}<div class="muted" style="font-size:.68rem">${esc(p.fam)}</div></td>${cells}<td class="num"><b>${fmtK(p.gran)}</b></td></tr>`;
   }).join('');
-  return `<p class="muted" style="font-size:.82rem;margin:0 0 10px">Cuánto compró <b>cada año</b>. Rojo / <span class="contact-badge off" style="font-size:.52rem">ya no</span> = lo compraba antes y este año no.${dropped?` Dejó de comprar <b style="color:var(--text)">${dropped}</b> producto(s).`:''}</p>
-    <div style="overflow-x:auto"><table><thead>${head}</thead><tbody>${totRow}${rows}</tbody></table></div>`;
+  return comparaChart(years,yTot,nowYear)
+    + comparaDiagnostico(years,prods,yTot,nowYear)
+    + `<div style="font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin:6px 0 6px">Detalle producto × año</div>`
+    + `<p class="muted" style="font-size:.78rem;margin:0 0 8px">Rojo / <span class="contact-badge off" style="font-size:.52rem">ya no</span> = lo compraba antes y este año no.${dropped?` Dejó de comprar <b style="color:var(--text)">${dropped}</b> producto(s).`:''} ${years[years.length-1]===nowYear?'<span style="opacity:.7">· * año en curso</span>':''}</p>`
+    + `<div style="overflow-x:auto"><table><thead>${head}</thead><tbody>${totRow}${rows}</tbody></table></div>`;
 }
 async function cargarCompara(){
   const cont=document.getElementById('cliCompara'); if(!cont) return;
@@ -672,7 +717,7 @@ async function cargarCompara(){
     pm[p].yr[y]=(pm[p].yr[y]||0)+(Number(l.total)||0); pm[p].gran+=(Number(l.total)||0);
   });});
   const prods=Object.entries(pm).map(([name,o])=>({name,fam:o.fam,yr:o.yr,gran:o.gran}));
-  cont.innerHTML=comparaHTML(years,prods);
+  cont.innerHTML=comparaHTML(years,prods,String(hoy.getFullYear()));
 }
 // Comparativo anual de un país o vendedor (abre en el modal grande).
 async function abrirComparativo(dim,code,name){
@@ -690,7 +735,7 @@ async function abrirComparativo(dim,code,name){
   m.innerHTML=`<button class="x" onclick="cerrarModal()">✕</button>
     <h3 style="font-family:var(--font-serif);margin:0 0 2px">${esc(name)}</h3>
     <div class="muted" style="font-size:.8rem;margin-bottom:14px">📊 Comparativo anual · ${dim==='vendedor'?'Vendedor':'País'} · ${esc(desde)} → ${esc(hasta)}</div>
-    ${comparaHTML(c.years||[],prods)}`;
+    ${comparaHTML(c.years||[],prods,String(hoy.getFullYear()))}`;
 }
 async function cargarReco(){
   const cont=document.getElementById('cliReco'); if(!cont) return;
