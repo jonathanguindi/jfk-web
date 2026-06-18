@@ -2914,10 +2914,16 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
         <div style="font-size:.85rem;opacity:.7">Elige un país para ver sus clientes con saldo pendiente, su morosidad y enviarles el estado de cuenta.</div>
         <button onclick="loadCobranzaDashboard()" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border,#2a2a33);background:transparent;color:inherit;cursor:pointer;font-size:.8rem">↻ Refrescar</button>
       </div>
-      <label style="display:inline-flex;align-items:center;gap:8px;font-size:.82rem;color:var(--text-muted);cursor:pointer;margin-bottom:14px">
-        <input type="checkbox" id="cob-incluir-facturas" style="width:16px;height:16px;accent-color:var(--electric)">
-        Incluir facturas con fotos al enviar
-      </label>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+        <label style="display:inline-flex;align-items:center;gap:8px;font-size:.82rem;color:var(--text-muted);cursor:pointer">
+          <input type="checkbox" id="cob-incluir-facturas" style="width:16px;height:16px;accent-color:var(--electric)">
+          Incluir facturas con fotos al enviar
+        </label>
+        <label style="display:inline-flex;align-items:center;gap:8px;font-size:.82rem;color:var(--text-muted);cursor:pointer">
+          <input type="checkbox" id="cob-send-cc-vendedor" checked style="width:16px;height:16px;accent-color:var(--electric)">
+          Copiar al vendedor del cliente
+        </label>
+      </div>
       <div id="cobranza-pais-kpis" style="margin-bottom:14px"></div>
       <div id="cobranza-pais-chips" style="display:flex;gap:8px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:8px;margin-bottom:10px;-webkit-overflow-scrolling:touch"></div>
       <div id="cobranza-pais-list"><div class="estado-placeholder">Cargando clientes…</div></div>
@@ -6850,10 +6856,13 @@ function cobMoroPump() {
   }).finally(() => { cobMoroActivos--; cobMoroPump(); });
 }
 
+function cobCcVendedor() { const el = document.getElementById('cob-send-cc-vendedor'); return el ? el.checked : true; }
+
 async function enviarDashboard(cardCode, btn) {
   const cli = cobranzaDeudores.find(c => c.sap_card_code === cardCode);
   const conFacturas = !!document.getElementById('cob-incluir-facturas')?.checked;
-  if (!confirm(`¿Enviar el estado de cuenta${conFacturas ? ' CON las facturas (fotos)' : ''} a ${cli ? cli.name : cardCode}, con copia a cobros?`)) return;
+  const ccVend = cobCcVendedor();
+  if (!confirm(`¿Enviar el estado de cuenta${conFacturas ? ' CON las facturas (fotos)' : ''} a ${cli ? cli.name : cardCode}, con copia a cobros${ccVend ? ' y al vendedor' : ' (sin vendedor)'}?`)) return;
   const orig = btn.textContent;
   btn.disabled = true; btn.textContent = 'Enviando…';
   const marcarEnviado = () => {
@@ -6867,7 +6876,7 @@ async function enviarDashboard(cardCode, btn) {
       // Segundo plano: no esperamos el resultado (puede tardar por las facturas/fotos)
       await fetch('/.netlify/functions/enviar-con-facturas-background', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cardCode, tipo: 'manual', aprobadoPor: currentVendor?.name || null })
+        body: JSON.stringify({ cardCode, tipo: 'manual', aprobadoPor: currentVendor?.name || null, ccVendedor: ccVend })
       });
       showToast('Enviando con facturas en segundo plano… llega en unos minutos');
       marcarEnviado();
@@ -6875,7 +6884,7 @@ async function enviarDashboard(cardCode, btn) {
     }
     const res = await fetch('/.netlify/functions/enviar-estado-cuenta', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cardCode, tipo: 'manual', aprobadoPor: currentVendor?.name || null })
+      body: JSON.stringify({ cardCode, tipo: 'manual', aprobadoPor: currentVendor?.name || null, ccVendedor: ccVend })
     });
     const data = await res.json();
     if (data.ok) { showToast(`Enviado a ${data.to}`); marcarEnviado(); }
@@ -6912,7 +6921,7 @@ async function enviarSoloFacturas(cardCode, el) {
   if (!confirm(`¿Enviar SOLO las facturas (con fotos) a ${cli ? cli.name : cardCode}, con copia a cobros?`)) return;
   const orig = el.textContent; el.style.pointerEvents = 'none'; el.textContent = 'Enviando…';
   try {
-    await fetch('/.netlify/functions/enviar-con-facturas-background', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cardCode, soloFacturas: true, tipo: 'manual', aprobadoPor: currentVendor?.name || null }) });
+    await fetch('/.netlify/functions/enviar-con-facturas-background', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cardCode, soloFacturas: true, tipo: 'manual', aprobadoPor: currentVendor?.name || null, ccVendedor: cobCcVendedor() }) });
     showToast('Enviando facturas en segundo plano… llega en unos minutos');
     el.textContent = 'Enviado ✓';
   } catch (e) { showToast('Error: ' + e.message, true); el.style.pointerEvents = ''; el.textContent = orig; }

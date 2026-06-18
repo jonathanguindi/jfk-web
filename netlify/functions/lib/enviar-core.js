@@ -176,7 +176,7 @@ async function resolverEmailsVendedor(empresa, vendedor, destinatario) {
 
 // opts: { cardCode, desde?, hasta?, toOverride?, tipo?, envioId?, aprobadoPor?, incluirFacturas? }
 async function enviarEstadoCuenta(opts = {}) {
-  const { cardCode, desde, hasta, toOverride, tipo = 'manual', envioId = null, aprobadoPor = null, incluirFacturas = false, soloFacturas = false } = opts;
+  const { cardCode, desde, hasta, toOverride, tipo = 'manual', envioId = null, aprobadoPor = null, incluirFacturas = false, soloFacturas = false, ccVendedor = true } = opts;
   if (!cardCode) return { ok: false, error: 'Falta cardCode' };
 
   const empresa = getEmpresa();
@@ -225,7 +225,7 @@ async function enviarEstadoCuenta(opts = {}) {
   // 4) CC: cobros + (si está activado) el vendedor de la última factura
   const ccList = [];
   if (empresa.cc) ccList.push(empresa.cc);
-  if (await ccVendedorActivado(empresa)) {
+  if (ccVendedor && await ccVendedorActivado(empresa)) {
     const emails = await resolverEmailsVendedor(empresa, data.vendedor, to);
     for (const e of emails) if (!ccList.includes(e)) ccList.push(e);
   }
