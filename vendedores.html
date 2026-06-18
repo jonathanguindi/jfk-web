@@ -2306,6 +2306,7 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
       <button class="home-grid__item" onclick="openAccountModal()"><svg class="home-grid__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Clientes</button>
       <button class="home-grid__item" id="home-vendedores" onclick="openVendedores()" style="display:none;"><svg class="home-grid__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Vendedores</button>
       <button class="home-grid__item" id="home-cobranzas" onclick="openCobranzas()" style="display:none;"><svg class="home-grid__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>Cobranzas</button>
+      <button class="home-grid__item" id="home-dashboard" onclick="location.href='dashboard.html'" style="display:none;"><svg class="home-grid__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Dashboard</button>
     </div>
   </div>
 </div>
@@ -3550,6 +3551,8 @@ function showHome() {
   if (vBtn) vBtn.style.display = (currentVendor.role === 'admin') ? 'flex' : 'none';
   const cBtn = document.getElementById('home-cobranzas');
   if (cBtn) cBtn.style.display = 'flex';
+  const dBtn = document.getElementById('home-dashboard');
+  if (dBtn) dBtn.style.display = (currentVendor.role === 'admin') ? 'flex' : 'none';
   goToScreen('home');
 }
 function logout() {

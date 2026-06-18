@@ -15,3 +15,8 @@
 # Job diario de cobranzas. Cron en UTC: 13:00 UTC = 8:00 AM Panamá (UTC-5).
 [functions."cobranzas-job"]
   schedule = "0 13 * * *"
+
+# Sincronización nocturna de ventas SAP -> Supabase (dashboard).
+# 06:00 UTC = 1:00 AM Panamá. Reanudable: se completa en varias corridas si hace falta.
+[functions."ventas-sync"]
+  schedule = "0 6 * * *"
