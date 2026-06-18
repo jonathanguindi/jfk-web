@@ -35,28 +35,28 @@ async function sapLogout(cookie) {
   try { await sapFetch(`${SAP_URL}/Logout`, { method: 'POST', headers: { Cookie: cookie } }); } catch (_) {}
 }
 
-// GET que sigue @odata.nextLink hasta traer todo (para catálogos).
-// RESILIENTE: si una página falla/expira, devuelve lo que alcanzó (parcial),
-// para no quedar con el mapa vacío (mejor parcial que nada). Páginas grandes
-// (Items) con timeout amplio. maxpagesize fijo para forzar paginado estable.
+// Trae TODO un catálogo paginando MANUALMENTE con $skip (este Service Layer de SAP
+// no devuelve @odata.nextLink al fijar maxpagesize, así que el skip explícito es la
+// forma confiable). Reintenta cada página; si una falla del todo, devuelve lo parcial.
+const PAGE = 500;
 async function sapGetAll(cookie, path) {
   const out = [];
-  let url = `${SAP_URL}/${path}`;
-  const headers = { Cookie: cookie, 'Content-Type': 'application/json', Prefer: 'odata.maxpagesize=500' };
-  for (let i = 0; i < 2000 && url; i++) {
+  const sep = path.includes('?') ? '&' : '?';
+  const headers = { Cookie: cookie, 'Content-Type': 'application/json', Prefer: `odata.maxpagesize=${PAGE}` };
+  for (let skip = 0; skip < 2000000; skip += PAGE) {
+    const url = `${SAP_URL}/${path}${sep}$top=${PAGE}&$skip=${skip}`;
     let j = null;
-    // Reintentar cada página hasta 3 veces (timeout/flaky) para no truncar el catálogo.
     for (let intento = 0; intento < 3 && j === null; intento++) {
       try {
         const r = await sapFetch(url, { headers }, CATALOG_TIMEOUT_MS);
         if (!r.ok) { if (intento === 2) return out; continue; }
         j = await r.json();
-      } catch (e) { if (intento === 2) return out; } // agotados los reintentos: parcial
+      } catch (e) { if (intento === 2) return out; }
     }
     if (j === null) break;
-    (j.value || []).forEach(x => out.push(x));
-    const next = j['@odata.nextLink'];
-    url = next ? (next.startsWith('http') ? next : `${SAP_URL}/${next}`) : null;
+    const batch = j.value || [];
+    batch.forEach(x => out.push(x));
+    if (batch.length < PAGE) break;   // última página
   }
   return out;
 }
