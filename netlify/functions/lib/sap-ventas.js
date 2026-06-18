@@ -12,10 +12,11 @@ const SAP_USER = process.env.SAP_USER || process.env.SAP_USERNAME || '';
 const SAP_PASS = process.env.SAP_PASSWORD || '';
 
 const CALL_TIMEOUT_MS = 8000;
+const CATALOG_TIMEOUT_MS = 25000;   // catálogos (Items es grande): más holgura
 
-async function sapFetch(url, opts = {}) {
+async function sapFetch(url, opts = {}, timeoutMs = CALL_TIMEOUT_MS) {
   const ac = new AbortController();
-  const t = setTimeout(() => ac.abort(), CALL_TIMEOUT_MS);
+  const t = setTimeout(() => ac.abort(), timeoutMs);
   try { return await fetch(url, { agent, ...opts, signal: ac.signal }); }
   finally { clearTimeout(t); }
 }
@@ -34,14 +35,19 @@ async function sapLogout(cookie) {
   try { await sapFetch(`${SAP_URL}/Logout`, { method: 'POST', headers: { Cookie: cookie } }); } catch (_) {}
 }
 
-// GET que sigue @odata.nextLink hasta traer todo (para catálogos acotados).
+// GET que sigue @odata.nextLink hasta traer todo (para catálogos).
+// RESILIENTE: si una página falla/expira, devuelve lo que alcanzó (parcial),
+// para no quedar con el mapa vacío (mejor parcial que nada). Páginas grandes
+// (Items) con timeout amplio. maxpagesize fijo para forzar paginado estable.
 async function sapGetAll(cookie, path) {
   const out = [];
   let url = `${SAP_URL}/${path}`;
-  const headers = { Cookie: cookie, 'Content-Type': 'application/json', Prefer: 'odata.maxpagesize=0' };
-  for (let i = 0; i < 200 && url; i++) {
-    const r = await sapFetch(url, { headers });
-    if (!r.ok) throw new Error(`SAP ${path} ${r.status}: ${await r.text()}`);
+  const headers = { Cookie: cookie, 'Content-Type': 'application/json', Prefer: 'odata.maxpagesize=500' };
+  for (let i = 0; i < 2000 && url; i++) {
+    let r;
+    try { r = await sapFetch(url, { headers }, CATALOG_TIMEOUT_MS); }
+    catch (e) { break; } // timeout/red: devolver parcial
+    if (!r.ok) break;     // error SAP: devolver parcial
     const j = await r.json();
     (j.value || []).forEach(x => out.push(x));
     const next = j['@odata.nextLink'];
