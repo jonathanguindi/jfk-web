@@ -37,22 +37,24 @@ const EMPRESAS = {
   },
   BDB: {
     id: 'BDB',
-    nombreLegal: 'BIG DREAM, S.A.',
-    nombreCorto: 'Big Dream',
-    subtitulo: 'TODO — RUC / dirección / teléfono de Big Dream',
+    nombreLegal: 'BIG DREAM BRANDS, S.A.',
+    nombreCorto: 'Big Dream Brands',
+    subtitulo: 'Zona Libre de Colón  ·  Calle 15 Ave. Santa Isabel, Panamá  ·  Tel: (507) 431-7400',
     supabaseUrl: 'https://birbtcnifhnviohkgyec.supabase.co',
     accent: [20, 110, 200],
-    from: 'Big Dream | Accounts <accounts@TODO-dominio-bigdream.com>',
+    // ⚠️ TODO: confirmar dominio de correo de Big Dream (from/cc) y verificarlo en Resend.
+    from: 'Big Dream Brands | Accounts <accounts@TODO-dominio-bigdream.com>',
     cc: 'cobranzas@TODO-dominio-bigdream.com',
     bcc: 'jonathang@jfkintl.com',
     admin: 'jonathang@jfkintl.com',
+    // Instrucciones bancarias (Banco General) — para recibir transferencias a Big Dream Brands.
     banco: [
-      { label: 'Beneficiario', value: 'BIG DREAM, S.A.' },
-      { label: 'Banco',        value: 'TODO — nombre del banco' },
-      { label: 'Cuenta',       value: 'TODO — número de cuenta' },
-      { label: 'Tipo',         value: 'TODO — corriente / ahorros' },
-      { label: 'SWIFT / ABA',  value: 'TODO — código' },
-      { label: 'Referencia',   value: 'Indique el código de cliente en el detalle del pago.' }
+      { label: 'Beneficiario',        value: 'BIG DREAM BRANDS (BDB), S.A.' },
+      { label: 'Cuenta',              value: '03-27-01-132278-6' },
+      { label: 'Dirección',           value: 'Calle 15 Ave. Santa Isabel, Zona Libre de Colón, Panamá' },
+      { label: 'Banco',               value: 'BANCO GENERAL, S.A.  ·  SWIFT BAGEPAPA  ·  Torre Banco General, Quinta B Sur, Aquilino de la Guardia y Av., Panamá' },
+      { label: 'Banco intermediario', value: 'CITIBANK, N.A., N.Y.  ·  SWIFT CITIUS33  ·  ABA 021000089  ·  111 Wall St., New York, NY 10043, USA' },
+      { label: 'Referencia',          value: 'Indique el nombre del cliente y su código en el detalle del pago.', value_en: 'Please indicate the customer name and code in the payment detail.' }
     ]
   }
 };
