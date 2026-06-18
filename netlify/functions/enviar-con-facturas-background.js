@@ -8,7 +8,8 @@ const { enviarEstadoCuenta } = require('./lib/enviar-core');
 exports.handler = async (event) => {
   try {
     const body = JSON.parse(event.body || '{}');
-    const res = await enviarEstadoCuenta({ ...body, incluirFacturas: true });
+    // soloFacturas -> solo facturas; si no, estado de cuenta + facturas
+    const res = await enviarEstadoCuenta({ ...body, incluirFacturas: body.soloFacturas ? false : true });
     console.log('enviar-con-facturas:', JSON.stringify(res));
     return { statusCode: 200, body: JSON.stringify(res) };
   } catch (e) {

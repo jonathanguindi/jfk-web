@@ -28,7 +28,10 @@ const EMAIL_T = {
     instr: 'Instrucciones de pago',
     cierre: 'Quedamos atentos a cualquier consulta. Agradecemos su preferencia.',
     firma: 'Cordialmente,', depto: 'Cuentas por Cobrar',
-    pie: (e) => `Este es un mensaje de cobranzas de ${e}.`
+    pie: (e) => `Este es un mensaje de cobranzas de ${e}.`,
+    subjectFacturas: (e) => `Facturas — ${e}`,
+    facturasIntro: 'Según lo solicitado en nuestra comunicación anterior, adjuntamos sus facturas con el detalle de los productos comprados.',
+    facturasAdjunto: 'En el <b>PDF adjunto</b> encontrará cada factura con su detalle y las fotos de los productos.'
   },
   en: {
     saludo: 'Dear', subject: (e) => `Account Statement — ${e}`,
@@ -39,7 +42,10 @@ const EMAIL_T = {
     instr: 'Payment instructions',
     cierre: 'We remain at your disposal for any questions. Thank you for your business.',
     firma: 'Sincerely,', depto: 'Accounts Receivable',
-    pie: (e) => `This is a collections message from ${e}.`
+    pie: (e) => `This is a collections message from ${e}.`,
+    subjectFacturas: (e) => `Invoices — ${e}`,
+    facturasIntro: 'As requested in our previous communication, please find attached your invoices with the detail of the products purchased.',
+    facturasAdjunto: 'In the <b>attached PDF</b> you will find each invoice with its detail and product photos.'
   }
 };
 
@@ -71,6 +77,31 @@ function emailHTML(data, empresa, lang = 'es') {
         <p style="margin:0 0 6px;color:#444">${t.adjunto}</p>
         ${bancoRows ? `<div style="margin:18px 0 6px;font-weight:700;color:${A}">${t.instr}</div>
         <table style="font-size:13px;border-collapse:collapse">${bancoRows}</table>` : ''}
+        <p style="margin:20px 0 0;color:#444">${t.cierre}</p>
+        <p style="margin:14px 0 0;color:#111">${t.firma}<br><b>${esc(empresa.nombreCorto)}</b> · ${t.depto}</p>
+      </div>
+    </div>
+    <div style="text-align:center;color:#aaa;font-size:11px;margin-top:14px">${t.pie(esc(empresa.nombreCorto))}</div>
+  </div></body></html>`;
+}
+
+// Correo para el modo "solo facturas" (más liviano, tono de seguimiento).
+function emailFacturasHTML(data, empresa, lang = 'es') {
+  const t = EMAIL_T[lang] || EMAIL_T.es;
+  const accent = empresa.accent || [255, 107, 53];
+  const A = `rgb(${accent[0]},${accent[1]},${accent[2]})`;
+  const c = data.cliente;
+  return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f5f5f7;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111">
+  <div style="max-width:620px;margin:0 auto;padding:28px 16px">
+    <div style="background:#fff;border:1px solid #e6e6ea;border-radius:12px;overflow:hidden">
+      <div style="padding:22px 26px;border-bottom:3px solid ${A}">
+        <div style="font-size:20px;font-weight:800;letter-spacing:.3px">${esc(empresa.nombreLegal)}</div>
+        <div style="font-size:12px;color:#888;margin-top:4px">${esc(empresa.subtitulo)}</div>
+      </div>
+      <div style="padding:26px">
+        <p style="margin:0 0 14px;color:#111">${t.saludo} <b>${esc(c.nombre)}</b>,</p>
+        <p style="margin:0 0 14px;color:#444">${t.facturasIntro}</p>
+        <p style="margin:0 0 6px;color:#444">${t.facturasAdjunto}</p>
         <p style="margin:20px 0 0;color:#444">${t.cierre}</p>
         <p style="margin:14px 0 0;color:#111">${t.firma}<br><b>${esc(empresa.nombreCorto)}</b> · ${t.depto}</p>
       </div>
@@ -143,7 +174,7 @@ async function resolverEmailVendedor(empresa, vendedor, destinatario) {
 
 // opts: { cardCode, desde?, hasta?, toOverride?, tipo?, envioId?, aprobadoPor?, incluirFacturas? }
 async function enviarEstadoCuenta(opts = {}) {
-  const { cardCode, desde, hasta, toOverride, tipo = 'manual', envioId = null, aprobadoPor = null, incluirFacturas = false } = opts;
+  const { cardCode, desde, hasta, toOverride, tipo = 'manual', envioId = null, aprobadoPor = null, incluirFacturas = false, soloFacturas = false } = opts;
   if (!cardCode) return { ok: false, error: 'Falta cardCode' };
 
   const empresa = getEmpresa();
@@ -162,20 +193,31 @@ async function enviarEstadoCuenta(opts = {}) {
   // Idioma según el país del cliente (hispanohablante -> es, resto -> en)
   const lang = idioma(data.cliente.pais);
 
-  // 3) PDF del estado de cuenta (en el idioma del cliente)
-  const pdf = await buildEstadoCuentaPDF(data, empresa, lang);
-  const filename = `EstadoCuenta-${data.cliente.codigo}-${data.rango.hasta}.pdf`;
-  const attachments = [{ filename, content: pdf }];
+  // 3) Armar PDF(s), asunto y cuerpo según el modo
+  const tdict = EMAIL_T[lang] || EMAIL_T.es;
+  const facName = `Facturas-${data.cliente.codigo}-${data.rango.hasta}.pdf`;
+  let attachments, subject, html;
 
-  // 3b) Opcional: PDF de facturas con fotos de productos
-  if (incluirFacturas) {
-    try {
-      const facturas = await fetchFacturasConLineas({ cardCode, desde: data.rango.desde, hasta: data.rango.hasta, max: 40 });
-      if (facturas.length) {
-        const fpdf = await buildFacturasPDF(facturas, empresa, lang);
-        attachments.push({ filename: `Facturas-${data.cliente.codigo}-${data.rango.hasta}.pdf`, content: fpdf });
-      }
-    } catch (e) { console.error('PDF de facturas falló (se envía solo el estado):', e.message); }
+  if (soloFacturas) {
+    const facturas = await fetchFacturasConLineas({ cardCode, desde: data.rango.desde, hasta: data.rango.hasta, max: 40 });
+    if (!facturas.length) {
+      await registrar(empresa, { envioId, cardCode, data, tipo, status: 'error', error: 'Sin facturas en el período', to, aprobadoPor });
+      return { ok: false, error: 'El cliente no tiene facturas en el período' };
+    }
+    attachments = [{ filename: facName, content: await buildFacturasPDF(facturas, empresa, lang) }];
+    subject = tdict.subjectFacturas(empresa.nombreCorto);
+    html = emailFacturasHTML(data, empresa, lang);
+  } else {
+    const pdf = await buildEstadoCuentaPDF(data, empresa, lang);
+    attachments = [{ filename: `EstadoCuenta-${data.cliente.codigo}-${data.rango.hasta}.pdf`, content: pdf }];
+    if (incluirFacturas) {
+      try {
+        const facturas = await fetchFacturasConLineas({ cardCode, desde: data.rango.desde, hasta: data.rango.hasta, max: 40 });
+        if (facturas.length) attachments.push({ filename: facName, content: await buildFacturasPDF(facturas, empresa, lang) });
+      } catch (e) { console.error('PDF de facturas falló (se envía solo el estado):', e.message); }
+    }
+    subject = tdict.subject(empresa.nombreCorto);
+    html = emailHTML(data, empresa, lang);
   }
 
   // 4) CC: cobros + (si está activado) el vendedor de la última factura
@@ -188,14 +230,13 @@ async function enviarEstadoCuenta(opts = {}) {
 
   // 5) Enviar por Resend
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const subject = (EMAIL_T[lang] || EMAIL_T.es).subject(empresa.nombreCorto);
   const { data: sent, error: sendErr } = await resend.emails.send({
     from: empresa.from,
     to: [to],
     cc: ccList.length ? ccList : undefined,
     bcc: empresa.bcc ? [empresa.bcc] : undefined,
     subject,
-    html: emailHTML(data, empresa, lang),
+    html,
     attachments
   });
 

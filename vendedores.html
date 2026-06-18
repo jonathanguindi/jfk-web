@@ -6789,6 +6789,10 @@ function renderCobranzaPaisList(pais) {
             <button onclick="enviarDashboard('${escapeHtml(c.sap_card_code)}',this)" ${sinCorreo ? 'disabled' : ''} style="padding:8px 20px;border-radius:8px;border:none;background:${sinCorreo ? 'var(--ink-300)' : 'var(--cta)'};color:#fff;font-weight:600;font-size:.82rem;letter-spacing:.02em;cursor:${sinCorreo ? 'not-allowed' : 'pointer'}">Enviar</button>
           </div>
         </div>
+        <div style="margin-top:10px;padding-top:9px;border-top:1px dashed var(--border-soft);display:flex;gap:14px;justify-content:flex-end;font-size:.72rem">
+          <a onclick="descargarFacturas('${escapeHtml(c.sap_card_code)}',this)" style="color:var(--electric);cursor:pointer">↓ Descargar facturas</a>
+          <a onclick="enviarSoloFacturas('${escapeHtml(c.sap_card_code)}',this)" style="color:var(--electric);cursor:pointer;${sinCorreo ? 'opacity:.4;pointer-events:none' : ''}">Enviar solo facturas</a>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -6855,6 +6859,38 @@ async function enviarDashboard(cardCode, btn) {
     showToast('Error: ' + e.message, true);
     btn.disabled = false; btn.textContent = orig;
   }
+}
+
+// --- Facturas: descargar / enviar solo facturas ---
+const COB_ES_PAISES = new Set(['PA','VE','CR','HN','DO','CO','NI','PY','EC','GT','BO','CL','PE','MX','AR','CU','SV','UY','ES','ZL']);
+function cobLangPais(country) { const c = (country || '').trim().toUpperCase(); return COB_ES_PAISES.has(c) ? 'es' : 'en'; }
+function cobClienteLang(cardCode) {
+  const c = cobranzaDeudores.find(x => x.sap_card_code === cardCode) || (cobranzaRecurrentes || []).find(x => x.sap_card_code === cardCode);
+  return cobLangPais(c ? c.country : '');
+}
+
+async function descargarFacturas(cardCode, el) {
+  const orig = el.textContent; el.style.pointerEvents = 'none'; el.textContent = 'Generando…';
+  try {
+    const res = await fetch('/.netlify/functions/descargar-facturas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cardCode, lang: cobClienteLang(cardCode) }) });
+    const ct = res.headers.get('content-type') || '';
+    if (!res.ok || ct.includes('json')) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'No se pudo generar'); }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `Facturas-${cardCode}.pdf`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    showToast('Facturas descargadas');
+  } catch (e) { showToast('Error: ' + e.message, true); }
+  finally { el.style.pointerEvents = ''; el.textContent = orig; }
+}
+
+async function enviarSoloFacturas(cardCode, el) {
+  const cli = cobranzaDeudores.find(c => c.sap_card_code === cardCode) || (cobranzaRecurrentes || []).find(c => c.sap_card_code === cardCode);
+  if (!confirm(`¿Enviar SOLO las facturas (con fotos) a ${cli ? cli.name : cardCode}, con copia a cobros?`)) return;
+  const orig = el.textContent; el.style.pointerEvents = 'none'; el.textContent = 'Enviando…';
+  try {
+    await fetch('/.netlify/functions/enviar-con-facturas-background', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cardCode, soloFacturas: true, tipo: 'manual', aprobadoPor: currentVendor?.name || null }) });
+    showToast('Enviando facturas en segundo plano… llega en unos minutos');
+    el.textContent = 'Enviado ✓';
+  } catch (e) { showToast('Error: ' + e.message, true); el.style.pointerEvents = ''; el.textContent = orig; }
 }
 
 // ================================================
