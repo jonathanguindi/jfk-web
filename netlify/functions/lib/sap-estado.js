@@ -200,7 +200,7 @@ async function fetchFacturasConLineas({ cardCode, desde, hasta, max = 40, soloAb
     const fechaHasta = hasta || new Date().toISOString().slice(0, 10);
     filtro += ` and DocDate ge '${fechaDesde}' and DocDate le '${fechaHasta}'`;
   }
-  const path = `Invoices?$select=DocNum,DocDate,DocDueDate,DocTotal,DocCurrency,DocumentLines&$filter=${filtro}&$orderby=DocDate desc`;
+  const path = `Invoices?$select=DocNum,DocDate,DocDueDate,DocTotal,DocCurrency,DocumentLines&$filter=${filtro}&$orderby=DocDate`;
   const res = await fetch(`${SAP_URL}/${path}`, {
     method: 'GET',
     headers: { 'Cookie': cookies, 'Content-Type': 'application/json', 'Prefer': `odata.maxpagesize=${max}` },
