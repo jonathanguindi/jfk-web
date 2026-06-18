@@ -64,6 +64,11 @@ async function runVentasSync(opts = {}) {
   try {
     cookie = await sapLogin();
     const mapas = await cargarMapas(cookie);
+    resumen.mapas = {
+      vendedores: mapas.vendedor.size, items: mapas.itemGrupo.size,
+      grupos: mapas.grupoNombre.size, paises: mapas.paisNombre.size,
+      clientes_cat: mapas.clientePais.size,
+    };
 
     // Refrescar fichas de cliente (contacto) — solo 1 vez al día (o con reset),
     // para no gastar el presupuesto re-subiendo miles de filas en cada pasada.
