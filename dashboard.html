@@ -40,12 +40,14 @@
 body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);-webkit-font-smoothing:antialiased}
 a{color:inherit}
 .wrap{max-width:1200px;margin:0 auto;padding:0 20px 80px}
-.topbar{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,var(--navy) 0%,#0E1016 100%);color:#fff;border-bottom:1px solid rgba(0,159,227,.25);box-shadow:0 1px 0 rgba(255,255,255,.04)}
+.topbar{position:sticky;top:0;z-index:20;background:var(--navy);color:#fff;border-bottom:1px solid rgba(255,255,255,.07)}
+:where(button,select,input,summary,a,.tab,.preset,.seg button):focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+.num,td.num,th.num,.kpi .val{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
 .topbar .inner{max-width:1200px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .logo{font-family:var(--font-serif);font-size:1.25rem;font-weight:600;letter-spacing:-.01em}
-.logo small{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;color:var(--electric);display:block;margin-top:-2px}
+.logo small{font-family:var(--font-mono);font-size:.62rem;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--electric);display:block;margin-top:-2px}
 .spacer{flex:1}
-.btn{font-family:var(--font-sans);font-weight:600;font-size:.82rem;border:none;border-radius:9px;padding:9px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:.15s}
+.btn{font-family:var(--font-sans);font-weight:600;font-size:.82rem;border:none;border-radius:8px;padding:9px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:.15s}
 .btn-cta{background:var(--cta);color:#fff} .btn-cta:hover{background:var(--cta-hover)}
 .btn-ghost{background:rgba(255,255,255,.1);color:#fff} .btn-ghost:hover{background:rgba(255,255,255,.18)}
 .btn-sm{padding:6px 10px;font-size:.74rem}
@@ -54,59 +56,67 @@ a{color:inherit}
 .filters{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:22px 0 6px}
 .field{display:flex;flex-direction:column;gap:4px}
 .field label{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted)}
-.field select,.field input{font-family:var(--font-sans);font-size:.85rem;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-elevated);color:var(--text);min-width:130px}
+.field select,.field input{font-family:var(--font-sans);font-size:.85rem;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-elevated);color:var(--text);min-width:130px;transition:border-color .15s,box-shadow .15s}
+.field select:focus,.field input:focus,.search:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 16%,transparent);outline:none}
 .presets{display:flex;gap:6px;flex-wrap:wrap}
-.preset{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-elevated);color:var(--text-muted);cursor:pointer}
-.preset.active{background:var(--ink-900);color:#fff;border-color:var(--ink-900)}
+.preset{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-elevated);color:var(--text-muted);cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+.preset.active{background:var(--navy);color:#fff;border-color:var(--navy)}
 [data-theme="dark"] .preset.active{background:var(--electric);border-color:var(--electric)}
 .synced{font-size:.72rem;color:var(--text-muted);margin:6px 0 0}
 
 /* Tabs */
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin:20px 0 0;overflow-x:auto}
-.tab{font-family:var(--font-sans);font-weight:600;font-size:.86rem;padding:11px 16px;border:none;background:none;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.tab{font-family:var(--font-sans);font-weight:600;font-size:.86rem;padding:11px 16px;border:none;background:none;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s,border-color .15s}
 .tab.active{color:var(--text);border-bottom-color:var(--cta)}
 .panel{display:none;padding-top:22px} .panel.active{display:block}
 
 /* KPIs */
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
-.kpi{background:var(--bg-elevated);border:1px solid var(--border-soft);border-left:3px solid var(--accent);border-radius:12px;padding:14px 16px}
-.kpi .lbl{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted)}
-.kpi .val{font-family:var(--font-serif);font-size:1.5rem;font-weight:600;margin-top:4px;line-height:1.1;letter-spacing:-.01em;white-space:nowrap}
-.kpi.cta{border-left-color:var(--cta)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+.kpi{background:var(--bg-elevated);border:1px solid var(--border-soft);border-radius:12px;padding:15px 16px;box-shadow:0 1px 2px rgba(14,16,22,.04)}
+.kpi .lbl{font-family:var(--font-mono);font-size:.6rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted)}
+.kpi .val{font-family:var(--font-sans);font-size:1.6rem;font-weight:680;margin-top:6px;line-height:1.05;letter-spacing:-.02em;white-space:nowrap}
+.kpi.cta{border-left:3px solid var(--cta)}
 
-.card{background:var(--bg-elevated);border:1px solid var(--border-soft);border-radius:14px;padding:18px 18px 20px;margin-top:18px;box-shadow:var(--shadow-soft)}
-.card h3{margin:0 0 14px;font-family:var(--font-serif);font-size:1.05rem;font-weight:600}
-.card h3 .sub{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-left:8px}
+.card{background:var(--bg-elevated);border:1px solid var(--border-soft);border-radius:12px;padding:18px 18px 20px;margin-top:18px;box-shadow:var(--shadow-soft)}
+.card h3{margin:0 0 14px;font-family:var(--font-serif);font-size:1rem;font-weight:600;letter-spacing:-.01em;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.card h3 .sub{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-subtle)}
+.card h3 .seg{margin-left:auto}
 
 /* Tablas con barras */
 table{width:100%;border-collapse:collapse;font-size:.86rem}
-th{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--border)}
+th{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);text-align:left;padding:8px 10px 10px;border-bottom:1px solid var(--border)}
 th.num,td.num{text-align:right;font-family:var(--font-mono)}
-td{padding:9px 10px;border-bottom:1px solid var(--border-soft);vertical-align:middle}
-tr.clickable{cursor:pointer} tr.clickable:hover td{background:var(--bg-sunken)}
-.bar{height:7px;border-radius:4px;background:var(--accent);min-width:2px}
-.bar.cta{background:var(--cta)} .bar-wrap{background:var(--bg-sunken);border-radius:4px;width:100%}
+td{padding:11px 12px;border-bottom:1px solid var(--border-soft);vertical-align:middle}
+tr.clickable{cursor:pointer} tr.clickable td{transition:background .12s}
+tr.clickable:hover td{background:var(--bg-sunken);box-shadow:inset 2px 0 0 var(--accent)}
+.bar{height:6px;border-radius:3px;background:var(--accent);min-width:2px}
+.bar.cta{background:var(--accent)} .bar-wrap{height:6px;background:var(--border-soft);border-radius:3px;width:100%}
 .rank{font-family:var(--font-mono);color:var(--text-subtle);font-size:.75rem;width:24px}
 .muted{color:var(--text-muted)} .nowrap{white-space:nowrap}
-.search{width:100%;max-width:320px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;background:var(--bg-elevated);color:var(--text);font-size:.86rem;margin-bottom:6px}
+.search{width:100%;max-width:340px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-elevated);color:var(--text);font-size:.86rem;margin-bottom:10px;transition:border-color .15s,box-shadow .15s}
+.tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
 
 /* Cobertura países */
 .cov{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media(max-width:680px){.cov{grid-template-columns:1fr}}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{font-size:.78rem;padding:5px 10px;border-radius:20px;border:1px solid var(--border)}
+.chip{font-size:.78rem;padding:5px 10px;border-radius:999px;border:1px solid var(--border);transition:background .15s}
 .chip.on{background:rgba(31,169,113,.12);border-color:rgba(31,169,113,.4);color:var(--green)}
-.chip.off{background:rgba(229,72,77,.08);border-color:rgba(229,72,77,.35);color:var(--red)}
+.chip.off{background:var(--bg-sunken);border-color:var(--border);color:var(--text-muted)}
 
 /* Modal */
-.overlay{position:fixed;inset:0;background:rgba(14,16,22,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
-.overlay.show{display:flex}
-.modal{background:var(--bg-elevated);border-radius:16px;max-width:760px;width:100%;max-height:86vh;overflow:auto;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
-.modal .x{float:right;border:none;background:var(--bg-sunken);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;color:var(--text)}
-.empty{padding:40px;text-align:center;color:var(--text-muted)}
-.seg{display:inline-flex;gap:4px;background:var(--bg-sunken);border-radius:9px;padding:3px}
-.seg button{border:none;background:none;padding:6px 12px;border-radius:7px;font-size:.78rem;font-weight:600;color:var(--text-muted);cursor:pointer}
-.seg button.active{background:var(--bg-elevated);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.overlay{position:fixed;inset:0;background:rgba(14,16,22,.5);display:none;align-items:center;justify-content:center;z-index:50;padding:20px;opacity:0;transition:opacity .18s;backdrop-filter:blur(2px)}
+.overlay.show{display:flex;opacity:1}
+.modal{position:relative;background:var(--bg-elevated);border-radius:16px;max-width:780px;width:100%;max-height:88vh;overflow:auto;padding:24px;box-shadow:0 24px 70px rgba(0,0,0,.28);transform:translateY(10px);transition:transform .2s}
+.overlay.show .modal{transform:translateY(0)}
+.modal .x{position:absolute;top:14px;right:14px;border:none;background:var(--bg-sunken);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;color:var(--text);transition:background .15s}
+.modal .x:hover{background:var(--border)}
+.modal>h3{padding-right:40px}
+.empty{padding:34px;text-align:center;color:var(--text-muted);border:1px dashed var(--border-soft);border-radius:10px;background:color-mix(in srgb,var(--bg-sunken) 60%,transparent)}
+.seg{display:inline-flex;gap:4px;background:var(--bg-sunken);border-radius:9px;padding:3px;border:1px solid var(--border-soft)}
+.seg button{border:none;background:none;padding:6px 12px;border-radius:7px;font-size:.78rem;font-weight:600;color:var(--text-muted);cursor:pointer;transition:background .15s,color .15s}
+.seg button.active{background:var(--bg-elevated);color:var(--text);box-shadow:0 1px 2px rgba(14,16,22,.1)}
+[data-theme="dark"] .seg button.active{background:var(--ink-700)}
 .spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
 .contact{border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:16px;background:var(--bg-sunken)}
 .contact.on{border-color:rgba(31,169,113,.4)} .contact.warn{border-color:rgba(232,163,23,.45)} .contact.off{border-color:rgba(229,72,77,.4)}
@@ -126,11 +136,28 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
 .doc[open]>summary{background:var(--bg-sunken);border-bottom:1px solid var(--border-soft)}
 .doc .chev{color:var(--text-subtle);transition:.15s;font-size:.7rem}
 .doc[open] .chev{transform:rotate(90deg)}
-.doc-badge{font-family:var(--font-mono);font-size:.56rem;letter-spacing:.06em;text-transform:uppercase;padding:3px 7px;border-radius:5px;background:rgba(0,159,227,.12);color:var(--accent)}
+.doc-badge{font-family:var(--font-mono);font-size:.56rem;letter-spacing:.06em;text-transform:uppercase;padding:3px 7px;border-radius:6px;background:rgba(0,159,227,.12);color:var(--accent)}
 .doc-badge.nc{background:rgba(229,72,77,.12);color:var(--red)}
 .doc-body{padding:4px 13px 10px}
 .doc-body table{font-size:.8rem} .doc-body td,.doc-body th{padding:6px 8px}
+.doc{border-radius:12px}
+/* Mapa */
+#map{border:1px solid var(--border-soft);border-radius:10px;overflow:hidden;background:var(--bg-sunken)}
+.map-legend{display:flex;align-items:center;gap:8px;margin-top:10px;font-family:var(--font-mono);font-size:.6rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);flex-wrap:wrap}
+.map-legend .sw{width:34px;height:8px;border-radius:3px;display:inline-block;background:linear-gradient(90deg,#CFE8F7,#0093D6,#0B4E78)}
 @keyframes sp{to{transform:rotate(360deg)}}
+/* Responsive móvil */
+@media(max-width:600px){
+  .wrap{padding:0 14px 80px}
+  .topbar .inner{padding:12px 14px;gap:10px}
+  .card{padding:14px 14px 16px}
+  .modal{padding:16px 16px 18px;border-radius:16px 16px 0 0;max-height:94vh;align-self:flex-end}
+  .overlay{padding:0}
+  .field select,.field input{min-width:0;width:100%}
+  .field{flex:1 1 100%}
+  .filters>.btn-cta{width:100%}
+  .kpi .val{font-size:1.4rem}
+}
 </style>
 </head>
 <body>
@@ -195,6 +222,7 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
         <button class="btn btn-sm" id="mapClear" style="float:right;background:var(--bg-sunken);color:var(--text);display:none" onclick="limpiarPais()">✕ Quitar filtro de país</button>
       </h3>
       <div id="map" style="height:420px;width:100%"></div>
+      <div class="map-legend"><span>Menos</span><span class="sw"></span><span>Más ventas</span><span style="margin-left:14px;display:inline-flex;align-items:center;gap:6px"><span class="sw" style="width:16px;background:var(--border)"></span> Sin ventas</span></div>
     </div>
     <div class="card">
       <h3>Explorar <span class="sub">abre un grupo para ver sus clientes · clic en un cliente para el detalle</span>
@@ -284,6 +312,7 @@ function toggleTheme(){
   const cur=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
   document.documentElement.setAttribute('data-theme',cur);
   localStorage.setItem('jfk-theme-pref',cur);
+  if(typeof renderMap==='function') renderMap();
 }
 
 /* ── Períodos ── */
@@ -379,7 +408,7 @@ function renderKPIs(){
 function tablaRanking(rows, opts){
   // opts: cols=[{key,label,fmt,bar}], max
   const max=Math.max(1,...rows.map(r=>Number(r[opts.barKey])||0));
-  let h='<table><thead><tr><th></th>'+opts.cols.map(c=>`<th class="${c.num?'num':''}">${c.label}</th>`).join('')+'<th class="num">%</th></tr></thead><tbody>';
+  let h='<div class="tbl-scroll"><table><thead><tr><th></th>'+opts.cols.map(c=>`<th class="${c.num?'num':''}">${c.label}</th>`).join('')+'<th class="num">%</th></tr></thead><tbody>';
   rows.forEach((r,i)=>{
     const pct=Number(r.pct)||0;
     h+=`<tr><td class="rank">${i+1}</td>`+opts.cols.map(c=>{
@@ -389,7 +418,7 @@ function tablaRanking(rows, opts){
       return `<td class="${c.num?'num':''}">${v}</td>`;
     }).join('')+`<td class="num">${pct}%</td></tr>`;
   });
-  return h+'</tbody></table>';
+  return h+'</tbody></table></div>';
 }
 
 let trendView='mes';
@@ -406,18 +435,24 @@ function renderTrend(){
   }
   if(!t.length){ document.getElementById('trend').innerHTML='<div class="empty">Sin datos en el período.</div>'; return; }
   const max=Math.max(1,...t.map(x=>Number(x.total)||0));
-  const W=Math.max(560, t.length*60), H=180, pad=28, bw=Math.min(54,(W-pad*2)/t.length-8);
+  const W=Math.max(560, t.length*60), H=190, padL=8, padR=8, padB=26, padT=22, bw=Math.min(54,(W-padL-padR)/t.length-8);
   const lbl=x=> trendView==='ano'? x.mes : x.mes.slice(2);
+  const baseY=H-padB, plotH=baseY-padT;
+  // gridlines suaves + etiqueta de tope
+  let grid='';
+  [0.5,1].forEach(f=>{ const gy=baseY-plotH*f; grid+=`<line x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}" stroke="var(--border-soft)" stroke-dasharray="2 4"/>`; });
+  grid+=`<text x="${W-padR}" y="${padT-6}" font-size="9" fill="var(--text-subtle)" text-anchor="end" font-family="var(--font-mono)">${fmtK(max)}</text>`;
+  grid+=`<line x1="${padL}" y1="${baseY}" x2="${W-padR}" y2="${baseY}" stroke="var(--border)"/>`;
+  const step=(W-padL-padR)/t.length;
   let bars='';
   t.forEach((x,i)=>{
-    const v=Number(x.total)||0, bh=(v/max)*(H-pad-24);
-    const xx=pad+i*((W-pad*2)/t.length), yy=H-24-bh;
-    bars+=`<rect x="${xx}" y="${yy}" width="${bw}" height="${Math.max(2,bh)}" rx="3" fill="var(--accent)"></rect>`;
-    bars+=`<text x="${xx+bw/2}" y="${H-8}" font-size="9" fill="var(--text-muted)" text-anchor="middle" font-family="var(--font-mono)">${lbl(x)}</text>`;
-    if(trendView==='ano'||i%Math.ceil(t.length/8||1)===0||v===max)
-      bars+=`<text x="${xx+bw/2}" y="${yy-4}" font-size="9" fill="var(--text-muted)" text-anchor="middle" font-family="var(--font-mono)">${fmtK(v)}</text>`;
+    const v=Number(x.total)||0, bh=(v/max)*plotH;
+    const xx=padL+i*step+(step-bw)/2, yy=baseY-bh;
+    bars+=`<rect x="${xx}" y="${yy}" width="${bw}" height="${Math.max(2,bh)}" rx="4" fill="var(--accent)" fill-opacity="0.92"></rect>`;
+    bars+=`<text x="${xx+bw/2}" y="${H-9}" font-size="9.5" fill="var(--text-muted)" text-anchor="middle" font-family="var(--font-mono)">${lbl(x)}</text>`;
+    if(v===max) bars+=`<text x="${xx+bw/2}" y="${yy-5}" font-size="9.5" fill="var(--text)" text-anchor="middle" font-family="var(--font-mono)" font-weight="600">${fmtK(v)}</text>`;
   });
-  document.getElementById('trend').innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:220px">${bars}</svg>`;
+  document.getElementById('trend').innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:230px">${grid}${bars}</svg>`;
 }
 
 function renderFamiliaResumen(){
@@ -466,8 +501,8 @@ function clientesTabla(rows){
   if(!rows.length) return '<div class="empty" style="padding:14px">Sin clientes.</div>';
   const max=Math.max(1,...rows.map(x=>Number(x.total)||0));
   const hoy=new Date(document.getElementById('hasta').value+'T00:00:00');
-  return '<table><thead><tr><th></th><th>Cliente</th><th>País</th><th>Vendedor</th><th class="num">Docs</th><th class="num">Última compra</th><th class="num">Ventas</th></tr></thead><tbody>'
-    + rows.map((x,i)=>clienteRowHTML(x,i,max,hoy)).join('') + '</tbody></table>';
+  return '<div class="tbl-scroll"><table><thead><tr><th></th><th>Cliente</th><th>País</th><th>Vendedor</th><th class="num">Docs</th><th class="num">Última compra</th><th class="num">Ventas</th></tr></thead><tbody>'
+    + rows.map((x,i)=>clienteRowHTML(x,i,max,hoy)).join('') + '</tbody></table></div>';
 }
 let exploreBy='pais';
 function setExploreBy(v){ exploreBy=v;
@@ -549,10 +584,12 @@ function renderMap(){
   document.getElementById('mapClear').style.display = sel ? '' : 'none';
   if(mapInstance){ try{mapInstance.destroy();}catch(e){} mapInstance=null; }
   cont.innerHTML='';
+  const oscuro=document.documentElement.getAttribute('data-theme')==='dark';
+  const vacio=oscuro?'#23262C':'#E4E8EE', borde=oscuro?'#16181D':'#FFFFFF';
   try{
     mapInstance=new jsVectorMap({
       selector:'#map', map:'world', zoomButtons:true, zoomOnScroll:false, backgroundColor:'transparent',
-      regionStyle:{ initial:{ fill:'#D7DCE3', stroke:'#FFFFFF', strokeWidth:0.4 }, hover:{ fillOpacity:.85 } },
+      regionStyle:{ initial:{ fill:vacio, stroke:borde, strokeWidth:0.4 }, hover:{ fillOpacity:.85 } },
       series:{ regions:[{ attribute:'fill', values,
         scale:['#CFE8F7','#0093D6','#0B4E78'], normalizeFunction:'polynomial' }] },
       onRegionTooltipShow(e,tip,code){ const v=values[code];
@@ -661,19 +698,23 @@ function fmtPct(n){ return (n>=0?'+':'')+n.toFixed(0)+'%'; }
 // Gráfica de barras + línea de tendencia por año.
 function comparaChart(years, yTot, nowYear){
   const max=Math.max(1,...years.map(y=>Math.abs(yTot[y]||0)));
-  const n=years.length, W=Math.max(360,n*95), H=185, padX=22, padB=34, padT=26;
-  const step=(W-padX*2)/n, bw=Math.min(64, step-18);
+  const n=years.length, W=Math.max(360,n*95), H=195, padX=12, padB=32, padT=26;
+  const baseY=H-padB, plotH=baseY-padT, step=(W-padX*2)/n, bw=Math.min(60, step-22);
+  let grid='';
+  [0.5,1].forEach(f=>{ const gy=baseY-plotH*f; grid+=`<line x1="${padX}" y1="${gy}" x2="${W-padX}" y2="${gy}" stroke="var(--border-soft)" stroke-dasharray="2 4"/>`; });
+  grid+=`<text x="${W-padX}" y="${padT-6}" font-size="9" fill="var(--text-subtle)" text-anchor="end" font-family="var(--font-mono)">${fmtK(max)}</text>`;
+  grid+=`<line x1="${padX}" y1="${baseY}" x2="${W-padX}" y2="${baseY}" stroke="var(--border)"/>`;
   let bars='', pts=[];
   years.forEach((y,i)=>{
-    const v=yTot[y]||0, bh=(Math.abs(v)/max)*(H-padB-padT);
-    const cx=padX+step*i+step/2, yy=H-padB-bh, partial=(y===nowYear);
-    bars+=`<rect x="${cx-bw/2}" y="${yy}" width="${bw}" height="${Math.max(2,bh)}" rx="4" fill="var(--accent)" ${partial?'opacity="0.4"':''}></rect>`;
-    bars+=`<text x="${cx}" y="${H-padB+16}" font-size="11" fill="var(--text-muted)" text-anchor="middle" font-family="var(--font-mono)">${y}${partial?'*':''}</text>`;
+    const v=yTot[y]||0, bh=(Math.abs(v)/max)*plotH;
+    const cx=padX+step*i+step/2, yy=baseY-bh, partial=(y===nowYear);
+    bars+=`<rect x="${cx-bw/2}" y="${yy}" width="${bw}" height="${Math.max(2,bh)}" rx="4" fill="var(--accent)" fill-opacity="${partial?0.4:0.92}"></rect>`;
+    bars+=`<text x="${cx}" y="${H-10}" font-size="11" fill="var(--text-muted)" text-anchor="middle" font-family="var(--font-mono)">${y}${partial?'*':''}</text>`;
     bars+=`<text x="${cx}" y="${yy-6}" font-size="10" fill="var(--text-muted)" text-anchor="middle" font-family="var(--font-mono)">${fmtK(v)}</text>`;
     pts.push(cx+','+yy);
   });
   const line=n>1?`<polyline points="${pts.join(' ')}" fill="none" stroke="var(--cta)" stroke-width="2"/>`+pts.map(p=>{const a=p.split(',');return `<circle cx="${a[0]}" cy="${a[1]}" r="3.5" fill="var(--cta)"/>`}).join(''):'';
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:210px">${bars}${line}</svg>`;
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:215px">${grid}${bars}${line}</svg>`;
 }
 // Diagnóstico: ¿sube o baja? ¿por qué? (compara los dos últimos años completos)
 function comparaDiagnostico(years, prods, yTot, nowYear){
@@ -712,8 +753,8 @@ function comparaHTML(years, prods, nowYear){
   const head=`<tr><th>Producto</th>${years.map(y=>`<th class="num">${y}</th>`).join('')}<th class="num">Total</th></tr>`;
   const totRow=`<tr style="background:var(--bg-sunken);font-weight:700"><td>TOTAL</td>${years.map(y=>`<td class="num">${fmtK(yTot[y])}</td>`).join('')}<td class="num">${fmtK(prods.reduce((a,p)=>a+p.gran,0))}</td></tr>`;
   const rows=top.map(p=>{
-    const cells=years.map(y=>{ const v=p.yr[y]||0; const last=(y===maxY);
-      return `<td class="num" style="${v===0&&last&&p.dropped?'background:rgba(229,72,77,.10);':''}${v===0?'color:var(--text-subtle)':''}">${v>0?fmtK(v):'·'}</td>`;
+    const cells=years.map(y=>{ const v=p.yr[y]||0;
+      return `<td class="num"${v===0?' style="color:var(--text-subtle)"':''}>${v>0?fmtK(v):'·'}</td>`;
     }).join('');
     const tag=p.dropped?` <span class="contact-badge off" style="font-size:.52rem">ya no · ${esc(p.ult)}</span>`:'';
     return `<tr><td>${esc(p.name)}${tag}<div class="muted" style="font-size:.68rem">${esc(p.fam)}</div></td>${cells}<td class="num"><b>${fmtK(p.gran)}</b></td></tr>`;
