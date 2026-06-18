@@ -79,11 +79,35 @@ function emailHTML(data, empresa, lang = 'es') {
   </div></body></html>`;
 }
 
-// Empareja el nombre del vendedor de SAP con la tabla sellers para obtener su correo.
+// Resuelve el correo del vendedor de la última factura:
+//  1) Mapeo administrado (cobranza_vendedores) por código SAP, siguiendo reasignación.
+//  2) Si no está configurado, empareja por nombre con la tabla sellers.
 async function resolverEmailVendedor(empresa, vendedor, destinatario) {
-  if (!vendedor || !vendedor.nombre) return null;
+  if (!vendedor) return null;
+  const sb = getSupabase(empresa);
+  const okMail = (e) => EMAIL_RE.test(e) && e.toLowerCase() !== (destinatario || '').toLowerCase();
+
+  // 1) Mapeo por código SAP (con reasignación a su reemplazo)
+  if (sb && vendedor.code != null) {
+    try {
+      const { data: first } = await sb.from('cobranza_vendedores').select('sap_code,email,activo,reasignar_a').eq('sap_code', vendedor.code).maybeSingle();
+      if (first) {   // está configurado -> resolver estrictamente por el mapeo
+        let row = first; const seen = new Set(); let hops = 0;
+        while (row && hops < 6) {
+          if (row.activo) { const e = (row.email || '').trim(); return okMail(e) ? e : null; }
+          if (row.reasignar_a == null || seen.has(row.reasignar_a)) return null;
+          seen.add(row.reasignar_a);
+          const { data: next } = await sb.from('cobranza_vendedores').select('sap_code,email,activo,reasignar_a').eq('sap_code', row.reasignar_a).maybeSingle();
+          row = next; hops++;
+        }
+        return null;
+      }
+    } catch (e) { console.error('mapeo vendedor:', e.message); }
+  }
+
+  // 2) Respaldo: emparejar por nombre con sellers
+  if (!vendedor.nombre) return null;
   try {
-    const sb = getSupabase(empresa);
     if (!sb) return null;
     const { data: sellers } = await sb.from('sellers').select('name,email,active').eq('active', true);
     if (!sellers || !sellers.length) return null;
@@ -94,16 +118,15 @@ async function resolverEmailVendedor(empresa, vendedor, destinatario) {
     let best = null, bestScore = 0;
     for (const s of sellers) {
       const email = (s.email || '').trim();
-      if (!EMAIL_RE.test(email)) continue;
-      if (email.toLowerCase() === (destinatario || '').toLowerCase()) continue; // no CC al mismo destinatario
+      if (!okMail(email)) continue;
       const sn = norm(s.name);
       if (sn === target) return email;
       const stoks = sn.split(' ').filter(Boolean);
-      if (stoks.length && stoks.every(t => tset.has(t))) return email;   // nombre del seller ⊆ nombre SAP
+      if (stoks.length && stoks.every(t => tset.has(t))) return email;
       const shared = stoks.filter(t => tset.has(t)).length;
       if (shared > bestScore) { bestScore = shared; best = email; }
     }
-    const need = Math.min(2, ttoks.length || 1);   // 1 token -> 1; 2+ -> 2 en común
+    const need = Math.min(2, ttoks.length || 1);
     return bestScore >= need ? best : null;
   } catch (e) { console.error('resolverEmailVendedor:', e.message); return null; }
 }

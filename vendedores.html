@@ -2905,6 +2905,7 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
       <button class="cobranza-tab" id="cobranza-tab-pais" onclick="switchCobranzaTab('pais')" style="flex:1;padding:10px;border-radius:8px;border:none;background:var(--surface-1);color:var(--text-strong);font-weight:600;font-size:.85rem;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.06)">Por país</button>
       <button class="cobranza-tab" id="cobranza-tab-pend" onclick="switchCobranzaTab('pend')" style="flex:1;padding:10px;border-radius:8px;border:none;background:transparent;color:var(--text-muted);font-weight:600;font-size:.85rem;cursor:pointer">Pendientes <span id="cobranza-pend-count"></span></button>
       <button class="cobranza-tab" id="cobranza-tab-auto" onclick="switchCobranzaTab('auto')" style="flex:1;padding:10px;border-radius:8px;border:none;background:transparent;color:var(--text-muted);font-weight:600;font-size:.85rem;cursor:pointer">Recurrente</button>
+      <button class="cobranza-tab" id="cobranza-tab-vend" onclick="switchCobranzaTab('vend')" style="flex:1;padding:10px;border-radius:8px;border:none;background:transparent;color:var(--text-muted);font-weight:600;font-size:.85rem;cursor:pointer">Vendedores</button>
     </div>
 
     <!-- Dashboard por país -->
@@ -2945,6 +2946,16 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
         <input type="search" id="cobranza-auto-search" placeholder="Buscar cliente por nombre o código…" oninput="renderCobranzaAuto()" style="width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--border);background:transparent;color:inherit;margin-bottom:12px;box-sizing:border-box">
         <div id="cobranza-auto-list"></div>
       </div>
+    </div>
+
+    <!-- Vendedores (mapeo SAP -> correo) -->
+    <div id="cobranza-pane-vend" style="display:none">
+      <div style="font-size:.85rem;color:var(--text-muted);margin-bottom:12px">Pon el correo de cada vendedor de SAP. Si alguien ya no trabaja, desmárcalo en <b>Aplica</b> y reasigna sus cobros a otro vendedor.</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <input type="search" id="cobranza-vend-search" placeholder="Buscar vendedor…" oninput="renderVendedores()" style="flex:1;min-width:160px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:transparent;color:inherit;box-sizing:border-box">
+        <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--text-muted);cursor:pointer"><input type="checkbox" id="cobranza-vend-ocultarz" checked onchange="renderVendedores()" style="width:16px;height:16px;accent-color:var(--electric)">Ocultar archivados</label>
+      </div>
+      <div id="cobranza-vend-list"><div class="estado-placeholder"><div class="spinner"></div></div></div>
     </div>
   </div>
 </div>
@@ -6175,7 +6186,7 @@ function openCobranzas() {
 }
 
 function switchCobranzaTab(which) {
-  ['pais','pend','auto'].forEach(t => {
+  ['pais','pend','auto','vend'].forEach(t => {
     const pane = document.getElementById('cobranza-pane-' + t);
     if (pane) pane.style.display = (t === which) ? 'block' : 'none';
     const btn = document.getElementById('cobranza-tab-' + t);
@@ -6186,7 +6197,75 @@ function switchCobranzaTab(which) {
       btn.style.boxShadow = on ? '0 1px 2px rgba(0,0,0,.06)' : 'none';
     }
   });
+  if (which === 'vend' && !cobVendCargado) loadCobranzaVendedores();
 }
+
+// ===== Vendedores: mapeo SAP -> correo / activo / reasignación =====
+let cobVendedores = [];
+let cobVendCargado = false;
+
+async function loadCobranzaVendedores() {
+  const cont = document.getElementById('cobranza-vend-list');
+  cont.innerHTML = '<div class="estado-placeholder"><div class="spinner"></div><div style="margin-top:10px;font-size:.82rem">Cargando vendedores de SAP…</div></div>';
+  try {
+    const res = await fetch('/.netlify/functions/cobranza-vendedores', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list' }) });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'error');
+    cobVendedores = data.vendedores || [];
+    cobVendCargado = true;
+    renderVendedores();
+  } catch (e) {
+    cont.innerHTML = `<div class="estado-placeholder" style="color:var(--error)">Error: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function renderVendedores() {
+  const cont = document.getElementById('cobranza-vend-list');
+  if (!cont) return;
+  const term = (document.getElementById('cobranza-vend-search').value || '').trim().toLowerCase();
+  const ocultarZ = !!document.getElementById('cobranza-vend-ocultarz')?.checked;
+  let list = cobVendedores;
+  if (ocultarZ) list = list.filter(v => !/^z-/i.test(v.name || '') && !/sin agente|trafico|muestras/i.test(v.name || ''));
+  if (term) list = list.filter(v => (v.name || '').toLowerCase().includes(term) || String(v.code).includes(term));
+  if (!list.length) { cont.innerHTML = '<div class="estado-placeholder">Sin resultados</div>'; return; }
+  const opts = cobVendedores.map(v => `<option value="${v.code}">${escapeHtml(v.name)} (#${v.code})</option>`).join('');
+  cont.innerHTML = list.map(v => {
+    const aplica = v.activo !== false;
+    return `<div style="border:1px solid var(--border-soft);border-radius:10px;padding:12px 14px;margin-bottom:8px;background:var(--surface-1)">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+        <div style="min-width:0"><div style="font-weight:600;color:var(--text-strong);font-size:.9rem">${escapeHtml(v.name)}</div><div style="font-size:.72rem;color:var(--text-subtle)">SAP #${v.code}${v.configurado ? '' : ' · sin configurar'}</div></div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--text-muted);cursor:pointer">Aplica<input type="checkbox" ${aplica ? 'checked' : ''} onchange="onVendAplica(${v.code},this)" style="width:16px;height:16px;accent-color:var(--electric)"></label>
+      </div>
+      <input type="email" value="${escapeHtml(v.email || '')}" placeholder="correo@jfkintl.com" onchange="onVendEmail(${v.code},this)" ${aplica ? '' : 'disabled'} style="width:100%;margin-top:10px;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:transparent;color:inherit;box-sizing:border-box;font-size:.85rem">
+      <div id="vend-reasig-${v.code}" style="margin-top:8px;${aplica ? 'display:none' : ''}">
+        <label style="font-size:.72rem;color:var(--text-subtle);display:block;margin-bottom:4px">Reasignar sus cobros a:</label>
+        <select onchange="onVendReasignar(${v.code},this)" style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface-1);color:inherit;font-size:.85rem">
+          <option value="">— ninguno —</option>${opts}
+        </select>
+      </div>
+    </div>`;
+  }).join('');
+  list.forEach(v => { if (v.reasignar_a != null) { const sel = cont.querySelector('#vend-reasig-' + v.code + ' select'); if (sel) sel.value = String(v.reasignar_a); } });
+}
+
+function vendFind(code) { return cobVendedores.find(v => v.code === code); }
+async function saveVend(v) {
+  try {
+    const res = await fetch('/.netlify/functions/cobranza-vendedores', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'save', sap_code: v.code, nombre: v.name, email: v.email, activo: v.activo, reasignar_a: v.reasignar_a }) });
+    const d = await res.json();
+    if (!d.ok) { showToast('No se guardó: ' + (d.error || ''), true); return false; }
+    v.configurado = true; return true;
+  } catch (e) { showToast('Error: ' + e.message, true); return false; }
+}
+function onVendEmail(code, inp) { const v = vendFind(code); if (!v) return; v.email = inp.value.trim(); saveVend(v).then(ok => { if (ok) showToast('Correo guardado'); }); }
+function onVendAplica(code, cb) {
+  const v = vendFind(code); if (!v) return;
+  v.activo = cb.checked;
+  const r = document.getElementById('vend-reasig-' + code); if (r) r.style.display = cb.checked ? 'none' : 'block';
+  const em = cb.closest('div').parentElement.querySelector('input[type=email]'); if (em) em.disabled = !cb.checked;
+  saveVend(v).then(ok => { if (ok) showToast(cb.checked ? 'Marcado: aplica' : 'Marcado: no aplica'); });
+}
+function onVendReasignar(code, sel) { const v = vendFind(code); if (!v) return; v.reasignar_a = sel.value ? Number(sel.value) : null; saveVend(v).then(ok => { if (ok) showToast('Reasignación guardada'); }); }
 
 async function loadCobranzaPendientes() {
   const cont = document.getElementById('cobranza-pendientes-list');
