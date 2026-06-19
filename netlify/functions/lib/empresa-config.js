@@ -42,9 +42,8 @@ const EMPRESAS = {
     subtitulo: 'Zona Libre de Colón  ·  Calle 15 Ave. Santa Isabel, Panamá  ·  Tel: (507) 431-7400',
     supabaseUrl: 'https://birbtcnifhnviohkgyec.supabase.co',
     accent: [20, 110, 200],
-    // ⚠️ TODO: confirmar dominio de correo de Big Dream (from/cc) y verificarlo en Resend.
-    from: 'Big Dream Brands | Accounts <accounts@TODO-dominio-bigdream.com>',
-    cc: 'cobranzas@TODO-dominio-bigdream.com',
+    from: 'Big Dream Brands | Accounts <accounts@bigdreambrands.com>',
+    cc: '',                              // Big Dream: sin CC a cobranzas (solo BCC + vendedor)
     bcc: 'jonathang@jfkintl.com',
     admin: 'jonathang@jfkintl.com',
     // Instrucciones bancarias (Banco General) — para recibir transferencias a Big Dream Brands.
