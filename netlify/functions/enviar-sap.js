@@ -46,6 +46,11 @@ exports.handler = async (event) => {
     if (!cardCode || !lines || lines.length === 0) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Faltan datos: cardCode y lines son obligatorios' }) };
     }
+    // Validar cantidades: ninguna línea con cantidad <= 0 o inválida.
+    const malQty = lines.filter(l => !(Number(l.quantity) > 0));
+    if (malQty.length) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Hay líneas con cantidad inválida (debe ser mayor a 0).' }) };
+    }
 
     const cookies = await sapLogin();
     const hoy = new Date().toISOString().slice(0, 10);
@@ -57,10 +62,11 @@ exports.handler = async (event) => {
       Comments: comments || 'Pedido desde Portal JFK',
       DocumentLines: lines.map(l => {
         const line = { ItemCode: l.itemCode, Quantity: l.quantity };
-        // Precio negociado en el pedido: UnitPrice SOBREESCRIBE la lista de precios del
-        // cliente en SAP (antes se ignoraba y SAP aplicaba el precio de la lista = "precio Kennedy").
+        // Precio negociado en el pedido: UnitPrice SOBREESCRIBE la lista del cliente en SAP.
+        // OJO: solo si es > 0. Un precio 0/nulo NO se envía (SAP usaría su lista) para
+        // evitar crear órdenes a precio CERO (regalar producto).
         const up = Number(l.unitPrice);
-        if (l.unitPrice != null && up >= 0 && isFinite(up)) {
+        if (l.unitPrice != null && isFinite(up) && up > 0) {
           line.UnitPrice = up;
         } else if (l.discountPercent && l.discountPercent > 0) {
           line.DiscountPercent = l.discountPercent;

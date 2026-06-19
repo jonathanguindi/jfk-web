@@ -3300,6 +3300,13 @@ async function scanAddToCart(code) {
       if (manual) manual.focus();
       return;
     }
+    if (!(parseFloat(p.price_kennedy) > 0)) {   // sin precio: no se puede pedir (evita precio 0 en SAP)
+      if (hint) { hint.textContent = `⚠️ ${p.name} no tiene precio — no se puede agregar`; hint.className = 'scan-modal__hint warning'; }
+      try { navigator.vibrate && navigator.vibrate(120); } catch (e) {}
+      showToast(`${p.name}: sin precio, consúltalo antes de pedir`, true);
+      if (manual) manual.focus();
+      return;
+    }
     const box = p.items_per_box || 1;
     const cur = currentCart[p.sap_item_code];
     updateQty(p, (cur ? cur.qty : 0) + box);   // suma 1 bulto
@@ -5168,6 +5175,16 @@ async function confirmSubmitOrder() {
   closeConfirmModal();
   const items = Object.values(currentCart);
   if (items.length === 0) { showToast('Sin productos', true); return; }
+
+  // Seguridad de precio: no permitir enviar productos en $0 (evita órdenes a precio cero en SAP).
+  const sinPrecio = items.filter(({discount, product}) => {
+    const final = parseFloat(product.price_kennedy || 0) * (1 - (discount||0)/100) * (1 - (globalDiscount||0)/100);
+    return !(final > 0);
+  });
+  if (sinPrecio.length) {
+    showToast('No se envió: ' + sinPrecio.length + ' producto(s) quedan en $0 (' + sinPrecio.slice(0,3).map(i=>i.product.name).join(', ') + '). Ponles precio o quítalos.', true);
+    return;
+  }
 
   const btn = document.getElementById('btn-enviar');
   btn.disabled = true;

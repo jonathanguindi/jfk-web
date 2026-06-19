@@ -471,7 +471,7 @@ function svgSerie(labels, vals, opts){
   opts=opts||{};
   const n=vals.length; if(!n) return '<div class="empty">Sin datos en el período.</div>';
   const partialIdx = opts.partialIdx==null?-1:opts.partialIdx;
-  const max=Math.max(1,...vals.map(v=>Math.abs(Number(v)||0)));
+  const max=Math.max(1,...vals.map(v=>Math.max(0,Number(v)||0)));   // negativos (devoluciones netas) no inflan la escala
   const W=Math.max(380, n*(opts.bars?72:48)), H=opts.H||220;
   const padL=46, padR=14, padT=26, padB=30, baseY=H-padB, plotH=baseY-padT;
   const step=(W-padL-padR)/n, cx=i=>padL+step*i+step/2;
@@ -485,13 +485,13 @@ function svgSerie(labels, vals, opts){
   let body='', defs='';
   if(opts.bars){
     const bw=Math.max(8,Math.min(60, step-22));
-    vals.forEach((v,i)=>{ v=Number(v)||0; const bh=(Math.abs(v)/max)*plotH, x=(cx(i)-bw/2).toFixed(1), y=(baseY-bh).toFixed(1);
+    vals.forEach((v,i)=>{ v=Number(v)||0; const bh=(Math.max(0,v)/max)*plotH, x=(cx(i)-bw/2).toFixed(1), y=(baseY-bh).toFixed(1);
       body+=`<rect x="${x}" y="${y}" width="${bw.toFixed(1)}" height="${Math.max(2,bh).toFixed(1)}" rx="4" fill="var(--accent)" fill-opacity="${i===partialIdx?0.4:0.92}"/>`;
       body+=`<text x="${cx(i).toFixed(1)}" y="${(+y-6).toFixed(1)}" font-size="10" fill="var(--text-muted)" text-anchor="middle" font-family="var(--font-mono)">${fmtK(v)}</text>`;
     });
   } else {
     defs=`<defs><linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--accent)" stop-opacity="0.18"/><stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>`;
-    const pts=vals.map((v,i)=>({x:cx(i),y:baseY-(Math.abs(Number(v)||0)/max)*plotH}));
+    const pts=vals.map((v,i)=>({x:cx(i),y:baseY-(Math.max(0,Number(v)||0)/max)*plotH}));
     const P=pts.map(p=>p.x.toFixed(1)+','+p.y.toFixed(1));
     body+=`<path d="M${P.join(' L')} L${pts[n-1].x.toFixed(1)},${baseY} L${pts[0].x.toFixed(1)},${baseY} Z" fill="url(#areaFill)"/>`;
     if(partialIdx===n-1 && n>1){
