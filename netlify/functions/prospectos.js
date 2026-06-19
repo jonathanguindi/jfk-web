@@ -11,22 +11,32 @@ const cors = { 'Access-Control-Allow-Origin':'*', 'Access-Control-Allow-Headers'
 const reply = (c,o)=>({ statusCode:c, headers:{'Content-Type':'application/json',...cors}, body:JSON.stringify(o) });
 const now = ()=> new Date().toISOString();
 
-async function emailVendor(empresa, to, nombre, pros){
+async function emailVendor(empresa, to, nombre, pros, modo){
   try{
     if(!Resend || !process.env.RESEND_API_KEY || !to) return;
     const r = new Resend(process.env.RESEND_API_KEY);
+    const esReact = modo==='reactivar';
+    const intro = esReact
+      ? `<p>Se te asignó un <b style="color:#C0392B">cliente DORMIDO para reactivar — escríbele HOY</b>. Ya nos compraba y dejó de hacerlo; recuperarlo es venta casi segura:</p>`
+      : `<p>Se te asignó un <b>cliente potencial</b> para contactar:</p>`;
+    const filaReact = esReact ? `
+        ${pros.valor_anual?`<tr><td style="padding:4px 10px;color:#888">Valía/año</td><td style="padding:4px 10px"><b>${pros.valor_anual}</b></td></tr>`:''}
+        ${pros.ultima_compra?`<tr><td style="padding:4px 10px;color:#888">Última compra</td><td style="padding:4px 10px">${pros.ultima_compra}</td></tr>`:''}
+        ${pros.contacto?`<tr><td style="padding:4px 10px;color:#888">Contacto</td><td style="padding:4px 10px">${pros.contacto}</td></tr>`:''}` : '';
     const html = `<div style="font-family:Arial,sans-serif;font-size:14px;color:#0E1016">
       <p>Hola ${nombre||''},</p>
-      <p>Se te asignó un <b>cliente potencial</b> para contactar:</p>
+      ${intro}
       <table style="border-collapse:collapse;font-size:14px">
-        <tr><td style="padding:4px 10px;color:#888">Empresa</td><td style="padding:4px 10px"><b>${pros.empresa||''}</b></td></tr>
+        <tr><td style="padding:4px 10px;color:#888">${esReact?'Cliente':'Empresa'}</td><td style="padding:4px 10px"><b>${pros.empresa||''}</b></td></tr>
         <tr><td style="padding:4px 10px;color:#888">País</td><td style="padding:4px 10px">${pros.pais||''}${pros.ciudad?(' · '+pros.ciudad):''}</td></tr>
-        <tr><td style="padding:4px 10px;color:#888">Rubro</td><td style="padding:4px 10px">${pros.que_vende||pros.tipo||''}</td></tr>
+        <tr><td style="padding:4px 10px;color:#888">${esReact?'Qué compraba':'Rubro'}</td><td style="padding:4px 10px">${pros.que_vende||pros.tipo||''}</td></tr>
+        ${filaReact}
         ${pros.web?`<tr><td style="padding:4px 10px;color:#888">Web</td><td style="padding:4px 10px"><a href="${pros.web.startsWith('http')?pros.web:'https://'+pros.web}">${pros.web}</a></td></tr>`:''}
       </table>
-      <p>Consigue su contacto, llámalo y márcalo como <b>contactado</b> en el portal → <b>Expansión</b>.</p>
+      <p>${esReact?'Escríbele/llámalo ya, ofrécele lo que pedía y márcalo como <b>contactado</b>':'Consigue su contacto, llámalo y márcalo como <b>contactado</b>'} en el portal → <b>Expansión</b>.</p>
       <p style="color:#888;font-size:12px">${empresa.nombreCorto||''}</p></div>`;
-    await r.emails.send({ from: empresa.from, to:[to], subject:`Nuevo cliente potencial para contactar: ${pros.empresa||''}`, html });
+    const subject = esReact ? `🔴 Reactivar cliente dormido: ${pros.empresa||''}` : `Nuevo cliente potencial para contactar: ${pros.empresa||''}`;
+    await r.emails.send({ from: empresa.from, to:[to], subject, html });
   }catch(e){ /* no romper la asignación si falla el correo */ }
 }
 
@@ -104,6 +114,47 @@ exports.handler = async (event) => {
       return reply(200,{ok:true});
     }
 
+    // Qué clientes dormidos ya están en el CRM (para no duplicar y mostrar a quién se asignaron).
+    if(action==='reactivados'){
+      if(!esAdmin) return reply(403,{ok:false,error:'Solo admin'});
+      const { data } = await sb.from('prospectos').select('card_code,asignado_nombre,asignado_email,estado').not('card_code','is',null);
+      return reply(200,{ok:true, reactivados:(data||[])});
+    }
+
+    // Mete un cliente DORMIDO al CRM como tarea de reactivación, asignado a un vendedor.
+    if(action==='reactivar'){
+      if(!esAdmin) return reply(403,{ok:false,error:'Solo admin'});
+      const d = b.cliente||{};
+      if(!d.card_code || !d.empresa) return reply(400,{ok:false,error:'Falta cliente'});
+      const vEmail=(b.vendedor_email||'').toLowerCase(), vNombre=b.vendedor_nombre||'';
+      if(!vEmail) return reply(400,{ok:false,error:'Falta vendedor'});
+      const contacto=[d.contact_person,d.telefono,d.email].filter(Boolean).join(' · ')||null;
+      const notas=`♻️ Cliente dormido. Valía ~${d.valor_anual||'?'}/año · última compra ${d.ultima_compra||'?'} · ${d.n_compras||'?'} órdenes en ${d.meses_activos||'?'} meses. Escríbele y recupéralo.`;
+      const fields={ pais:d.pais||'—', ciudad:d.city||null, empresa:d.empresa, tipo:'♻️ Reactivar dormido',
+        que_vende:d.top_familia||null, encaja:label, web:null, contacto, email:d.email||null,
+        direccion:null, fuente:'Cliente dormido', notas, card_code:d.card_code,
+        asignado_email:vEmail, asignado_nombre:vNombre, estado:'asignado', creado_por:email,
+        historial:[{fecha:now(),quien:email,accion:`Reactivación asignada a ${vNombre||vEmail}`}] };
+      // ¿ya existe? -> reasignar; si no -> insertar
+      const { data: ex } = await sb.from('prospectos').select('id,historial').eq('card_code',d.card_code).limit(1);
+      let err;
+      if(ex && ex.length){
+        const upd={ asignado_email:vEmail, asignado_nombre:vNombre, estado:'asignado', updated_at:now(),
+          historial:[...(ex[0].historial||[]),{fecha:now(),quien:email,accion:`Reasignado a ${vNombre||vEmail}`}] };
+        ({ error: err } = await sb.from('prospectos').update(upd).eq('id',ex[0].id));
+      } else {
+        ({ error: err } = await sb.from('prospectos').insert(fields));
+      }
+      if(err){ // por si la columna card_code/email aún no existe, reintenta sin ellas
+        const f2=Object.assign({},fields); delete f2.card_code; delete f2.email;
+        const r2 = await sb.from('prospectos').insert(f2);
+        if(r2.error) return reply(200,{ok:false,error:err.message});
+      }
+      await emailVendor(empresa, vEmail, vNombre,
+        { empresa:d.empresa, pais:d.pais, ciudad:d.city, que_vende:d.top_familia, contacto, valor_anual:d.valor_anual, ultima_compra:d.ultima_compra }, 'reactivar');
+      return reply(200,{ok:true});
+    }
+
     if(action==='assignPais'){
       if(!esAdmin) return reply(403,{ok:false,error:'Solo admin'});
       const { error } = await sb.from('prospecto_pais_vendedor').upsert({
@@ -119,7 +170,7 @@ exports.handler = async (event) => {
       const row = await getRow(b.id); if(!row) return reply(404,{ok:false,error:'No existe'});
       if(!(await puedeEditar(row))) return reply(403,{ok:false,error:'Sin permiso'});
       const f = b.fields||{};
-      const allow = ['estado','contacto','ciudad','direccion','notas','web','empresa','tipo','que_vende'];
+      const allow = ['estado','contacto','email','ciudad','direccion','notas','web','empresa','tipo','que_vende'];
       const upd = { updated_at:now() };
       const cambios=[];
       allow.forEach(k=>{ if(f[k]!==undefined){ upd[k]=f[k]; cambios.push(k); } });

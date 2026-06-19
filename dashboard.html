@@ -424,7 +424,9 @@ document.querySelectorAll('#tabs .tab').forEach(b=>b.onclick=()=>{
 });
 
 /* ── Dormidos (reactivación) ── */
-let DORM=null, DORM_DIAS=365, DORM_LOADING=false;
+let DORM=null, DORM_DIAS=365, DORM_LOADING=false, DORM_VENDS=null, DORM_REACT={}, DORM_BY_CC={};
+const PROS_FN='/.netlify/functions/prospectos';
+async function prosApi(action,extra){ const r=await fetch(PROS_FN,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({action,email:EMAIL},extra||{}))}); return r.json(); }
 function setDormDias(d){ DORM_DIAS=d;
   document.querySelectorAll('#segDorm button').forEach(x=>x.classList.toggle('active', Number(x.dataset.d)===d));
   loadDormidos(true);
@@ -439,32 +441,59 @@ async function loadDormidos(force){
   catch(e){ DORM_LOADING=false; document.getElementById('tblDormidos').innerHTML='<div class="empty">No se pudo cargar. Reintenta.</div>'; return; }
   DORM_LOADING=false;
   if(!j.ok){ document.getElementById('tblDormidos').innerHTML='<div class="empty">'+esc(j.error||'Error')+'</div>'; return; }
-  DORM=j.dormidos||[]; DORM._dias=DORM_DIAS; renderDormidos();
+  DORM=j.dormidos||[]; DORM._dias=DORM_DIAS;
+  if(ES_ADMIN){
+    if(!DORM_VENDS){ try{ const v=await prosApi('vendors'); DORM_VENDS=(v.vendedores||[]); }catch(e){ DORM_VENDS=[]; } }
+    try{ const rr=await prosApi('reactivados'); DORM_REACT={}; (rr.reactivados||[]).forEach(r=>{ if(r.card_code) DORM_REACT[r.card_code]=r; }); }catch(e){}
+  }
+  renderDormidos();
 }
 function tiempoSin(dias){ return dias>=365 ? (dias/365).toFixed(dias>=730?0:1)+(dias>=730?' años':' año') : Math.round(dias/30)+' meses'; }
+async function assignReact(i, cc){
+  const sel=document.getElementById('rv-'+i); if(!sel||!sel.value){ bannerMsg('Elige un vendedor primero.'); return; }
+  const cli=DORM_BY_CC[cc]; if(!cli) return;
+  const [vemail,vname]=sel.value.split('|');
+  const btn=document.getElementById('rb-'+i); if(btn){ btn.disabled=true; btn.textContent='…'; }
+  const r=await prosApi('reactivar',{vendedor_email:vemail, vendedor_nombre:vname, cliente:cli});
+  if(r.ok){ DORM_REACT[cc]={card_code:cc, asignado_nombre:vname, estado:'asignado'}; bannerMsg(''); renderDormidos(); }
+  else { bannerMsg('No se pudo asignar: '+esc(r.error||'')); if(btn){ btn.disabled=false; btn.textContent='Asignar'; } }
+}
 function renderDormidos(){
   const cont=document.getElementById('tblDormidos'); if(!cont) return;
   const lista=Array.isArray(DORM)?DORM:[];
+  DORM_BY_CC={}; lista.forEach(x=>{ if(x.card_code) DORM_BY_CC[x.card_code]=x; });
   const q=(document.getElementById('dormSearch').value||'').trim().toLowerCase();
   const rows=q? lista.filter(x=>((x.name||'')+(x.pais||'')+(x.vendedor||'')).toLowerCase().includes(q)) : lista;
   const valDorm=x=>Number(x.valor_anual!=null?x.valor_anual:(x.ult_ano||0))||0;
   const totRun=lista.reduce((s,x)=>s+valDorm(x),0);
+  const asignados=ES_ADMIN?Object.keys(DORM_REACT).length:0;
   document.getElementById('dormResumen').innerHTML=
     `<div class="kpis" style="margin-bottom:14px">
       <div class="kpi"><div class="lbl">Clientes dormidos</div><div class="val">${lista.length.toLocaleString()}</div></div>
       <div class="kpi cta"><div class="lbl">Venta dormida / año</div><div class="val">${fmtUSD(totRun)}</div></div>
+      ${ES_ADMIN?`<div class="kpi"><div class="lbl">Asignados a reactivar</div><div class="val">${asignados}</div></div>`:''}
       <div class="kpi"><div class="lbl">Umbral</div><div class="val" style="font-size:1.05rem">sin comprar ${DORM_DIAS>=730?'+2 años':(DORM_DIAS>=365?'+1 año':'+6 meses')}</div></div>
     </div>`;
   if(!rows.length){ cont.innerHTML='<div class="empty">'+(lista.length?'Ningún cliente coincide con la búsqueda.':'No hay clientes dormidos en este umbral. 🎉')+'</div>'; return; }
   const onlyTel=t=>(t||'').replace(/[^\d+]/g,'');
-  let h='<div class="tbl-scroll"><table><thead><tr><th>Cliente</th><th class="num">Valía/año</th><th>Sin comprar</th><th>Qué pedía</th><th>Contacto</th></tr></thead><tbody>';
-  rows.forEach(x=>{
+  const vendOpts='<option value="">— vendedor —</option>'+((DORM_VENDS||[]).map(v=>`<option value="${esc(v.email)}|${esc(v.name)}">${esc(v.name)}</option>`).join(''));
+  let h='<div class="tbl-scroll"><table><thead><tr><th>Cliente</th><th class="num">Valía/año</th><th>Sin comprar</th><th>Qué pedía</th><th>Contacto</th>'+(ES_ADMIN?'<th>Asignar a reactivar</th>':'')+'</tr></thead><tbody>';
+  rows.forEach((x,i)=>{
     const tel=onlyTel(x.telefono), wa=tel.replace(/^\+/,'');
     const acc=[];
     if(tel.length>=7) acc.push(`<a class="dact" title="Llamar" href="tel:${tel}" onclick="event.stopPropagation()">📞</a>`);
     if(wa.length>=8)  acc.push(`<a class="dact" title="WhatsApp" target="_blank" href="https://wa.me/${wa}" onclick="event.stopPropagation()">💬</a>`);
     if(x.email) acc.push(`<a class="dact" title="Correo" href="mailto:${esc(x.email)}" onclick="event.stopPropagation()">✉️</a>`);
     const col=x.dias>730?'var(--red)':'var(--amber)';
+    let asg='';
+    if(ES_ADMIN){
+      const r=DORM_REACT[x.card_code];
+      asg = r
+        ? `<td style="white-space:nowrap"><span class="contact-badge on">♻️ ${esc(r.asignado_nombre||'asignado')}</span></td>`
+        : `<td style="white-space:nowrap" onclick="event.stopPropagation()">
+            <select id="rv-${i}" class="search" style="width:120px;margin:0;padding:5px 8px;font-size:.76rem;display:inline-block">${vendOpts}</select>
+            <button class="btn btn-sm btn-cta" id="rb-${i}" onclick="assignReact(${i},'${esc(x.card_code)}')">Asignar</button></td>`;
+    }
     h+=`<tr style="cursor:pointer" onclick="verCliente('${esc(x.card_code)}')">
       <td><b>${esc(x.name)}</b>${x.inactivo_sap?' <span class="contact-badge off" style="font-size:.62rem">inactivo SAP</span>':''}
         <div class="muted" style="font-size:.74rem">${esc(x.pais||'')}${x.vendedor?' · '+esc(x.vendedor):''}${x.n_compras?' · '+x.n_compras+' órdenes'+(x.meses_activos?' en '+x.meses_activos+' meses':''):''}</div></td>
@@ -472,6 +501,7 @@ function renderDormidos(){
       <td style="white-space:nowrap;color:${col};font-weight:600">${tiempoSin(x.dias)}<div class="muted" style="font-size:.72rem;font-weight:400">${fmtFecha(x.ultima_compra)}</div></td>
       <td class="muted" style="font-size:.78rem">${esc(x.top_familia||'—')}</td>
       <td style="white-space:nowrap">${acc.join(' ')||'<span class="muted" style="font-size:.74rem">sin datos</span>'}</td>
+      ${asg}
     </tr>`;
   });
   cont.innerHTML=h+'</tbody></table></div>';
