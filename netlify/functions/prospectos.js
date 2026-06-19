@@ -143,6 +143,27 @@ exports.handler = async (event) => {
       return reply(200,{ok:true});
     }
 
+    if(action==='enviarCorreo'){
+      const row = await getRow(b.id); if(!row) return reply(404,{ok:false,error:'No existe'});
+      if(!(await puedeEditar(row))) return reply(403,{ok:false,error:'Sin permiso'});
+      const to = (b.to||'').trim();
+      if(!/.+@.+\..+/.test(to)) return reply(400,{ok:false,error:'Correo de destino inválido'});
+      if(!Resend || !process.env.RESEND_API_KEY) return reply(500,{ok:false,error:'Resend no configurado en este sitio'});
+      try{
+        const vendorName = b.nombre || email;
+        const m = (empresa.from||'').match(/<([^>]+)>/);
+        const fromEmail = m ? m[1] : (empresa.from||'');
+        const fromAddr = `${vendorName} · ${empresa.nombreCorto||''} <${fromEmail}>`;
+        const r = new Resend(process.env.RESEND_API_KEY);
+        await r.emails.send({ from: fromAddr, to:[to], replyTo: email, subject: b.subject||`Propuesta comercial`, html: b.html||'' });
+      }catch(e){ return reply(200,{ok:false,error:'No se pudo enviar: '+(e.message||e)}); }
+      const upd = { email: to, updated_at: now(),
+        estado: (row.estado==='nuevo'||row.estado==='asignado') ? 'contactado' : row.estado,
+        historial: log(row, `Correo enviado a ${to} por ${b.nombre||email}`) };
+      await sb.from('prospectos').update(upd).eq('id', b.id);
+      return reply(200,{ok:true});
+    }
+
     if(action==='misPendientes'){
       if(!email) return reply(200,{ok:true,count:0});
       const { count } = await sb.from('prospectos').select('*',{count:'exact',head:true})
