@@ -79,6 +79,19 @@ exports.handler = async (event) => {
       return reply(200,{ok:true, vendedores:(data||[]), paisVendedor:(asign.data||[])});
     }
 
+    // Ventas activas por país, últimos 12 meses (en vivo, mismo Supabase que el dashboard).
+    // Alimenta la Meta/Análisis de Expansión. Reusa el RPC ventas_resumen; se refresca con el sync nocturno.
+    if(action==='ventas12'){
+      if(!esAdmin) return reply(403,{ok:false,error:'Solo admin'});
+      const hasta = now().slice(0,10);
+      const desde = new Date(Date.now()-365*86400000).toISOString().slice(0,10);
+      const { data, error } = await sb.rpc('ventas_resumen', { desde, hasta, p_vendedores:null, p_pais:null });
+      if(error) return reply(200,{ok:false,error:error.message});
+      const ventas={}; ((data&&data.por_pais)||[]).forEach(r=>{ const n=r.name||r.code||'?'; ventas[n]=(ventas[n]||0)+Number(r.total||0); });
+      const total=(data&&data.kpis&&data.kpis.ventas_total)||0;
+      return reply(200,{ok:true, ventas, total, fecha:hasta});
+    }
+
     if(action==='assign'){
       if(!esAdmin) return reply(403,{ok:false,error:'Solo admin'});
       const row = await getRow(b.id); if(!row) return reply(404,{ok:false,error:'No existe'});
@@ -116,19 +129,6 @@ exports.handler = async (event) => {
       return reply(200,{ok:true});
     }
 
-    if(action==='addBulk'){
-      if(!esAdmin) return reply(403,{ok:false,error:'Solo admin'});
-      const items=(b.items||[]).filter(x=>x&&x.empresa&&x.pais&&relevante(x.encaja));
-      if(!items.length) return reply(200,{ok:true,inserted:0,skipped:0});
-      const { data: ex } = await sb.from('prospectos').select('empresa,pais');
-      const seen=new Set((ex||[]).map(r=>((r.empresa||'')+'|'+(r.pais||'')).toLowerCase()));
-      const rows=[]; let skip=0;
-      for(const s of items){ const k=((s.empresa)+'|'+(s.pais)).toLowerCase(); if(seen.has(k)){skip++;continue;} seen.add(k);
-        rows.push({pais:s.pais,ciudad:s.ciudad||null,empresa:s.empresa,tipo:s.tipo||null,que_vende:s.que_vende||null,encaja:s.encaja||label,web:s.web||null,contacto:s.contacto||null,direccion:s.direccion||null,fuente:s.fuente||null,notas:s.notas||null,estado:'nuevo',creado_por:'investigación',historial:[{fecha:now(),quien:'investigación',accion:'Importado (2da ronda)'}]}); }
-      if(rows.length){ const {error}=await sb.from('prospectos').insert(rows); if(error) return reply(200,{ok:false,error:error.message}); }
-      return reply(200,{ok:true,inserted:rows.length,skipped:skip});
-    }
-
     if(action==='add'){
       const f = b.fields||{};
       if(!f.empresa || !f.pais) return reply(400,{ok:false,error:'empresa y país obligatorios'});
@@ -140,30 +140,6 @@ exports.handler = async (event) => {
         historial:[{fecha:now(),quien:email,accion:'Creado'}] };
       const { error } = await sb.from('prospectos').insert(ins);
       if(error) return reply(200,{ok:false,error:error.message});
-      return reply(200,{ok:true});
-    }
-
-    if(action==='enviarCorreo'){
-      const row = await getRow(b.id); if(!row) return reply(404,{ok:false,error:'No existe'});
-      if(!(await puedeEditar(row))) return reply(403,{ok:false,error:'Sin permiso'});
-      const to = (b.to||'').trim();
-      if(!/.+@.+\..+/.test(to)) return reply(400,{ok:false,error:'Correo de destino inválido'});
-      if(!Resend || !process.env.RESEND_API_KEY) return reply(500,{ok:false,error:'Resend no configurado en este sitio'});
-      try{
-        const vendorName = b.nombre || email;
-        const m = (empresa.from||'').match(/<([^>]+)>/);
-        const fromEmail = m ? m[1] : (empresa.from||'');
-        const fromAddr = `${vendorName} · ${empresa.nombreCorto||''} <${fromEmail}>`;
-        const r = new Resend(process.env.RESEND_API_KEY);
-        const ccRaw = (b.cc !== undefined ? b.cc : email) || '';
-        const ccList = String(ccRaw).split(/[,;]/).map(x=>x.trim()).filter(x=>/.+@.+\..+/.test(x));
-        await r.emails.send({ from: fromAddr, to:[to], cc: ccList.length?ccList:undefined, bcc: adminEmail?[adminEmail]:undefined, replyTo: email, subject: b.subject||`Propuesta comercial`, html: b.html||'' });
-      }catch(e){ return reply(200,{ok:false,error:'No se pudo enviar: '+(e.message||e)}); }
-      const baseUpd = { updated_at: now(),
-        estado: (row.estado==='nuevo'||row.estado==='asignado') ? 'contactado' : row.estado,
-        historial: log(row, `Correo enviado a ${to} por ${b.nombre||email}`) };
-      let { error: e2 } = await sb.from('prospectos').update({ ...baseUpd, email: to }).eq('id', b.id);
-      if (e2) { await sb.from('prospectos').update(baseUpd).eq('id', b.id); } // si no existe la columna email
       return reply(200,{ok:true});
     }
 

@@ -108,6 +108,11 @@ const fmtK=n=> n>=1e6?"$"+(n/1e6).toFixed(2)+"M":n>=1e3?"$"+Math.round(n/1e3)+"k
 const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
 const FLAGS=[["republica dominicana","🇩🇴"],["dominicana","🇩🇴"],["colombia","🇨🇴"],["peru","🇵🇪"],["chile","🇨🇱"],["ecuador","🇪🇨"],["venezuela","🇻🇪"],["bolivia","🇧🇴"],["paraguay","🇵🇾"],["uruguay","🇺🇾"],["argentina","🇦🇷"],["brasil","🇧🇷"],["brazil","🇧🇷"],["mexico","🇲🇽"],["panama","🇵🇦"],["costa rica","🇨🇷"],["guatemala","🇬🇹"],["honduras","🇭🇳"],["salvador","🇸🇻"],["nicaragua","🇳🇮"],["cuba","🇨🇺"],["jamaica","🇯🇲"],["trinidad","🇹🇹"],["bahamas","🇧🇸"],["barbados","🇧🇧"],["granada","🇬🇩"],["grenada","🇬🇩"],["santa lucia","🇱🇨"],["antigua","🇦🇬"],["curazao","🇨🇼"],["curacao","🇨🇼"],["aruba","🇦🇼"],["sint maarten","🇸🇽"],["maarten","🇸🇽"],["surinam","🇸🇷"],["guyana","🇬🇾"],["guayana","🇬🇫"],["haiti","🇭🇹"],["puerto rico","🇵🇷"],["estados unidos","🇺🇸"],["usa","🇺🇸"],["vincente","🇻🇨"],["vicente","🇻🇨"],["dominica","🇩🇲"],["turcos","🇹🇨"],["turks","🇹🇨"],["cayman","🇰🇾"],["virgenes","🇻🇬"],["belize","🇧🇿"],["belice","🇧🇿"]];
 function paisFlag(n){const s=(n||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");for(const[k,f]of FLAGS){if(s.includes(k))return f;}return "🌐";}
+// Ventas activas (últimos 12m). LIVE_V12 = en vivo desde SAP/Supabase (sync nocturno); si no, snapshot.
+let LIVE_V12=null, V12_FECHA="", V12_TOTAL=0;
+function normPais(s){return (s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z]/g,"");}
+function ventasDe(k){ if(LIVE_V12) return LIVE_V12[normPais(k)]||0; return VENTAS12[k]||0; }
+function fuenteVentas(){ return LIVE_V12 ? `<span class="up">● en vivo</span> · actualizado ${esc(V12_FECHA||"hoy")}` : `snapshot ${esc("Junio 2026")}`; }
 function toast(m){const t=document.getElementById("toast");t.textContent=m;t.style.display="block";setTimeout(()=>t.style.display="none",2200);}
 async function api(action,extra){const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({action,email:SES&&SES.email,nombre:SES&&SES.name},extra||{}))});return r.json();}
 
@@ -120,7 +125,10 @@ async function init(){
   const r=await api("list");
   if(!r.ok){document.getElementById("app").innerHTML='<div class="empty">Error: '+esc(r.error||"")+'</div>';return;}
   ST.pros=r.prospectos||[]; ST.esAdmin=r.esAdmin; ST.paises=r.paisesAsignados||[];
-  if(ST.esAdmin){ const v=await api("vendors"); ST.vends=(v.vendedores||[]); ST.paisVend=(v.paisVendedor||[]); }
+  if(ST.esAdmin){
+    const v=await api("vendors"); ST.vends=(v.vendedores||[]); ST.paisVend=(v.paisVendedor||[]);
+    try{ const vv=await api("ventas12"); if(vv&&vv.ok&&vv.ventas){ LIVE_V12={}; Object.keys(vv.ventas).forEach(n=>{LIVE_V12[normPais(n)]=(LIVE_V12[normPais(n)]||0)+Number(vv.ventas[n]||0);}); V12_FECHA=vv.fecha||""; V12_TOTAL=Number(vv.total||0); } }catch(e){}
+  }
   render();
 }
 const EST=["nuevo","asignado","contactando","contactado","cliente","descartado"];
@@ -140,13 +148,13 @@ function render(){
     ["Proyección 12m", fmtK(proyTot), "oportunidad"]
   ];
   let html=`<div class="kpis">${kpis.map(k=>`<div class="kpi"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="s">${k[2]}</div></div>`).join("")}</div>
-  <div class="tabs"><div class="t on" data-tab="pros">🎯 Clientes potenciales</div><div class="t" data-tab="opp">📈 Oportunidad por país</div>${ST.esAdmin?'<div class="t" data-tab="meta">📊 Meta por país</div>':''}</div>
+  <div class="tabs"><div class="t on" data-tab="pros">🎯 Clientes potenciales</div><div class="t" data-tab="opp">📈 Oportunidad por país</div>${ST.esAdmin?'<div class="t" data-tab="meta">📊 Meta por país</div><div class="t" data-tab="analisis">🧠 Análisis</div>':''}</div>
   <div class="panel on" id="p-pros">${renderPros()}</div>
   <div class="panel" id="p-opp">${renderOpp(oppP)}</div>
-  ${ST.esAdmin?`<div class="panel" id="p-meta">${metaPanelHTML()}</div>`:''}`;
+  ${ST.esAdmin?`<div class="panel" id="p-meta">${metaPanelHTML()}</div><div class="panel" id="p-analisis"><div id="analisisBox"></div></div>`:''}`;
   document.getElementById("app").innerHTML=html;
   bind();
-  if(ST.esAdmin) renderMeta();
+  if(ST.esAdmin){ renderMeta(); renderAnalisis(); }
 }
 function metaPanelHTML(){return `
   <div class="sec-h">¿Cuánto deberías estar vendiendo? <span class="muted" style="font-size:13px;font-weight:400">— solo admin · ajusta los supuestos a tu realidad</span></div>
@@ -158,18 +166,63 @@ function metaPanelHTML(){return `
   </div>
   <div id="metaTot" class="count" style="font-size:14px"></div>
   <div class="tablewrap"><table><thead><tr><th>País</th><th class="num">Vendes hoy</th><th class="num">Grandes</th><th class="num">Medianos</th><th class="num">META potencial</th><th class="num">Upside</th></tr></thead><tbody id="metaBody"></tbody></table></div>
-  <p class="mini" style="margin-top:8px">Modelo de planeación (no pronóstico). Meta = ventas actuales 12m + (grandes×%×$) + (medianos×%×$). Ventas: snapshot Junio 2026. Solo visible para el administrador.</p>`;}
+  <p class="mini" style="margin-top:8px">Modelo de planeación (no pronóstico). Meta = ventas reales 12m + (grandes×%×$) + (medianos×%×$). Ventas: <span id="metaFuente">${fuenteVentas()}</span> · se actualiza solo cada noche. Solo visible para el administrador.</p>`;}
 function renderMeta(){
   if(!ST.esAdmin) return;
   const gv=id=>parseFloat((document.getElementById(id)||{}).value)||0;
   const cg=gv('a_cg')/100, vg=gv('a_vg'), cm=gv('a_cm')/100, vm=gv('a_vm');
   const G={},M={},P={};
   ST.pros.forEach(p=>{P[p.pais]=1; if((p.notas||'').indexOf('🔵')===0) G[p.pais]=(G[p.pais]||0)+1; else M[p.pais]=(M[p.pais]||0)+1;});
-  let rows=Object.keys(P).map(k=>{const a=VENTAS12[k]||0,g=G[k]||0,m=M[k]||0,meta=a+g*cg*vg+m*cm*vm;return{k,a,g,m,meta,up:meta-a};});
+  let rows=Object.keys(P).map(k=>{const a=ventasDe(k),g=G[k]||0,m=M[k]||0,meta=a+g*cg*vg+m*cm*vm;return{k,a,g,m,meta,up:meta-a};});
   rows.sort((x,y)=>y.meta-x.meta);
   let ta=0,tm=0;
   document.getElementById('metaBody').innerHTML=rows.map(r=>{ta+=r.a;tm+=r.meta;return `<tr><td>${paisFlag(r.k)} ${esc(r.k)}</td><td class="num">${fmt(r.a)}</td><td class="num">${r.g||''}</td><td class="num">${r.m||''}</td><td class="num"><b>${fmt(r.meta)}</b></td><td class="num up">${r.up>0?'+'+fmt(r.up):'—'}</td></tr>`;}).join('');
   document.getElementById('metaTot').innerHTML=`Hoy <b>${fmt(ta)}</b> &nbsp;→&nbsp; Meta potencial <b style="color:var(--accent2)">${fmt(tm)}</b> &nbsp;·&nbsp; Upside <b class="up">+${fmt(tm-ta)}</b> (${ta>0?Math.round((tm-ta)/ta*100):0}%)`;
+}
+function renderAnalisis(){
+  if(!ST.esAdmin) return;
+  const box=document.getElementById('analisisBox'); if(!box) return;
+  const gv=id=>{const e=document.getElementById(id);return e?(parseFloat(e.value)||0):0;};
+  const cg=(gv('a_cg')||20)/100, vg=gv('a_vg')||50000, cm=(gv('a_cm')||30)/100, vm=gv('a_vm')||4000;
+  const G={},M={},P={};
+  ST.pros.forEach(p=>{P[p.pais]=1; if((p.notas||'').indexOf('🔵')===0)G[p.pais]=(G[p.pais]||0)+1; else M[p.pais]=(M[p.pais]||0)+1;});
+  let rows=Object.keys(P).map(k=>{const a=ventasDe(k),g=G[k]||0,m=M[k]||0,meta=a+g*cg*vg+m*cm*vm;return{k,a,g,m,meta,up:meta-a};});
+  const ta=rows.reduce((s,r)=>s+r.a,0), tm=rows.reduce((s,r)=>s+r.meta,0), up=tm-ta, upPct=ta>0?Math.round(up/ta*100):0;
+  const byHoy=rows.slice().sort((x,y)=>y.a-x.a), top3=byHoy.slice(0,3), top3sum=top3.reduce((s,r)=>s+r.a,0), top3pct=ta>0?Math.round(top3sum/ta*100):0;
+  const facil=rows.filter(r=>r.a>20000&&r.up>0).sort((x,y)=>(y.up/y.a)-(x.up/x.a)).slice(0,5);
+  const green=rows.filter(r=>r.a<5000&&(r.g+r.m)>0).sort((x,y)=>y.meta-x.meta).slice(0,5);
+  const masPlata=rows.slice().filter(r=>r.up>0).sort((x,y)=>y.up-x.up).slice(0,6);
+  const nGr=rows.reduce((s,r)=>s+r.g,0), nMd=rows.reduce((s,r)=>s+r.m,0);
+  const li=r=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)"><span>${paisFlag(r.k)} <b>${esc(r.k)}</b> <span class="muted" style="font-size:12px">· hoy ${fmtK(r.a)} · ${r.g} grandes / ${r.m} medianos</span></span><span class="up" style="white-space:nowrap;font-weight:700">+${fmtK(r.up)}/año</span></div>`;
+  const card=(emoji,titulo,sub,cuerpo)=>`<div style="background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px 18px">
+    <div style="font-weight:800;font-size:15px;margin-bottom:2px">${emoji} ${titulo}</div>
+    <div class="muted" style="font-size:12.5px;margin-bottom:10px">${sub}</div>${cuerpo}</div>`;
+  const plan=[];
+  if(masPlata[0]) plan.push(`<b>Pon a tu mejor vendedor en ${paisFlag(masPlata[0].k)} ${esc(masPlata[0].k)}.</b> Es donde hay más dinero sobre la mesa: ${masPlata[0].g} cadenas grandes y ${masPlata[0].m} medianos sin abrir = <span class="up">+${fmtK(masPlata[0].up)}/año</span>.`);
+  if(facil[0]&&(!masPlata[0]||facil[0].k!==masPlata[0].k)) plan.push(`<b>Empuja ${paisFlag(facil[0].k)} ${esc(facil[0].k)}.</b> Ya vendes ahí (${fmtK(facil[0].a)}) pero te falta cobrar el techo: puedes casi ${facil[0].a>0&&facil[0].up/facil[0].a>=1?'duplicarlo':'crecerlo fuerte'} (+${Math.round(facil[0].up/Math.max(1,facil[0].a)*100)}%).`);
+  if(green[0]) plan.push(`<b>Abre ${paisFlag(green[0].k)} ${esc(green[0].k)} como mercado nuevo.</b> Hoy casi no vendes ahí, pero ya tengo ${green[0].g+green[0].m} clientes identificados = un mercado de ${fmtK(green[0].meta)} desde cero.`);
+  plan.push(`<b>Recupera a los dormidos en paralelo.</b> En el Dashboard → 😴 Dormidos están los clientes que ya te compraban y se enfriaron: reactivarlos es la venta más barata que existe.`);
+  box.innerHTML=`
+  <div class="sec-h">Análisis para ${esc(EMPRESA)} <span class="muted" style="font-size:13px;font-weight:400">— en lenguaje claro · ${fuenteVentas()} · solo admin</span></div>
+  <div style="background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin-bottom:16px">
+    <div style="font-size:14px;line-height:1.55">
+      Hoy ${esc(EMPRESA)} vende <b style="font-size:18px">${fmt(ta)}</b> al año en los países donde tienes plan de expansión.
+      Con los <b>${nGr} cadenas grandes</b> y <b>${nMd} clientes medianos</b> que ya dejé identificados —llamándolos y cerrando solo una parte— el potencial realista es
+      <b style="font-size:18px;color:var(--accent2)">${fmt(tm)}</b>.
+      Eso son <b class="up" style="font-size:16px">+${fmt(up)} al año (+${upPct}%)</b> sin inventar nada nuevo: mismos productos, clientes que ya existen.
+    </div>
+    <div class="muted" style="font-size:12px;margin-top:10px">Esto no es una promesa: es lo que sumaría si cierras el % de prospectos que pusiste en los supuestos (ajústalos en la pestaña 📊 Meta por país y este análisis se recalcula).</div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:16px">
+    ${card('⚠️','Tu mayor riesgo: dependes de pocos países',`El ${top3pct}% de tu venta sale de solo 3 países (${top3.map(r=>esc(r.k)).join(', ')}). Si uno tropieza, te duele de verdad. Por eso expandir no es solo crecer — es <b>protegerte</b>.`,
+      top3.map(r=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)"><span>${paisFlag(r.k)} ${esc(r.k)}</span><b>${ta>0?Math.round(r.a/ta*100):0}%</b></div>`).join(''))}
+    ${card('💸','Dinero sobre la mesa','Países donde YA vendes pero te queda techo grande. Aquí ya tienes pie puesto: es lo más fácil de cobrar.', facil.length?facil.map(li).join(''):'<div class="muted">—</div>')}
+    ${card('🌱','Mercados casi vírgenes','Apenas vendes ahí, pero ya conseguí los contactos. Crecimiento puro si los abres.', green.length?green.map(li).join(''):'<div class="muted">—</div>')}
+  </div>
+  <div style="background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px 18px">
+    <div style="font-weight:800;font-size:15px;margin-bottom:12px">🎯 Qué haría yo, en orden</div>
+    <ol style="margin:0;padding-left:20px;line-height:1.7;font-size:13.5px">${plan.map(p=>`<li style="margin-bottom:8px">${p}</li>`).join('')}</ol>
+  </div>`;
 }
 function vendOptions(sel){return '<option value="">— vendedor —</option>'+ST.vends.map(v=>`<option value="${esc(v.email)}|${esc(v.name)}" ${sel&&sel.toLowerCase()===v.email.toLowerCase()?"selected":""}>${esc(v.name)}</option>`).join("");}
 
