@@ -4526,6 +4526,30 @@ function applyBulkDiscount() {
   renderCart();
 }
 
+function applyBulkPrice() {
+  if (selectedRows.size === 0) { showToast('Selecciona productos primero', true); return; }
+  const val = prompt(`Precio fijo por unidad para ${selectedRows.size} producto(s) seleccionado(s):`, '');
+  if (val === null) return;
+  const precio = parseFloat(String(val).replace(',', '.'));
+  if (!(precio > 0)) { showToast('Escribe un precio válido (mayor a 0)', true); return; }
+  let ok = 0, sinLista = 0, mayorLista = 0;
+  selectedRows.forEach(pcode => {
+    const it = currentCart[pcode]; if (!it) return;
+    const list = parseFloat(it.product.price_kennedy) || 0;
+    if (!(list > 0)) { sinLista++; return; }
+    if (precio > list) mayorLista++;
+    // El carrito trabaja con % de descuento sobre la lista: convertimos el precio fijo.
+    it.discount = Math.max(0, Math.min(100, (1 - precio / list) * 100));
+    ok++;
+  });
+  let msg = `Precio fijo $${precio.toFixed(2)} aplicado a ${ok} producto(s)`;
+  if (mayorLista) msg += ` · ${mayorLista} arriba de la lista quedaron al precio de lista (no se puede subir con descuento)`;
+  if (sinLista) msg += ` · ${sinLista} sin precio de lista`;
+  if ((globalDiscount || 0) > 0) msg += ` · OJO: el descuento global ${globalDiscount}% se resta encima`;
+  showToast(msg);
+  renderCart();
+}
+
 function clearSelection() {
   selectedRows.clear();
   renderCart();
@@ -4905,6 +4929,7 @@ function renderCart() {
     <div class="bulk-bar" id="bulk-bar" style="display:${selectedRows.size > 0 ? 'flex' : 'none'};">
       <span class="bulk-bar__count" id="bulk-count">${selectedRows.size} seleccionado${selectedRows.size !== 1 ? 's' : ''}</span>
       <button class="bulk-bar__btn" onclick="applyBulkDiscount()">Aplicar % descuento</button>
+      <button class="bulk-bar__btn" onclick="applyBulkPrice()">Precio fijo</button>
       <button class="bulk-bar__btn" onclick="clearSelection()">Quitar selección</button>
     </div>
     <table class="cart-table">
