@@ -1666,8 +1666,10 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
 /* En celular: que la tabla del pedido quepa sin desbordar la pantalla */
 @media (max-width: 600px) {
   .cart-table { min-width: 0; font-size: 0.72rem; }
-  .cart-table td.img-cell, .cart-table th.img-cell { display: none; }
-  .cart-table td.desc-cell { white-space: normal; max-width: none; }
+  /* El dueño SÍ quiere ver la imagen en el celular: mostramos un thumbnail compacto */
+  .cart-table td.img-cell, .cart-table th.img-cell { display: table-cell; width: 40px; padding: 0.35rem 0.25rem; }
+  .cart-table .img-icon { width: 34px; height: 34px; }
+  .cart-table td.desc-cell { white-space: normal; max-width: 120px; }
   .cart-table th, .cart-table td { padding: 0.4rem 0.35rem; }
   .cart-table input.cell-input.qty-cell-input { width: 46px; }
 }
