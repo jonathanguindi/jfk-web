@@ -1,267 +1,211 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Inteligencia de Expansión · JFK & Big Dream</title>
+<!DOCTYPE html><html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Expansión · JFK</title>
 <style>
-:root{
-  --bg:#0A1018; --panel:#111B2B; --panel2:#0E1726; --card:#15223529; --line:#23344E;
-  --text:#EAF0F8; --muted:#8FA0B6; --soft:#5E6F87;
-  --accent:#36A8FF; --accent2:#1FC79A; --warn:#F6B83E; --down:#FF6B6B; --grn:#2BD68A;
-  --jfk:#FF7A45; --bdb:#36A8FF; --amb:#9AA7BC;
-  --shadow:0 8px 30px rgba(0,0,0,.35); --r:16px;
-  --serif:"Iowan Old Style","Palatino Linotype",Georgia,serif;
-  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
-}
-*{box-sizing:border-box}
-body{margin:0;background:radial-gradient(1200px 600px at 80% -10%,#16263d 0,transparent 60%),var(--bg);color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased;line-height:1.45}
-a{color:var(--accent);text-decoration:none}
-.wrap{max-width:1240px;margin:0 auto;padding:22px 20px 80px}
-/* topbar */
-.top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-bottom:18px;border-bottom:1px solid var(--line);position:relative}
-.top::after{content:"";position:absolute;left:0;bottom:-1px;height:2px;width:160px;background:linear-gradient(90deg,var(--accent),var(--jfk))}
-.brand{font-family:var(--serif);font-size:30px;font-weight:700;letter-spacing:.2px}
-.brand small{display:block;font-family:var(--sans);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-top:4px}
-.tg{display:flex;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:4px}
-.tg button{border:0;background:transparent;color:var(--muted);font-weight:700;font-size:13px;padding:8px 16px;border-radius:999px;cursor:pointer;transition:.18s}
-.tg button.on{color:#fff}
-.tg button.on[data-co="JFK"]{background:linear-gradient(135deg,#FF7A45,#E55A28)}
-.tg button.on[data-co="BIGDREAM"]{background:linear-gradient(135deg,#36A8FF,#1f74c8)}
-.date{font-size:12px;color:var(--soft);margin-top:6px}
-/* kpis */
-.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin:22px 0}
-.kpi{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:var(--r);padding:16px 16px 14px;box-shadow:var(--shadow)}
-.kpi .l{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
-.kpi .v{font-family:var(--serif);font-size:26px;font-weight:700;margin-top:6px}
-.kpi .s{font-size:11.5px;color:var(--soft);margin-top:2px}
-/* tabs */
-.tabs{display:flex;gap:8px;margin:8px 0 18px}
-.tabs .t{padding:9px 18px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);font-weight:700;font-size:14px;cursor:pointer}
-.tabs .t.on{background:var(--panel);color:var(--text);border-color:#33507a}
-.panel{display:none}
-.panel.on{display:block;animation:fade .35s ease}
-@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.sec-h{font-family:var(--serif);font-size:20px;margin:6px 0 14px}
-.muted{color:var(--muted)}
-/* chart */
-.chart{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:18px 18px 8px;margin-bottom:18px}
-.bar{display:grid;grid-template-columns:140px 1fr 92px;align-items:center;gap:12px;margin-bottom:9px;font-size:13px}
-.bar .nm{color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bar .track{height:18px;background:#0c1422;border-radius:6px;overflow:hidden;border:1px solid #1c2c44}
-.bar .fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent),#2bd6c0);transition:width .8s cubic-bezier(.2,.8,.2,1)}
-.bar .val{text-align:right;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
-/* filters */
-.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
-.filters input,.filters select{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:10px 12px;font-size:13px;font-family:var(--sans)}
-.filters input{min-width:230px}
-/* table */
-.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--panel2)}
-table{width:100%;border-collapse:collapse;font-size:13px;min-width:760px}
-th,td{padding:11px 12px;text-align:left;border-bottom:1px solid #1a2942}
-th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);cursor:pointer;user-select:none;white-space:nowrap;position:sticky;top:0;background:var(--panel)}
-th:hover{color:var(--text)}
-td.num,th.num{text-align:right;font-family:var(--mono)}
-tr:hover td{background:#13203324}
-.badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:800;white-space:nowrap}
-.b-crece{background:rgba(43,214,138,.14);color:#42e29a}
-.b-cae{background:rgba(255,107,107,.14);color:#ff8a8a}
-.b-estable{background:rgba(143,160,182,.14);color:#aeb9c9}
-.b-greenfield{background:rgba(54,168,255,.16);color:#7cc4ff}
-.chips{display:flex;gap:5px;flex-wrap:wrap}
-.chip{background:#14233a;border:1px solid #243a59;color:#b9c6d8;font-size:10.5px;padding:2px 7px;border-radius:6px}
-.up{color:var(--grn)} .dn{color:var(--down)}
-/* prospect cards */
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
-.pc{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:14px;padding:15px;box-shadow:var(--shadow);position:relative}
-.pc h4{margin:0 26px 2px 0;font-size:15px}
-.pc .loc{font-size:11.5px;color:var(--muted);margin-bottom:8px}
-.pc .desc{font-size:12.5px;color:#c4d0e0;min-height:34px}
-.pc .meta{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 8px}
-.tag{font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px}
-.t-JFK{background:rgba(255,122,69,.16);color:#ffb089}
-.t-BigDream{background:rgba(54,168,255,.16);color:#86c6ff}
-.t-Ambas{background:rgba(154,167,188,.16);color:#c3cedd}
-.t-type{background:#16243a;color:#9fb0c6}
-.pc .ln{display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-top:8px;border-top:1px solid #1a2942;padding-top:9px}
-.fit-dot{position:absolute;top:14px;right:14px;width:9px;height:9px;border-radius:50%}
-.posible{position:absolute;top:12px;right:30px;font-size:9.5px;color:#f6b83e;font-weight:800}
-.note{font-size:11px;color:var(--soft);margin-top:6px;font-style:italic}
+:root{--bg:#0A1018;--panel:#111B2B;--panel2:#0E1726;--line:#23344E;--text:#EAF0F8;--muted:#8FA0B6;--soft:#5E6F87;
+--accent:#FF7A45;--accent2:#1FC79A;--warn:#F6B83E;--down:#FF6B6B;--grn:#2BD68A;--shadow:0 8px 30px rgba(0,0,0,.35);--r:16px;
+--serif:"Iowan Old Style","Palatino Linotype",Georgia,serif;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;--mono:ui-monospace,Menlo,monospace;}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(1200px 600px at 80% -10%,#16263d 0,transparent 60%),var(--bg);color:var(--text);font-family:var(--sans);line-height:1.45;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none}.wrap{max-width:1240px;margin:0 auto;padding:22px 18px 90px}
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid var(--line);position:relative}
+.top::after{content:"";position:absolute;left:0;bottom:-1px;height:2px;width:150px;background:linear-gradient(90deg,var(--accent),#ff7a45)}
+.brand{font-family:var(--serif);font-size:28px;font-weight:700}.brand small{display:block;font-family:var(--sans);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-top:3px}
+.who{font-size:12px;color:var(--soft);text-align:right}.who b{color:var(--text)}
+.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer}
+.btn.p{background:var(--accent);border-color:var(--accent);color:#04121f}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:18px 0}
+.kpi{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:var(--r);padding:14px;box-shadow:var(--shadow)}
+.kpi .l{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}.kpi .v{font-family:var(--serif);font-size:24px;font-weight:700;margin-top:5px}.kpi .s{font-size:11px;color:var(--soft)}
+.tabs{display:flex;gap:8px;margin:6px 0 16px;flex-wrap:wrap}.tabs .t{padding:9px 16px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);font-weight:700;font-size:14px;cursor:pointer}.tabs .t.on{background:var(--panel);color:var(--text);border-color:#33507a}
+.panel{display:none}.panel.on{display:block;animation:f .3s ease}@keyframes f{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+.sec-h{font-family:var(--serif);font-size:19px;margin:4px 0 12px}.muted{color:var(--muted)}
+.filters{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.filters input,.filters select{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:9px 11px;font-size:13px}
+.filters input{min-width:220px}
+.chip{background:#14233a;border:1px solid #243a59;color:#b9c6d8;font-size:11px;padding:5px 11px;border-radius:999px;cursor:pointer}.chip.on{background:var(--accent);color:#04121f;border-color:var(--accent);font-weight:700}
 .count{font-size:12.5px;color:var(--muted);margin:2px 0 12px}
-@media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}.brand{font-size:24px}}
-</style>
-</head>
-<body>
+/* opp table */
+.chart{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:16px}
+.bar{display:grid;grid-template-columns:130px 1fr 96px;align-items:center;gap:10px;margin-bottom:8px;font-size:12.5px}.bar .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bar .track{height:16px;background:#0c1422;border-radius:6px;overflow:hidden;border:1px solid #1c2c44}.bar .fill{height:100%;background:linear-gradient(90deg,var(--accent),#2bd6c0);width:0;transition:width .8s}.bar .val{text-align:right;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--panel2)}table{width:100%;border-collapse:collapse;font-size:13px;min-width:720px}th,td{padding:10px 11px;text-align:left;border-bottom:1px solid #1a2942}th{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);cursor:pointer;white-space:nowrap}td.num,th.num{text-align:right;font-family:var(--mono)}.up{color:var(--grn)}.dn{color:var(--down)}
+.chips2{display:flex;gap:4px;flex-wrap:wrap}.chips2 .c{background:#14233a;border:1px solid #243a59;color:#b9c6d8;font-size:10px;padding:2px 6px;border-radius:5px}
+/* country accordion */
+.paisgrp{border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden;background:var(--panel2)}
+.paishd{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 15px;cursor:pointer;background:var(--panel)}
+.paishd h3{margin:0;font-size:15px;font-family:var(--serif)} .paishd .pc{font-size:12px;color:var(--muted)}
+.paisbody{display:none;padding:12px;gap:10px;grid-template-columns:repeat(auto-fill,minmax(310px,1fr))}
+.paisgrp.open .paisbody{display:grid}
+.paisgrp.open .arr{transform:rotate(90deg)}.arr{transition:.2s;color:var(--soft)}
+.assignpais{display:flex;align-items:center;gap:6px}
+.assignpais select{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:5px 8px;font-size:11.5px}
+/* prospect card */
+.pc-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px;position:relative}
+.pc-card h4{margin:0 70px 2px 0;font-size:14.5px}
+.pc-card .loc{font-size:11.5px;color:var(--muted);margin-bottom:6px}
+.pc-card .desc{font-size:12px;color:#c4d0e0;min-height:20px}
+.est{position:absolute;top:12px;right:12px;font-size:10.5px;font-weight:800;padding:3px 8px;border-radius:999px}
+.e-nuevo{background:rgba(143,160,182,.16);color:#aeb9c9}.e-asignado{background:rgba(246,184,62,.16);color:#f6c558}.e-contactando{background:rgba(54,168,255,.16);color:#7cc4ff}.e-contactado{background:rgba(43,214,138,.16);color:#42e29a}.e-cliente{background:rgba(31,199,154,.22);color:#3ff0bd}.e-descartado{background:rgba(255,107,107,.14);color:#ff8a8a}
+.pc-card .row{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;align-items:center}
+.pc-card select,.pc-card input,.pc-card textarea{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:6px 8px;font-size:11.5px;font-family:var(--sans)}
+.pc-card .mini{font-size:11px;color:var(--soft);margin-top:6px}
+.tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;background:#16243a;color:#9fb0c6}
+.lnk{font-size:11.5px}
+.asg{font-size:11px;color:var(--accent2);margin-top:4px}
+.edit{display:none;margin-top:8px;border-top:1px solid #1a2942;padding-top:8px}
+.edit.open{display:block}.edit input,.edit textarea{width:100%;margin-bottom:5px}
+.empty{padding:50px;text-align:center;color:var(--muted)}
+.modal{display:none;position:fixed;inset:0;background:rgba(4,8,14,.7);z-index:50;align-items:center;justify-content:center;padding:18px}
+.modal.on{display:flex}.modalbox{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;max-width:460px;width:100%;box-shadow:var(--shadow)}
+.modalbox h3{margin:0 0 12px;font-family:var(--serif)}.modalbox input,.modalbox select,.modalbox textarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:9px 11px;font-size:13px;margin-bottom:8px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--accent);color:#04121f;font-weight:700;padding:11px 18px;border-radius:10px;z-index:60;display:none;font-size:13px}
+@media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}.brand{font-size:23px}}
+</style></head><body>
 <div class="wrap">
   <div class="top">
-    <div>
-      <div class="brand">Inteligencia de Expansión<small>Oportunidad por país · Clientes potenciales</small></div>
-      <div class="date" id="date"></div>
-    </div>
-    <div class="tg" id="cotg">
-      <button data-co="JFK" class="on">JFK</button>
-      <button data-co="BIGDREAM">Big Dream</button>
-    </div>
+    <div><div class="brand">Expansión · JFK<small>Clientes potenciales · Oportunidad por país</small></div></div>
+    <div><div class="who" id="who"></div>
+      <div style="margin-top:8px;display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn" onclick="location.href='dashboard.html'">📊 Dashboard</button>
+        <button class="btn" onclick="location.href='vendedores.html'">← Portal</button>
+      </div></div>
   </div>
-
-  <div class="kpis" id="kpis"></div>
-
-  <div class="tabs">
-    <div class="t on" data-tab="opp">📈 Oportunidad por país</div>
-    <div class="t" data-tab="pros">🎯 Clientes potenciales</div>
-  </div>
-
-  <!-- OPP -->
-  <div class="panel on" id="panel-opp">
-    <div class="chart">
-      <div class="sec-h">Top proyección a 12 meses <span class="muted" style="font-size:13px;font-weight:400">— al ritmo actual</span></div>
-      <div id="chart"></div>
-    </div>
-    <div class="sec-h">Detalle por país <span class="muted" style="font-size:13px;font-weight:400">— clic en encabezados para ordenar</span></div>
-    <div class="tablewrap"><table id="opptab"><thead><tr>
-      <th data-k="name">País</th>
-      <th class="num" data-k="l12">Ventas 12m</th>
-      <th class="num" data-k="growth">YoY</th>
-      <th class="num" data-k="proy">Proyección 12m</th>
-      <th class="num" data-k="cli">Clientes</th>
-      <th class="num" data-k="ticket">Ticket/cli</th>
-      <th data-k="status">Estado</th>
-      <th>No vendes ahí (oportunidad)</th>
-    </tr></thead><tbody id="oppbody"></tbody></table></div>
-    <p class="note">Proyección = ventas de los últimos 12 meses ajustadas por su crecimiento interanual (acotado). "Greenfield" = poca o nula presencia → prospectar. Datos del histórico de facturación.</p>
-  </div>
-
-  <!-- PROS -->
-  <div class="panel" id="panel-pros">
-    <div class="filters">
-      <input id="q" placeholder="🔎 Buscar empresa, tipo, ciudad...">
-      <select id="fpais"><option value="">Todos los países</option></select>
-      <select id="ftipo"><option value="">Todos los tipos</option></select>
-    </div>
-    <div class="count" id="pcount"></div>
-    <div class="grid" id="pgrid"></div>
-  </div>
+  <div id="app"><div class="empty">Cargando…</div></div>
 </div>
-
+<div class="modal" id="addModal"><div class="modalbox">
+  <h3>Agregar cliente potencial</h3>
+  <input id="m_empresa" placeholder="Nombre de la empresa *">
+  <input id="m_pais" placeholder="País *"><input id="m_ciudad" placeholder="Ciudad">
+  <input id="m_dir" placeholder="Dirección"><input id="m_tipo" placeholder="Tipo (distribuidor, cadena retail...)">
+  <input id="m_vende" placeholder="Qué vende"><input id="m_web" placeholder="Web"><input id="m_contacto" placeholder="Contacto (tel/email)">
+  <textarea id="m_notas" placeholder="Notas" rows="2"></textarea>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
+    <button class="btn" onclick="closeAdd()">Cancelar</button><button class="btn p" onclick="saveAdd()">Guardar</button></div>
+</div></div>
+<div class="toast" id="toast"></div>
 <script>
-const OPP={"fecha": "Junio 2026", "JFK": {"total": 23307349.9, "clientes": 1027, "paises_n": 45, "familias": [{"name": "HOGAR", "pct": 10.9}, {"name": "HAKOL", "pct": 7.4}, {"name": "ART. P/ASEO PERROS", "pct": 7.3}, {"name": "PET BED", "pct": 6.9}, {"name": "Accesorios", "pct": 5.6}, {"name": "ART. PARA PERROS", "pct": 5}, {"name": "Lighting Accents", "pct": 4.8}, {"name": "Abanico Series", "pct": 4.4}, {"name": "Pendant Lamp", "pct": 3.8}, {"name": "Crystal Collection", "pct": 2.9}], "paises": [{"name": "Panamá", "code": "PA", "total_hist": 7107974, "l12": 886141, "p12": 1291076, "growth": -31, "proy": 608210, "cli": 178, "ticket": 4978, "blancos": ["ART. P/ASEO PERROS", "Lighting Accents", "Abanico Series"], "status": "cae"}, {"name": "Venezuela", "code": "VE", "total_hist": 3346883, "l12": 550552, "p12": 761397, "growth": -28, "proy": 398093, "cli": 59, "ticket": 9331, "blancos": ["HAKOL", "Abanico Series", "Crystal Collection"], "status": "cae"}, {"name": "El Salvador", "code": "SV", "total_hist": 2273804, "l12": 390453, "p12": 451026, "growth": -13, "proy": 338016, "cli": 43, "ticket": 9080, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "estable"}, {"name": "Costa Rica", "code": "CR", "total_hist": 1577618, "l12": 362502, "p12": 294096, "growth": 23, "proy": 446821, "cli": 65, "ticket": 5577, "blancos": ["HAKOL"], "status": "crece"}, {"name": "Republica Dominicana", "code": "DO", "total_hist": 1276424, "l12": 286015, "p12": 457947, "growth": -38, "proy": 178634, "cli": 48, "ticket": 5959, "blancos": ["HAKOL", "Lighting Accents", "Abanico Series", "Crystal Collection"], "status": "cae"}, {"name": "Honduras", "code": "HN", "total_hist": 1161678, "l12": 223493, "p12": 141435, "growth": 58, "proy": 353159, "cli": 77, "ticket": 2903, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "crece"}, {"name": "Jamaica", "code": "JM", "total_hist": 636806, "l12": 161206, "p12": 237958, "growth": -32, "proy": 109209, "cli": 33, "ticket": 4885, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "cae"}, {"name": "Paraguay", "code": "PY", "total_hist": 327534, "l12": 161152, "p12": 66419, "growth": 143, "proy": 290073, "cli": 17, "ticket": 9480, "blancos": ["HAKOL", "Lighting Accents", "Abanico Series", "Pendant Lamp"], "status": "crece"}, {"name": "Trinidad y Tobago", "code": "TT", "total_hist": 580026, "l12": 139920, "p12": 201161, "growth": -30, "proy": 97324, "cli": 61, "ticket": 2294, "blancos": ["HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "cae"}, {"name": "Ecuador", "code": "EC", "total_hist": 1290060, "l12": 117293, "p12": 250735, "growth": -53, "proy": 58646, "cli": 25, "ticket": 4692, "blancos": ["HOGAR", "HAKOL", "Abanico Series", "Pendant Lamp"], "status": "cae"}, {"name": "Guyana", "code": "GYN", "total_hist": 241396, "l12": 65972, "p12": 33016, "growth": 100, "proy": 118750, "cli": 34, "ticket": 1940, "blancos": ["HAKOL", "ART. P/ASEO PERROS", "PET BED", "ART. PARA PERROS"], "status": "crece"}, {"name": "Colombia", "code": "CO", "total_hist": 318005, "l12": 63603, "p12": 49266, "growth": 29, "proy": 82113, "cli": 76, "ticket": 837, "blancos": ["HOGAR", "HAKOL", "Accesorios", "ART. PARA PERROS"], "status": "crece"}, {"name": "Nicaragua", "code": "NI", "total_hist": 338048, "l12": 62056, "p12": 98071, "growth": -37, "proy": 39267, "cli": 38, "ticket": 1633, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS"], "status": "cae"}, {"name": "Guayana", "code": "GY", "total_hist": 233745, "l12": 54749, "p12": 41121, "growth": 33, "proy": 72893, "cli": 19, "ticket": 2882, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "crece"}, {"name": "Curazao", "code": "CZ", "total_hist": 226090, "l12": 45543, "p12": 22663, "growth": 101, "proy": 81977, "cli": 20, "ticket": 2277, "blancos": ["HAKOL", "Abanico Series", "Pendant Lamp", "Crystal Collection"], "status": "crece"}, {"name": "Santa Lucia", "code": "LC", "total_hist": 260527, "l12": 18848, "p12": 24087, "growth": -22, "proy": 14748, "cli": 7, "ticket": 2693, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Surinam", "code": "SR", "total_hist": 68074, "l12": 17342, "p12": 4838, "growth": 258, "proy": 31215, "cli": 7, "ticket": 2477, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Zona Libre", "code": "ZL", "total_hist": 322356, "l12": 16781, "p12": 26964, "growth": -38, "proy": 10443, "cli": 54, "ticket": 311, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "Abanico Series"], "status": "greenfield"}, {"name": "Mexico", "code": "MX", "total_hist": 20908, "l12": 14070, "p12": 0, "growth": 100, "proy": 25326, "cli": 5, "ticket": 2814, "blancos": ["HAKOL", "ART. P/ASEO PERROS", "Accesorios", "Lighting Accents"], "status": "greenfield"}, {"name": "Guatemala", "code": "GT", "total_hist": 213986, "l12": 12433, "p12": 22678, "growth": -45, "proy": 6816, "cli": 20, "ticket": 622, "blancos": ["HOGAR", "ART. P/ASEO PERROS", "PET BED", "Accesorios"], "status": "greenfield"}, {"name": "Granada", "code": "GD", "total_hist": 125093, "l12": 12389, "p12": 40727, "growth": -70, "proy": 6195, "cli": 3, "ticket": 4130, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Haiti", "code": "HT", "total_hist": 14200, "l12": 6910, "p12": 2123, "growth": 225, "proy": 12438, "cli": 4, "ticket": 1728, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Antigua, West Indies", "code": "AWI", "total_hist": 523711, "l12": 6491, "p12": 72320, "growth": -91, "proy": 3245, "cli": 3, "ticket": 2164, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Saint Martin", "code": "MF", "total_hist": 10774, "l12": 4491, "p12": 4240, "growth": 6, "proy": 4755, "cli": 5, "ticket": 898, "blancos": ["HAKOL", "ART. P/ASEO PERROS", "PET BED", "Accesorios"], "status": "greenfield"}, {"name": "Cuba", "code": "CU", "total_hist": 41083, "l12": 3654, "p12": 7445, "growth": -51, "proy": 1827, "cli": 24, "ticket": 152, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "USA", "code": "USA", "total_hist": 6455, "l12": 2974, "p12": 0, "growth": 100, "proy": 5353, "cli": 2, "ticket": 1487, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "San Vincente & Granadinas", "code": "VC", "total_hist": 5471, "l12": 2060, "p12": 336, "growth": 513, "proy": 3708, "cli": 8, "ticket": 258, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Turcos e islas de Caicos", "code": "TC", "total_hist": 17467, "l12": 1592, "p12": 0, "growth": 100, "proy": 2866, "cli": 2, "ticket": 796, "blancos": ["HAKOL", "ART. P/ASEO PERROS", "PET BED", "ART. PARA PERROS"], "status": "greenfield"}, {"name": "Barbados", "code": "BB", "total_hist": 18712, "l12": 1268, "p12": 4587, "growth": -72, "proy": 634, "cli": 7, "ticket": 181, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "GRAND CAYMAN ISLAND", "code": "GCI", "total_hist": 5015, "l12": 949, "p12": 4096, "growth": -77, "proy": 475, "cli": 4, "ticket": 237, "blancos": ["HAKOL", "ART. P/ASEO PERROS", "PET BED", "Accesorios"], "status": "greenfield"}, {"name": "Perú", "code": "PE", "total_hist": 18540, "l12": 755, "p12": 0, "growth": 100, "proy": 1359, "cli": 7, "ticket": 108, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Bolivia", "code": "BO", "total_hist": 268656, "l12": 575, "p12": 11631, "growth": -95, "proy": 287, "cli": 20, "ticket": 29, "blancos": ["HOGAR", "HAKOL"], "status": "greenfield"}, {"name": "Bahamas", "code": "BS", "total_hist": 51680, "l12": 320, "p12": 17918, "growth": -98, "proy": 160, "cli": 5, "ticket": 64, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Chile", "code": "CL", "total_hist": 221810, "l12": 0, "p12": 24146, "growth": -100, "proy": 0, "cli": 9, "ticket": 0, "blancos": ["HAKOL", "ART. P/ASEO PERROS", "PET BED", "ART. PARA PERROS"], "status": "greenfield"}, {"name": "Brasil", "code": "BR", "total_hist": 64440, "l12": 0, "p12": 0, "growth": 0, "proy": 0, "cli": 2, "ticket": 0, "blancos": ["HOGAR", "HAKOL", "ART. PARA PERROS", "Lighting Accents"], "status": "greenfield"}, {"name": "Belize", "code": "BZ", "total_hist": 21835, "l12": 0, "p12": 8578, "growth": -100, "proy": 0, "cli": 12, "ticket": 0, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Antigua y Barbuda", "code": "AG", "total_hist": 19480, "l12": 0, "p12": 5680, "growth": -100, "proy": 0, "cli": 3, "ticket": 0, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Dominica", "code": "DM", "total_hist": 17770, "l12": 0, "p12": 5381, "growth": -100, "proy": 0, "cli": 4, "ticket": 0, "blancos": ["ART. P/ASEO PERROS", "PET BED", "ART. PARA PERROS", "Lighting Accents"], "status": "greenfield"}, {"name": "Aruba", "code": "AW", "total_hist": 14851, "l12": 0, "p12": 1688, "growth": -100, "proy": 0, "cli": 5, "ticket": 0, "blancos": ["HOGAR", "HAKOL", "ART. PARA PERROS", "Pendant Lamp"], "status": "greenfield"}, {"name": "Estados Unidos de America", "code": "US", "total_hist": 10918, "l12": 0, "p12": 0, "growth": 0, "proy": 0, "cli": 3, "ticket": 0, "blancos": ["HAKOL", "ART. P/ASEO PERROS", "PET BED", "ART. PARA PERROS"], "status": "greenfield"}, {"name": "Argentina", "code": "AR", "total_hist": 5967, "l12": 0, "p12": 5967, "growth": -100, "proy": 0, "cli": 1, "ticket": 0, "blancos": ["HAKOL", "ART. P/ASEO PERROS", "PET BED", "Accesorios"], "status": "greenfield"}, {"name": "Uruguay", "code": "UY", "total_hist": 748, "l12": 0, "p12": 0, "growth": 0, "proy": 0, "cli": 2, "ticket": 0, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Sint Maarten", "code": "SX", "total_hist": 151, "l12": 0, "p12": 151, "growth": -100, "proy": 0, "cli": 1, "ticket": 0, "blancos": ["HAKOL", "ART. P/ASEO PERROS", "PET BED", "Accesorios"], "status": "greenfield"}, {"name": "Puerto Rico", "code": "PR", "total_hist": -380, "l12": 0, "p12": 0, "growth": 0, "proy": 0, "cli": 2, "ticket": 0, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Curazao", "code": "CW", "total_hist": 964, "l12": -1163, "p12": 1892, "growth": -161, "proy": -581, "cli": 3, "ticket": -388, "blancos": ["HAKOL", "ART. P/ASEO PERROS", "PET BED", "Accesorios"], "status": "greenfield"}]}, "BIGDREAM": {"total": 6649866.24, "clientes": 152, "paises_n": 31, "familias": [{"name": "TOALLAS", "pct": 23.2}, {"name": "ARTICULO", "pct": 21.5}, {"name": "SABANAS", "pct": 19.9}, {"name": "Artículos", "pct": 7.1}, {"name": "ALMOHADAS", "pct": 5}, {"name": "DUVET", "pct": 4.8}, {"name": "ART POLIESTER P/CAMA", "pct": 3.4}, {"name": "CORTINA DE BAÑO", "pct": 3.3}, {"name": "COMFORTER", "pct": 2.5}], "paises": [{"name": "Panamá", "code": "PA", "total_hist": 2314954, "l12": 753496, "p12": 533782, "growth": 41, "proy": 1063648, "cli": 28, "ticket": 26911, "blancos": ["CORTINA DE BAÑO"], "status": "crece"}, {"name": "Venezuela", "code": "VE", "total_hist": 907914, "l12": 384383, "p12": 66954, "growth": 474, "proy": 691890, "cli": 16, "ticket": 24024, "blancos": ["CORTINA DE BAÑO"], "status": "crece"}, {"name": "Ecuador", "code": "EC", "total_hist": 830282, "l12": 293881, "p12": 360546, "growth": -18, "proy": 239543, "cli": 3, "ticket": 97960, "blancos": ["Artículos", "DUVET"], "status": "cae"}, {"name": "Bahamas", "code": "BS", "total_hist": 570073, "l12": 132346, "p12": 235910, "growth": -44, "proy": 74247, "cli": 3, "ticket": 44115, "blancos": ["ALMOHADAS", "DUVET", "ART POLIESTER P/CAMA", "COMFORTER"], "status": "cae"}, {"name": "Chile", "code": "CL", "total_hist": 253983, "l12": 122409, "p12": 58915, "growth": 108, "proy": 220336, "cli": 4, "ticket": 30602, "blancos": ["ARTICULO", "Artículos", "COMFORTER"], "status": "crece"}, {"name": "Guatemala", "code": "GT", "total_hist": 225567, "l12": 90727, "p12": 86716, "growth": 5, "proy": 94923, "cli": 1, "ticket": 90727, "blancos": ["ART POLIESTER P/CAMA"], "status": "estable"}, {"name": "Trinidad y Tobago", "code": "TT", "total_hist": 293113, "l12": 88930, "p12": 180810, "growth": -51, "proy": 44465, "cli": 7, "ticket": 12704, "blancos": ["ARTICULO", "Artículos", "ALMOHADAS", "DUVET"], "status": "cae"}, {"name": "Curazao", "code": "CW", "total_hist": 155401, "l12": 65724, "p12": 50100, "growth": 31, "proy": 86221, "cli": 3, "ticket": 21908, "blancos": ["ARTICULO", "Artículos", "COMFORTER"], "status": "crece"}, {"name": "Estados Unidos de America", "code": "US", "total_hist": 259540, "l12": 49111, "p12": -178, "growth": 100, "proy": 88399, "cli": 2, "ticket": 24555, "blancos": ["Artículos", "ALMOHADAS", "ART POLIESTER P/CAMA", "COMFORTER"], "status": "crece"}, {"name": "Honduras", "code": "HN", "total_hist": 77377, "l12": 47728, "p12": 14797, "growth": 223, "proy": 85910, "cli": 13, "ticket": 3671, "blancos": ["ALMOHADAS"], "status": "crece"}, {"name": "Jamaica", "code": "JM", "total_hist": 63223, "l12": 44045, "p12": 6907, "growth": 538, "proy": 79282, "cli": 10, "ticket": 4405, "blancos": ["ARTICULO", "ALMOHADAS", "CORTINA DE BAÑO", "COMFORTER"], "status": "crece"}, {"name": "Colombia", "code": "CO", "total_hist": 55923, "l12": 43136, "p12": 8997, "growth": 379, "proy": 77645, "cli": 9, "ticket": 4793, "blancos": ["TOALLAS", "COMFORTER"], "status": "crece"}, {"name": "Guayana", "code": "GY", "total_hist": 117292, "l12": 37589, "p12": 10961, "growth": 243, "proy": 67661, "cli": 8, "ticket": 4699, "blancos": ["TOALLAS", "ALMOHADAS", "DUVET", "CORTINA DE BAÑO"], "status": "crece"}, {"name": "Perú", "code": "PE", "total_hist": 95402, "l12": 24498, "p12": 29274, "growth": -16, "proy": 20501, "cli": 3, "ticket": 8166, "blancos": ["Artículos", "ALMOHADAS", "CORTINA DE BAÑO"], "status": "cae"}, {"name": "Costa Rica", "code": "CR", "total_hist": 97512, "l12": 23751, "p12": 66426, "growth": -64, "proy": 11875, "cli": 7, "ticket": 3393, "blancos": ["Artículos"], "status": "cae"}, {"name": "Uruguay", "code": "UY", "total_hist": 7752, "l12": 7752, "p12": 0, "growth": 100, "proy": 13954, "cli": 1, "ticket": 7752, "blancos": ["ARTICULO", "Artículos", "ALMOHADAS", "DUVET"], "status": "greenfield"}, {"name": "Paraguay", "code": "PY", "total_hist": 43166, "l12": 7082, "p12": 10953, "growth": -35, "proy": 4579, "cli": 4, "ticket": 1771, "blancos": ["ART POLIESTER P/CAMA", "COMFORTER"], "status": "greenfield"}, {"name": "Surinam", "code": "SR", "total_hist": 7954, "l12": 4548, "p12": 0, "growth": 100, "proy": 8186, "cli": 1, "ticket": 4548, "blancos": ["ARTICULO", "ALMOHADAS", "ART POLIESTER P/CAMA", "CORTINA DE BAÑO"], "status": "greenfield"}, {"name": "El Salvador", "code": "SV", "total_hist": 8095, "l12": 4253, "p12": 364, "growth": 1068, "proy": 7655, "cli": 5, "ticket": 851, "blancos": ["SABANAS", "ALMOHADAS", "CORTINA DE BAÑO"], "status": "greenfield"}, {"name": "Republica Dominicana", "code": "DO", "total_hist": 100795, "l12": 3651, "p12": 25131, "growth": -85, "proy": 1826, "cli": 6, "ticket": 608, "blancos": ["SABANAS", "ART POLIESTER P/CAMA", "CORTINA DE BAÑO", "COMFORTER"], "status": "greenfield"}, {"name": "Aruba", "code": "AW", "total_hist": 1250, "l12": 1250, "p12": 0, "growth": 100, "proy": 2250, "cli": 1, "ticket": 1250, "blancos": ["TOALLAS", "ARTICULO", "Artículos", "ALMOHADAS"], "status": "greenfield"}, {"name": "Santa Lucia", "code": "LC", "total_hist": 6216, "l12": 1242, "p12": 0, "growth": 100, "proy": 2235, "cli": 2, "ticket": 621, "blancos": ["ARTICULO", "SABANAS", "Artículos", "ALMOHADAS"], "status": "greenfield"}, {"name": "Barbados", "code": "BB", "total_hist": 3889, "l12": 1164, "p12": 1186, "growth": -2, "proy": 1142, "cli": 2, "ticket": 582, "blancos": ["SABANAS", "DUVET", "ART POLIESTER P/CAMA", "CORTINA DE BAÑO"], "status": "greenfield"}, {"name": "Nicaragua", "code": "NI", "total_hist": 14245, "l12": 1034, "p12": 1426, "growth": -28, "proy": 749, "cli": 3, "ticket": 345, "blancos": ["ARTICULO", "Artículos", "ALMOHADAS", "ART POLIESTER P/CAMA"], "status": "greenfield"}, {"name": "Granada", "code": "GD", "total_hist": 2721, "l12": 464, "p12": 2257, "growth": -79, "proy": 232, "cli": 2, "ticket": 232, "blancos": ["SABANAS", "Artículos", "DUVET", "CORTINA DE BAÑO"], "status": "greenfield"}, {"name": "Bolivia", "code": "BO", "total_hist": 80277, "l12": 0, "p12": 21092, "growth": -100, "proy": 0, "cli": 2, "ticket": 0, "blancos": ["ART POLIESTER P/CAMA", "COMFORTER"], "status": "greenfield"}, {"name": "Argentina", "code": "AR", "total_hist": 38115, "l12": 0, "p12": 0, "growth": 0, "proy": 0, "cli": 1, "ticket": 0, "blancos": ["ARTICULO", "SABANAS", "Artículos", "ALMOHADAS"], "status": "greenfield"}, {"name": "Turcos e islas de Caicos", "code": "TC", "total_hist": 8588, "l12": 0, "p12": 0, "growth": 0, "proy": 0, "cli": 1, "ticket": 0, "blancos": ["ARTICULO", "SABANAS", "Artículos", "ALMOHADAS"], "status": "greenfield"}, {"name": "Belize", "code": "BZ", "total_hist": 4402, "l12": 0, "p12": 4402, "growth": -100, "proy": 0, "cli": 2, "ticket": 0, "blancos": ["ARTICULO", "Artículos", "ALMOHADAS", "ART POLIESTER P/CAMA"], "status": "greenfield"}, {"name": "Saint Martin", "code": "MF", "total_hist": 2610, "l12": 0, "p12": 2610, "growth": -100, "proy": 0, "cli": 1, "ticket": 0, "blancos": ["TOALLAS", "ARTICULO", "DUVET", "ART POLIESTER P/CAMA"], "status": "greenfield"}, {"name": "Antigua y Barbuda", "code": "AG", "total_hist": 2237, "l12": 0, "p12": 0, "growth": 0, "proy": 0, "cli": 1, "ticket": 0, "blancos": ["ARTICULO", "SABANAS", "Artículos", "ALMOHADAS"], "status": "greenfield"}]}};
-const PROS=[{"empresa": "Decorglass", "pais": "Colombia", "ciudad": "", "tipo": "Importadora mayorista hogar", "que_vende": "Artículos hogar y decoración (1500+ distribuidores)", "encaja": "JFK", "web": "sitio.catalogodecorglass.com", "contacto": "", "fuente": "https://sitio.catalogodecorglass.com/", "ya_cliente": "no", "notas": "Importador mayorista con red nacional"}, {"empresa": "Distribuidora El Impacto", "pais": "Colombia", "ciudad": "", "tipo": "Importador/mayorista hogar", "que_vende": "4000+ productos hogar, importador directo + dropshipping", "encaja": "JFK", "web": "distribuidoraelimpacto.co", "contacto": "", "fuente": "https://distribuidoraelimpacto.co/collections/hogar", "ya_cliente": "no", "notas": "Importador directo, catálogo amplio"}, {"empresa": "Caroleste", "pais": "Colombia", "ciudad": "", "tipo": "Mayorista decoración", "que_vende": "Decoración hogar y eventos (29 años)", "encaja": "JFK", "web": "caroleste.com.co", "contacto": "", "fuente": "https://caroleste.com.co/pages/mayoristas", "ya_cliente": "no", "notas": "Mayorista decoración establecido"}, {"empresa": "Namo Home", "pais": "Colombia", "ciudad": "", "tipo": "Mayorista decoración", "que_vende": "Artículos de decoración al por mayor", "encaja": "JFK", "web": "namohome.co", "contacto": "", "fuente": "https://namohome.co/mayoristas-decoracion-namo-colombia/", "ya_cliente": "no", "notas": "Mayorista decoración"}, {"empresa": "Omega Importaciones", "pais": "Colombia", "ciudad": "", "tipo": "Importador mascotas", "que_vende": "Accesorios mascotas (abastece pet shops, veterinarias)", "encaja": "JFK", "web": "omegaimportaciones.com", "contacto": "", "fuente": "https://www.omegaimportaciones.com/", "ya_cliente": "no", "notas": "Importador directo accesorios mascotas"}, {"empresa": "Gioatope", "pais": "Colombia", "ciudad": "Bogotá", "tipo": "Distribuidor mascotas", "que_vende": "Camas, collares, pecheras, guacales, juguetes mascotas", "encaja": "JFK", "web": "gioatope.com", "contacto": "", "fuente": "https://gioatope.com/", "ya_cliente": "no", "notas": "Distribuye camas mascotas (encaja Pet Bed)"}, {"empresa": "Megapets Mayorista", "pais": "Colombia", "ciudad": "Bogotá", "tipo": "Mayorista mascotas", "que_vende": "Productos mascotas a tiendas pequeñas", "encaja": "JFK", "web": "megapetsmayorista.com.co", "contacto": "", "fuente": "https://megapetsmayorista.com.co/", "ya_cliente": "no", "notas": "Mayorista mascotas"}, {"empresa": "AM Mascotas", "pais": "Colombia", "ciudad": "Bogotá", "tipo": "Mayorista mascotas", "que_vende": "430+ productos perros y gatos (30 años)", "encaja": "JFK", "web": "ammascotas.com", "contacto": "", "fuente": "https://ammascotas.com/mayoristas/", "ya_cliente": "no", "notas": "Mayorista mascotas establecido"}, {"empresa": "Pet Outlet", "pais": "Colombia", "ciudad": "", "tipo": "Mayorista mascotas", "que_vende": "Artículos para mascotas al por mayor", "encaja": "JFK", "web": "petoutlet.com.co", "contacto": "", "fuente": "https://petoutlet.com.co/", "ya_cliente": "no", "notas": "Mayorista mascotas"}, {"empresa": "Multitextiles Ecuador", "pais": "Ecuador", "ciudad": "Guayaquil", "tipo": "Distribuidor textil hogar", "que_vende": "Sábanas, toallas, línea blanca a precio fábrica", "encaja": "Big Dream", "web": "facebook.com/MultitextilesEcuador", "contacto": "", "fuente": "https://www.facebook.com/MultitextilesEcuador/", "ya_cliente": "no", "notas": "Distribuidor textil hogar, envíos nacionales"}, {"empresa": "PRISMART", "pais": "Ecuador", "ciudad": "Quito", "tipo": "Importador/mayorista hogar", "que_vende": "Artículos hogar e industria al por mayor", "encaja": "Ambas", "web": "prismart-ecuador.com", "contacto": "", "fuente": "https://prismart-ecuador.com/nosotros/", "ya_cliente": "no", "notas": "Importador mayorista hogar"}, {"empresa": "Jonatex", "pais": "Ecuador", "ciudad": "Guayaquil", "tipo": "Mayorista textil hogar", "que_vende": "Edredones, sábanas, toallas, almohadas", "encaja": "Big Dream", "web": "tiktok.com/@jonatexfabricantes23", "contacto": "", "fuente": "https://www.tiktok.com/@jonatexfabricantes23", "ya_cliente": "no", "notas": "Mayorista textil hogar (verificar sitio formal)"}, {"empresa": "Pycca", "pais": "Ecuador", "ciudad": "Guayaquil", "tipo": "Cadena retail hogar", "que_vende": "Cadena de tiendas de artículos para el hogar", "encaja": "Ambas", "web": "pycca.com", "contacto": "", "fuente": "https://www.pycca.com/", "ya_cliente": "no", "notas": "Gran cadena retail hogar — comprador potencial fuerte"}, {"empresa": "Créditos Económicos (Almacenes Tía / Créditos Económicos)", "pais": "Ecuador", "ciudad": "Guayaquil", "tipo": "Cadena retail hogar/electro", "que_vende": "Cadena retail con sección hogar y textil", "encaja": "Ambas", "web": "creditoseconomicos.com", "contacto": "", "fuente": "https://www.creditoseconomicos.com/", "ya_cliente": "no", "notas": "Cadena retail amplia"}, {"empresa": "Corporación El Rosado (Mi Comisariato/Mi Juguetería)", "pais": "Ecuador", "ciudad": "Guayaquil", "tipo": "Cadena retail/hipermercado", "que_vende": "Hipermercados con sección hogar y textil", "encaja": "Ambas", "web": "elrosado.com", "contacto": "", "fuente": "https://www.elrosado.com/", "ya_cliente": "no", "notas": "Hipermercado — gran volumen"}, {"empresa": "PlusCalidad Importaciones", "pais": "Venezuela", "ciudad": "", "tipo": "Importador mayorista hogar", "que_vende": "Ropa de cama, utensilios, organizadores hogar", "encaja": "Ambas", "web": "pluscalidad.com", "contacto": "", "fuente": "https://pluscalidad.com/categoria/hogar/", "ya_cliente": "no", "notas": "Importador mayorista hogar + ropa de cama"}, {"empresa": "Cavegas C.A.", "pais": "Venezuela", "ciudad": "", "tipo": "Distribuidor mayorista", "que_vende": "Distribución mayorista (verificar líneas hogar)", "encaja": "Ambas", "web": "cavegas.com.ve", "contacto": "", "fuente": "https://cavegas.com.ve/distribuidores-mayorista/", "ya_cliente": "posible", "notas": "Verificar líneas de producto"}, {"empresa": "Corporación del Hogar, C.A.", "pais": "Venezuela", "ciudad": "Cagua (Aragua)", "tipo": "Distribuidor mayorista hogar", "que_vende": "Artículos para el hogar al por mayor", "encaja": "Ambas", "web": "", "contacto": "0244-3965613", "fuente": "https://vitrinavenezuela.com/compras-al-mayor/", "ya_cliente": "no", "notas": "Distribuidor mayorista hogar (contacto telefónico)"}, {"empresa": "Distribuidora Gama", "pais": "Guatemala", "ciudad": "Quetzaltenango", "tipo": "Distribuidor mayorista", "que_vende": "Abastece tiendas, abarroterías, super y mayoristas (occidente)", "encaja": "Ambas", "web": "distribuidoragama.com", "contacto": "", "fuente": "https://www.distribuidoragama.com/", "ya_cliente": "no", "notas": "Cobertura occidente/suroccidente GT"}, {"empresa": "Cemaco", "pais": "Guatemala", "ciudad": "Ciudad de Guatemala", "tipo": "Cadena retail hogar", "que_vende": "Cadena líder de artículos para el hogar", "encaja": "Ambas", "web": "cemaco.com", "contacto": "", "fuente": "https://www.cemaco.com/", "ya_cliente": "no", "notas": "Cadena hogar #1 de GT — comprador grande (verificar comprador)"}, {"empresa": "Almacenes El Machetazo / variedades", "pais": "Guatemala", "ciudad": "", "tipo": "Cadena variedades", "que_vende": "Variedades y hogar", "encaja": "Ambas", "web": "", "contacto": "", "fuente": "https://www.tecoloco.com.gt/empresas-comercio-mayorista-intermediac-dist", "ya_cliente": "posible", "notas": "Verificar (cadena variedades)"}, {"empresa": "Importaciones Mundo Ofertas", "pais": "Honduras", "ciudad": "San Pedro Sula", "tipo": "Importador hogar", "que_vende": "Amplia variedad artículos para el hogar", "encaja": "Ambas", "web": "facebook.com/impmundoofertas", "contacto": "", "fuente": "https://www.facebook.com/impmundoofertas/", "ya_cliente": "no", "notas": "Importador hogar SPS"}, {"empresa": "Diunsa", "pais": "Honduras", "ciudad": "San Pedro Sula", "tipo": "Cadena retail hogar/depto", "que_vende": "Tienda por departamento con hogar y textil", "encaja": "Ambas", "web": "diunsa.hn", "contacto": "", "fuente": "https://diunsa.hn/", "ya_cliente": "no", "notas": "Cadena depto líder HN — comprador grande (verificar)"}, {"empresa": "Oro Tex Mayoristas", "pais": "Honduras", "ciudad": "", "tipo": "Mayorista mercancía general", "que_vende": "Hogar y decoración entre sus líneas", "encaja": "JFK", "web": "orotexmayoristas.com", "contacto": "", "fuente": "https://orotexmayoristas.com/honduras/", "ya_cliente": "posible", "notas": "Liquidación/saldos — verificar líneas nuevas"}, {"empresa": "El Bodegón Mayorista", "pais": "Costa Rica", "ciudad": "", "tipo": "Importador mayorista", "que_vende": "Importa de Asia/América, hogar y souvenirs", "encaja": "Ambas", "web": "elbodegonmayorista.com", "contacto": "", "fuente": "https://elbodegonmayorista.com/", "ya_cliente": "no", "notas": "Importador mayorista hogar"}, {"empresa": "ATAI", "pais": "Costa Rica", "ciudad": "", "tipo": "Mayorista multirubro", "que_vende": "Mayoreo a bazares, librerías, super, tiendas", "encaja": "Ambas", "web": "ataicr.com", "contacto": "", "fuente": "https://ataicr.com/mayoreo/", "ya_cliente": "no", "notas": "Mayorista multirubro a retail"}, {"empresa": "DIELSA", "pais": "Costa Rica", "ciudad": "", "tipo": "Importador/distribuidor", "que_vende": "Importador y distribuidor para cadenas y mayoristas", "encaja": "Ambas", "web": "dielsacr.com", "contacto": "", "fuente": "https://dielsacr.com/", "ya_cliente": "no", "notas": "Provee cadenas y mayoristas"}, {"empresa": "Distribuidora Mía", "pais": "Costa Rica", "ciudad": "", "tipo": "Distribuidor hogar", "que_vende": "Todo para el hogar, mayoreo y detalle", "encaja": "Ambas", "web": "instagram.com/distribuidoramiacr", "contacto": "", "fuente": "https://www.instagram.com/distribuidoramiacr/", "ya_cliente": "no", "notas": "Distribuidor hogar"}, {"empresa": "Comersal", "pais": "El Salvador", "ciudad": "", "tipo": "Distribuidor marcas", "que_vende": "Distribución (60 años) de marcas mundiales", "encaja": "Ambas", "web": "comersal.com.sv", "contacto": "", "fuente": "https://comersal.com.sv/", "ya_cliente": "no", "notas": "Distribuidor establecido"}, {"empresa": "ACOSA", "pais": "El Salvador", "ciudad": "", "tipo": "Mayorista", "que_vende": "Venta mayorista multirubro", "encaja": "Ambas", "web": "acosa.com.sv", "contacto": "", "fuente": "https://acosa.com.sv/mayorista/", "ya_cliente": "no", "notas": "Mayorista"}, {"empresa": "DISNA", "pais": "El Salvador", "ciudad": "", "tipo": "Distribuidor", "que_vende": "Distribución multirubro", "encaja": "Ambas", "web": "disna.com.sv", "contacto": "", "fuente": "https://disna.com.sv/en/", "ya_cliente": "posible", "notas": "Verificar líneas hogar/textil"}, {"empresa": "Almacenes Simán", "pais": "El Salvador", "ciudad": "San Salvador", "tipo": "Cadena depto", "que_vende": "Tienda por departamento (hogar/textil)", "encaja": "Ambas", "web": "siman.com", "contacto": "", "fuente": "https://www.siman.com/", "ya_cliente": "no", "notas": "Cadena depto regional (verificar comprador)"}, {"empresa": "Variedades Aaron", "pais": "Nicaragua", "ciudad": "Managua", "tipo": "Mayorista variedades", "que_vende": "Mayorista (Mercado Oriental), envíos nacionales", "encaja": "Ambas", "web": "variedadesaaron.store", "contacto": "", "fuente": "https://www.variedadesaaron.store/", "ya_cliente": "no", "notas": "Mayorista variedades/hogar"}, {"empresa": "Grupo Yang Perú", "pais": "Perú", "ciudad": "Lima", "tipo": "Importador mayorista", "que_vende": "Importaciones por mayor hogar, cocina, tecnología", "encaja": "Ambas", "web": "grupoyang.pe", "contacto": "", "fuente": "https://grupoyang.pe/", "ya_cliente": "no", "notas": "Líder importaciones por mayor hogar"}, {"empresa": "Hans (DHans)", "pais": "Perú", "ciudad": "Lima", "tipo": "Importador hogar/cocina", "que_vende": "Vajillas, vasos, utensilios y hogar por mayor", "encaja": "JFK", "web": "dhans.pe", "contacto": "", "fuente": "https://dhans.pe/", "ya_cliente": "no", "notas": "Importa hogar por mayor"}, {"empresa": "Mayorista Peruano", "pais": "Perú", "ciudad": "Lima", "tipo": "Importador hogar", "que_vende": "Productos para el hogar por mayor y menor", "encaja": "Ambas", "web": "mayoristape.com", "contacto": "", "fuente": "https://mayoristape.com/", "ya_cliente": "no", "notas": "Importador hogar nacional"}, {"empresa": "Sharwinn", "pais": "Perú", "ciudad": "Lima", "tipo": "Importadora mayorista", "que_vende": "Importadora con envíos Lima/Trujillo/Chiclayo/Piura", "encaja": "Ambas", "web": "sharwinn.com", "contacto": "", "fuente": "https://sharwinn.com/tienda-importadora-por-mayor/", "ya_cliente": "no", "notas": "Importadora mayorista nacional"}, {"empresa": "Lima Mayoristas", "pais": "Perú", "ciudad": "Lima", "tipo": "Importador textil hogar", "que_vende": "Textil para el hogar (matriz en China)", "encaja": "Big Dream", "web": "limamayoristas.com", "contacto": "", "fuente": "https://limamayoristas.com/", "ya_cliente": "no", "notas": "Especialista textil hogar"}, {"empresa": "El Importador Perú", "pais": "Perú", "ciudad": "Lima", "tipo": "Distribuidor", "que_vende": "Distribuye a todo el Perú", "encaja": "Ambas", "web": "elimportadorperu.com", "contacto": "", "fuente": "https://elimportadorperu.com/", "ya_cliente": "no", "notas": "Distribuidor nacional"}, {"empresa": "Minoil S.A.", "pais": "Bolivia", "ciudad": "Santa Cruz", "tipo": "Distribuidor masivo", "que_vende": "Distribución masiva, 1000+ SKUs importados", "encaja": "Ambas", "web": "minoil.com.bo", "contacto": "", "fuente": "https://www.minoil.com.bo/", "ya_cliente": "no", "notas": "Distribuidor masivo nacional"}, {"empresa": "Cruzimex", "pais": "Bolivia", "ciudad": "Santa Cruz", "tipo": "Importador/distribuidor", "que_vende": "Consumo masivo, marcas mundiales y locales", "encaja": "Ambas", "web": "cruzimex.com", "contacto": "", "fuente": "https://cruzimex.com/", "ya_cliente": "no", "notas": "Importador/distribuidor consumo masivo"}, {"empresa": "Multicenter", "pais": "Bolivia", "ciudad": "La Paz / Santa Cruz", "tipo": "Cadena retail hogar", "que_vende": "Tienda por departamento de hogar", "encaja": "Ambas", "web": "multicenter.com.bo", "contacto": "", "fuente": "https://www.multicenter.com.bo/", "ya_cliente": "no", "notas": "Cadena hogar líder BO (verificar comprador)"}, {"empresa": "Doral Mayorista", "pais": "Chile", "ciudad": "Santiago", "tipo": "Mayorista hogar/textil", "que_vende": "Hogar, textil, menaje y electrohome", "encaja": "Ambas", "web": "doralmayorista.cl", "contacto": "", "fuente": "https://doralmayorista.cl/", "ya_cliente": "no", "notas": "Encaje fuerte (textil + hogar)"}, {"empresa": "Compras Aquí", "pais": "Chile", "ciudad": "Santiago", "tipo": "Mayorista hogar", "que_vende": "4277 productos: almacenamiento, baño, textil, deco", "encaja": "Ambas", "web": "comprasaqui.cl", "contacto": "", "fuente": "https://comprasaqui.cl/hogar", "ya_cliente": "no", "notas": "Catálogo hogar amplio incl. textil baño"}, {"empresa": "Chile Por Mayor SpA", "pais": "Chile", "ciudad": "Santiago", "tipo": "Importador mayorista", "que_vende": "Importaciones mayoristas (barrio Meiggs)", "encaja": "Ambas", "web": "chilepormayor.cl", "contacto": "", "fuente": "https://chilepormayor.cl/", "ya_cliente": "no", "notas": "Hub importador Meiggs"}, {"empresa": "Importadora Muli", "pais": "Chile", "ciudad": "Santiago", "tipo": "Importador menaje/hogar", "que_vende": "Regalos, menaje y hogar", "encaja": "JFK", "web": "muli.cl", "contacto": "", "fuente": "https://www.muli.cl/", "ya_cliente": "no", "notas": "Importador menaje/regalos"}, {"empresa": "FASTRAX S.A.", "pais": "Paraguay", "ciudad": "Asunción", "tipo": "Distribuidor mayorista", "que_vende": "Tecnología y productos de hogar, cobertura nacional", "encaja": "Ambas", "web": "fastrax.com.py", "contacto": "", "fuente": "https://www.fastrax.com.py/nosotros/", "ya_cliente": "no", "notas": "Distribuidor mayorista hogar"}, {"empresa": "Atlantic SAE", "pais": "Paraguay", "ciudad": "Asunción", "tipo": "Mayorista hogar/ferretería", "que_vende": "Hogar y construcción, marcas int. (Tramontina), 50 años", "encaja": "JFK", "web": "atlantic.com.py", "contacto": "", "fuente": "https://www.atlantic.com.py/", "ya_cliente": "no", "notas": "Mayorista hogar establecido"}, {"empresa": "Nueva Americana", "pais": "Paraguay", "ciudad": "Asunción", "tipo": "Cadena depto", "que_vende": "Tienda por departamento con hogar y textil", "encaja": "Ambas", "web": "nuevaamericana.com.py", "contacto": "", "fuente": "https://www.nuevaamericana.com.py/", "ya_cliente": "no", "notas": "Cadena depto (verificar comprador)"}, {"empresa": "RTR Distribuciones Diversas", "pais": "Republica Dominicana", "ciudad": "Santo Domingo", "tipo": "Importador/distribuidor hogar", "que_vende": "Muebles y adornos decorativos para el hogar", "encaja": "JFK", "web": "rtrdistribuciones.com", "contacto": "", "fuente": "https://www.rtrdistribuciones.com/", "ya_cliente": "no", "notas": "Importa muebles/adornos hogar"}, {"empresa": "Suplidores Diversos", "pais": "Republica Dominicana", "ciudad": "", "tipo": "Mayorista hogar", "que_vende": "Artículos esenciales y decorativos del hogar", "encaja": "Ambas", "web": "suplidoresdiversos.com", "contacto": "", "fuente": "https://www.suplidoresdiversos.com/", "ya_cliente": "no", "notas": "Líder mayoreo nacional"}, {"empresa": "Mega Depot", "pais": "Republica Dominicana", "ciudad": "", "tipo": "Importador/distribuidor", "que_vende": "Hogar, electrodomésticos y ferretería", "encaja": "Ambas", "web": "", "contacto": "", "fuente": "https://www.livio.com/directorio/negocios-y-economia/distribuidores/", "ya_cliente": "no", "notas": "Importador hogar (buscar contacto en Livio)"}, {"empresa": "Sanjo Market", "pais": "Republica Dominicana", "ciudad": "", "tipo": "Importador decoración", "que_vende": "Decoración del hogar (30 años)", "encaja": "JFK", "web": "", "contacto": "", "fuente": "https://www.livio.com/directorio/negocios-y-economia/distribuidores/", "ya_cliente": "no", "notas": "Importa decoración hogar"}, {"empresa": "DivemaRD", "pais": "Republica Dominicana", "ciudad": "", "tipo": "Distribuidor textil", "que_vende": "Textil/artesanía a resort, gift y supermercados", "encaja": "Big Dream", "web": "", "contacto": "", "fuente": "https://www.livio.com/directorio/negocios-y-economia/distribuidores/", "ya_cliente": "no", "notas": "Distribuidor textil (encaja Big Dream)"}, {"empresa": "Benigno Zapatero, SRL", "pais": "Republica Dominicana", "ciudad": "", "tipo": "Importador/distribuidor hogar", "que_vende": "Cubertería, cristalería, plásticos hogar", "encaja": "JFK", "web": "", "contacto": "", "fuente": "https://www.livio.com/directorio/negocios-y-economia/distribuidores/", "ya_cliente": "no", "notas": "Importador hogar/menaje"}, {"empresa": "Prince Trading Company", "pais": "Jamaica", "ciudad": "Kingston", "tipo": "Mayorista distribuidor", "que_vende": "Provee 300+ mayoristas y supermercados", "encaja": "Ambas", "web": "princetradingltd.com", "contacto": "", "fuente": "https://www.princetradingltd.com/", "ya_cliente": "no", "notas": "Amplia red mayorista/super"}, {"empresa": "DFL Importers & Distributors", "pais": "Jamaica", "ciudad": "Kingston", "tipo": "Importador/distribuidor FMCG", "que_vende": "FMCG a super, mayoristas, hoteles (desde 1976)", "encaja": "Ambas", "web": "dflimporters.com", "contacto": "", "fuente": "https://dflimporters.com/", "ya_cliente": "posible", "notas": "Verificar línea housewares"}, {"empresa": "Courts Jamaica (Unicomer)", "pais": "Jamaica", "ciudad": "Kingston", "tipo": "Cadena retail hogar", "que_vende": "Muebles, electro y hogar", "encaja": "Ambas", "web": "", "contacto": "", "fuente": "https://www.findyello.com/jamaica-kingston/distributors-wholesale/", "ya_cliente": "posible", "notas": "Cadena retail hogar (verificar comprador)"}, {"empresa": "A.S. Bryden & Sons (Brydens)", "pais": "Trinidad y Tobago", "ciudad": "Port of Spain", "tipo": "Distribuidor premier", "que_vende": "Cientos de marcas incl. Housewares", "encaja": "Ambas", "web": "brydenstt.com", "contacto": "", "fuente": "https://www.brydenstt.com/supply-my-business/", "ya_cliente": "no", "notas": "Distribuidor #1 con línea housewares"}, {"empresa": "Acado Distribution", "pais": "Trinidad y Tobago", "ciudad": "", "tipo": "Distribuidor", "que_vende": "Household, hygiene y housewares (30+ multinacionales)", "encaja": "Ambas", "web": "acadodistribution.com", "contacto": "", "fuente": "https://acadodistribution.com/company/", "ya_cliente": "no", "notas": "Fuerte en household/housewares"}, {"empresa": "Langston Roach Industries", "pais": "Trinidad y Tobago", "ciudad": "", "tipo": "Fabricante/distribuidor", "que_vende": "Household y personal care", "encaja": "JFK", "web": "", "contacto": "", "fuente": "https://www.findyello.com/trinidad/distributors-wholesale/", "ya_cliente": "posible", "notas": "Verificar interés en importado"}, {"empresa": "Kelly's House & Home", "pais": "Bahamas", "ciudad": "Nassau", "tipo": "Retail/mayorista hogar", "que_vende": "Housewares y artículos de cocina", "encaja": "Ambas", "web": "kellysbahamas.com", "contacto": "", "fuente": "https://www.kellysbahamas.com/c/general-housewares/2", "ya_cliente": "no", "notas": "Retailer hogar líder Nassau"}, {"empresa": "CBS Bahamas", "pais": "Bahamas", "ciudad": "Nassau", "tipo": "Retail hogar/mejoras", "que_vende": "Housewares, plomería, iluminación", "encaja": "JFK", "web": "cbsbahamas.com", "contacto": "", "fuente": "https://www.cbsbahamas.com/", "ya_cliente": "no", "notas": "Vende iluminación (encaja JFK)"}, {"empresa": "Quality Home Centre", "pais": "Bahamas", "ciudad": "Nassau", "tipo": "Retail housewares", "que_vende": "Artículos para el hogar", "encaja": "Ambas", "web": "", "contacto": "", "fuente": "https://www.findyello.com/bahamas/quality-home-centre/profile/", "ya_cliente": "no", "notas": "Retailer housewares"}, {"empresa": "M&C Home Depot (M&C Group)", "pais": "Santa Lucia", "ciudad": "Castries", "tipo": "Cadena retail hogar", "que_vende": "Hogar, muebles y electro", "encaja": "Ambas", "web": "", "contacto": "", "fuente": "https://www.dnb.com/business-directory/company-information.household_appliances_and_electrical_and_electronic_goods_merchant_wholesalers.lc.gros_islet.html", "ya_cliente": "posible", "notas": "Mayor grupo retail de St. Lucia (verificar dominio/comprador)"}, {"empresa": "Townhouse Megastore", "pais": "Antigua y Barbuda", "ciudad": "St. John's", "tipo": "Retail hogar/electro", "que_vende": "Hogar, muebles y electrodomésticos", "encaja": "Ambas", "web": "", "contacto": "", "fuente": "https://www.findyello.com/antigua/distributors-wholesale/", "ya_cliente": "posible", "notas": "Megastore de hogar (verificar contacto)"}, {"empresa": "Mangusa Hypermarket", "pais": "Curazao", "ciudad": "Willemstad", "tipo": "Hipermercado", "que_vende": "Hipermercado con sección hogar y textil", "encaja": "Ambas", "web": "", "contacto": "", "fuente": "https://www.findyello.com/", "ya_cliente": "posible", "notas": "Hipermercado (verificar dominio/comprador)"}];
-
-let CO="JFK";
+const OPP={"total": 23307349.9, "clientes": 1027, "paises_n": 45, "familias": [{"name": "HOGAR", "pct": 10.9}, {"name": "HAKOL", "pct": 7.4}, {"name": "ART. P/ASEO PERROS", "pct": 7.3}, {"name": "PET BED", "pct": 6.9}, {"name": "Accesorios", "pct": 5.6}, {"name": "ART. PARA PERROS", "pct": 5}, {"name": "Lighting Accents", "pct": 4.8}, {"name": "Abanico Series", "pct": 4.4}, {"name": "Pendant Lamp", "pct": 3.8}, {"name": "Crystal Collection", "pct": 2.9}], "paises": [{"name": "Panamá", "code": "PA", "total_hist": 7107974, "l12": 886141, "p12": 1291076, "growth": -31, "proy": 608210, "cli": 178, "ticket": 4978, "blancos": ["ART. P/ASEO PERROS", "Lighting Accents", "Abanico Series"], "status": "cae"}, {"name": "Venezuela", "code": "VE", "total_hist": 3346883, "l12": 550552, "p12": 761397, "growth": -28, "proy": 398093, "cli": 59, "ticket": 9331, "blancos": ["HAKOL", "Abanico Series", "Crystal Collection"], "status": "cae"}, {"name": "El Salvador", "code": "SV", "total_hist": 2273804, "l12": 390453, "p12": 451026, "growth": -13, "proy": 338016, "cli": 43, "ticket": 9080, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "estable"}, {"name": "Costa Rica", "code": "CR", "total_hist": 1577618, "l12": 362502, "p12": 294096, "growth": 23, "proy": 446821, "cli": 65, "ticket": 5577, "blancos": ["HAKOL"], "status": "crece"}, {"name": "Republica Dominicana", "code": "DO", "total_hist": 1276424, "l12": 286015, "p12": 457947, "growth": -38, "proy": 178634, "cli": 48, "ticket": 5959, "blancos": ["HAKOL", "Lighting Accents", "Abanico Series", "Crystal Collection"], "status": "cae"}, {"name": "Honduras", "code": "HN", "total_hist": 1161678, "l12": 223493, "p12": 141435, "growth": 58, "proy": 353159, "cli": 77, "ticket": 2903, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "crece"}, {"name": "Jamaica", "code": "JM", "total_hist": 636806, "l12": 161206, "p12": 237958, "growth": -32, "proy": 109209, "cli": 33, "ticket": 4885, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "cae"}, {"name": "Paraguay", "code": "PY", "total_hist": 327534, "l12": 161152, "p12": 66419, "growth": 143, "proy": 290073, "cli": 17, "ticket": 9480, "blancos": ["HAKOL", "Lighting Accents", "Abanico Series", "Pendant Lamp"], "status": "crece"}, {"name": "Trinidad y Tobago", "code": "TT", "total_hist": 580026, "l12": 139920, "p12": 201161, "growth": -30, "proy": 97324, "cli": 61, "ticket": 2294, "blancos": ["HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "cae"}, {"name": "Ecuador", "code": "EC", "total_hist": 1290060, "l12": 117293, "p12": 250735, "growth": -53, "proy": 58646, "cli": 25, "ticket": 4692, "blancos": ["HOGAR", "HAKOL", "Abanico Series", "Pendant Lamp"], "status": "cae"}, {"name": "Guyana", "code": "GYN", "total_hist": 241396, "l12": 65972, "p12": 33016, "growth": 100, "proy": 118750, "cli": 34, "ticket": 1940, "blancos": ["HAKOL", "ART. P/ASEO PERROS", "PET BED", "ART. PARA PERROS"], "status": "crece"}, {"name": "Colombia", "code": "CO", "total_hist": 318005, "l12": 63603, "p12": 49266, "growth": 29, "proy": 82113, "cli": 76, "ticket": 837, "blancos": ["HOGAR", "HAKOL", "Accesorios", "ART. PARA PERROS"], "status": "crece"}, {"name": "Nicaragua", "code": "NI", "total_hist": 338048, "l12": 62056, "p12": 98071, "growth": -37, "proy": 39267, "cli": 38, "ticket": 1633, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS"], "status": "cae"}, {"name": "Guayana", "code": "GY", "total_hist": 233745, "l12": 54749, "p12": 41121, "growth": 33, "proy": 72893, "cli": 19, "ticket": 2882, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "crece"}, {"name": "Curazao", "code": "CZ", "total_hist": 226090, "l12": 45543, "p12": 22663, "growth": 101, "proy": 81977, "cli": 20, "ticket": 2277, "blancos": ["HAKOL", "Abanico Series", "Pendant Lamp", "Crystal Collection"], "status": "crece"}, {"name": "Santa Lucia", "code": "LC", "total_hist": 260527, "l12": 18848, "p12": 24087, "growth": -22, "proy": 14748, "cli": 7, "ticket": 2693, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Surinam", "code": "SR", "total_hist": 68074, "l12": 17342, "p12": 4838, "growth": 258, "proy": 31215, "cli": 7, "ticket": 2477, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Zona Libre", "code": "ZL", "total_hist": 322356, "l12": 16781, "p12": 26964, "growth": -38, "proy": 10443, "cli": 54, "ticket": 311, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "Abanico Series"], "status": "greenfield"}, {"name": "Mexico", "code": "MX", "total_hist": 20908, "l12": 14070, "p12": 0, "growth": 100, "proy": 25326, "cli": 5, "ticket": 2814, "blancos": ["HAKOL", "ART. P/ASEO PERROS", "Accesorios", "Lighting Accents"], "status": "greenfield"}, {"name": "Guatemala", "code": "GT", "total_hist": 213986, "l12": 12433, "p12": 22678, "growth": -45, "proy": 6816, "cli": 20, "ticket": 622, "blancos": ["HOGAR", "ART. P/ASEO PERROS", "PET BED", "Accesorios"], "status": "greenfield"}, {"name": "Granada", "code": "GD", "total_hist": 125093, "l12": 12389, "p12": 40727, "growth": -70, "proy": 6195, "cli": 3, "ticket": 4130, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Haiti", "code": "HT", "total_hist": 14200, "l12": 6910, "p12": 2123, "growth": 225, "proy": 12438, "cli": 4, "ticket": 1728, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Antigua, West Indies", "code": "AWI", "total_hist": 523711, "l12": 6491, "p12": 72320, "growth": -91, "proy": 3245, "cli": 3, "ticket": 2164, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Saint Martin", "code": "MF", "total_hist": 10774, "l12": 4491, "p12": 4240, "growth": 6, "proy": 4755, "cli": 5, "ticket": 898, "blancos": ["HAKOL", "ART. P/ASEO PERROS", "PET BED", "Accesorios"], "status": "greenfield"}, {"name": "Cuba", "code": "CU", "total_hist": 41083, "l12": 3654, "p12": 7445, "growth": -51, "proy": 1827, "cli": 24, "ticket": 152, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "USA", "code": "USA", "total_hist": 6455, "l12": 2974, "p12": 0, "growth": 100, "proy": 5353, "cli": 2, "ticket": 1487, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "San Vincente & Granadinas", "code": "VC", "total_hist": 5471, "l12": 2060, "p12": 336, "growth": 513, "proy": 3708, "cli": 8, "ticket": 258, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Turcos e islas de Caicos", "code": "TC", "total_hist": 17467, "l12": 1592, "p12": 0, "growth": 100, "proy": 2866, "cli": 2, "ticket": 796, "blancos": ["HAKOL", "ART. P/ASEO PERROS", "PET BED", "ART. PARA PERROS"], "status": "greenfield"}, {"name": "Barbados", "code": "BB", "total_hist": 18712, "l12": 1268, "p12": 4587, "growth": -72, "proy": 634, "cli": 7, "ticket": 181, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "GRAND CAYMAN ISLAND", "code": "GCI", "total_hist": 5015, "l12": 949, "p12": 4096, "growth": -77, "proy": 475, "cli": 4, "ticket": 237, "blancos": ["HAKOL", "ART. P/ASEO PERROS", "PET BED", "Accesorios"], "status": "greenfield"}, {"name": "Perú", "code": "PE", "total_hist": 18540, "l12": 755, "p12": 0, "growth": 100, "proy": 1359, "cli": 7, "ticket": 108, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Bolivia", "code": "BO", "total_hist": 268656, "l12": 575, "p12": 11631, "growth": -95, "proy": 287, "cli": 20, "ticket": 29, "blancos": ["HOGAR", "HAKOL"], "status": "greenfield"}, {"name": "Bahamas", "code": "BS", "total_hist": 51680, "l12": 320, "p12": 17918, "growth": -98, "proy": 160, "cli": 5, "ticket": 64, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Chile", "code": "CL", "total_hist": 221810, "l12": 0, "p12": 24146, "growth": -100, "proy": 0, "cli": 9, "ticket": 0, "blancos": ["HAKOL", "ART. P/ASEO PERROS", "PET BED", "ART. PARA PERROS"], "status": "greenfield"}, {"name": "Brasil", "code": "BR", "total_hist": 64440, "l12": 0, "p12": 0, "growth": 0, "proy": 0, "cli": 2, "ticket": 0, "blancos": ["HOGAR", "HAKOL", "ART. PARA PERROS", "Lighting Accents"], "status": "greenfield"}, {"name": "Belize", "code": "BZ", "total_hist": 21835, "l12": 0, "p12": 8578, "growth": -100, "proy": 0, "cli": 12, "ticket": 0, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Antigua y Barbuda", "code": "AG", "total_hist": 19480, "l12": 0, "p12": 5680, "growth": -100, "proy": 0, "cli": 3, "ticket": 0, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Dominica", "code": "DM", "total_hist": 17770, "l12": 0, "p12": 5381, "growth": -100, "proy": 0, "cli": 4, "ticket": 0, "blancos": ["ART. P/ASEO PERROS", "PET BED", "ART. PARA PERROS", "Lighting Accents"], "status": "greenfield"}, {"name": "Aruba", "code": "AW", "total_hist": 14851, "l12": 0, "p12": 1688, "growth": -100, "proy": 0, "cli": 5, "ticket": 0, "blancos": ["HOGAR", "HAKOL", "ART. PARA PERROS", "Pendant Lamp"], "status": "greenfield"}, {"name": "Estados Unidos de America", "code": "US", "total_hist": 10918, "l12": 0, "p12": 0, "growth": 0, "proy": 0, "cli": 3, "ticket": 0, "blancos": ["HAKOL", "ART. P/ASEO PERROS", "PET BED", "ART. PARA PERROS"], "status": "greenfield"}, {"name": "Argentina", "code": "AR", "total_hist": 5967, "l12": 0, "p12": 5967, "growth": -100, "proy": 0, "cli": 1, "ticket": 0, "blancos": ["HAKOL", "ART. P/ASEO PERROS", "PET BED", "Accesorios"], "status": "greenfield"}, {"name": "Uruguay", "code": "UY", "total_hist": 748, "l12": 0, "p12": 0, "growth": 0, "proy": 0, "cli": 2, "ticket": 0, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Sint Maarten", "code": "SX", "total_hist": 151, "l12": 0, "p12": 151, "growth": -100, "proy": 0, "cli": 1, "ticket": 0, "blancos": ["HAKOL", "ART. P/ASEO PERROS", "PET BED", "Accesorios"], "status": "greenfield"}, {"name": "Puerto Rico", "code": "PR", "total_hist": -380, "l12": 0, "p12": 0, "growth": 0, "proy": 0, "cli": 2, "ticket": 0, "blancos": ["HOGAR", "HAKOL", "ART. P/ASEO PERROS", "PET BED"], "status": "greenfield"}, {"name": "Curazao", "code": "CW", "total_hist": 964, "l12": -1163, "p12": 1892, "growth": -161, "proy": -581, "cli": 3, "ticket": -388, "blancos": ["HAKOL", "ART. P/ASEO PERROS", "PET BED", "Accesorios"], "status": "greenfield"}]};
+const EMPRESA="JFK", SESSION_KEY="jfk_vendor_session", API="/.netlify/functions/prospectos";
+let SES=null; try{ SES=JSON.parse(localStorage.getItem(SESSION_KEY)||"null"); }catch(e){}
+let ST={pros:[],esAdmin:false,paises:[],vends:[]}, fEstado="", fPais="", fQ="", fMine=false;
 const fmt=n=>"$"+Math.round(n).toLocaleString("en-US");
-const fmtK=n=> n>=1e6 ? "$"+(n/1e6).toFixed(2)+"M" : n>=1e3 ? "$"+Math.round(n/1e3)+"k" : "$"+Math.round(n);
-document.getElementById("date").textContent="Actualizado: "+OPP.fecha;
+const fmtK=n=> n>=1e6?"$"+(n/1e6).toFixed(2)+"M":n>=1e3?"$"+Math.round(n/1e3)+"k":"$"+Math.round(n);
+const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+function toast(m){const t=document.getElementById("toast");t.textContent=m;t.style.display="block";setTimeout(()=>t.style.display="none",2200);}
+async function api(action,extra){const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({action,email:SES&&SES.email,nombre:SES&&SES.name},extra||{}))});return r.json();}
 
-/* ---------- KPIs ---------- */
-function renderKPIs(){
-  const e=OPP[CO];
-  const proyTotal=e.paises.reduce((s,p)=>s+p.proy,0);
-  const green=e.paises.filter(p=>p.status==="greenfield").length;
-  const crece=e.paises.filter(p=>p.status==="crece").length;
-  const prosN=PROS.filter(p=>p.encaja===CO_LABEL()||p.encaja==="Ambas").length;
-  const K=[
-    ["Ventas (hist.)",fmtK(e.total),e.clientes+" clientes"],
-    ["Países activos",e.paises_n,""],
-    ["Proyección 12m",fmtK(proyTotal),"al ritmo actual"],
-    ["Mercados que crecen",crece,green+" greenfield"],
-    ["Prospectos nuevos",prosN,"sin contactar"]
+if(!SES||!SES.email){
+  document.getElementById("app").innerHTML='<div class="empty">Inicia sesión en el portal para ver Expansión.<br><br><a href="vendedores.html">Ir al portal →</a></div>';
+}else{ init(); }
+document.getElementById("who").innerHTML = SES?`<b>${esc(SES.name||SES.email)}</b><br>${SES.role==="admin"?"Administrador":"Vendedor"}`:"";
+
+async function init(){
+  const r=await api("list");
+  if(!r.ok){document.getElementById("app").innerHTML='<div class="empty">Error: '+esc(r.error||"")+'</div>';return;}
+  ST.pros=r.prospectos||[]; ST.esAdmin=r.esAdmin; ST.paises=r.paisesAsignados||[];
+  if(ST.esAdmin){ const v=await api("vendors"); ST.vends=(v.vendedores||[]); ST.paisVend=(v.paisVendedor||[]); }
+  render();
+}
+const EST=["nuevo","asignado","contactando","contactado","cliente","descartado"];
+const ESTL={nuevo:"Nuevo",asignado:"Asignado",contactando:"Contactando",contactado:"Contactado",cliente:"¡Cliente!",descartado:"Descartado"};
+
+function render(){
+  const oppP = OPP.paises.filter(p=> ST.esAdmin || ST.paises.includes(p.name));
+  const proyTot=oppP.reduce((s,p)=>s+Math.max(0,p.proy),0);
+  const mine=ST.pros.filter(p=>p.asignado_email&&SES&&p.asignado_email.toLowerCase()===SES.email.toLowerCase());
+  const pend=mine.filter(p=>["asignado","contactando"].includes(p.estado)).length;
+  const contactados=ST.pros.filter(p=>["contactado","cliente"].includes(p.estado)).length;
+  const kpis=[
+    ["Prospectos", ST.pros.length, ST.esAdmin?"en tu base":"a tu alcance"],
+    ["Por contactar", pend, "asignados a ti"],
+    ["Contactados", contactados, "incl. clientes"],
+    ["Países", [...new Set(ST.pros.map(p=>p.pais))].length, ""],
+    ["Proyección 12m", fmtK(proyTot), "oportunidad"]
   ];
-  document.getElementById("kpis").innerHTML=K.map(k=>`<div class="kpi"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="s">${k[2]}</div></div>`).join("");
+  let html=`<div class="kpis">${kpis.map(k=>`<div class="kpi"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="s">${k[2]}</div></div>`).join("")}</div>
+  <div class="tabs"><div class="t on" data-tab="pros">🎯 Clientes potenciales</div><div class="t" data-tab="opp">📈 Oportunidad por país</div></div>
+  <div class="panel on" id="p-pros">${renderPros()}</div>
+  <div class="panel" id="p-opp">${renderOpp(oppP)}</div>`;
+  document.getElementById("app").innerHTML=html;
+  bind();
 }
-function CO_LABEL(){return CO==="JFK"?"JFK":"Big Dream";}
+function vendOptions(sel){return '<option value="">— vendedor —</option>'+ST.vends.map(v=>`<option value="${esc(v.email)}|${esc(v.name)}" ${sel&&sel.toLowerCase()===v.email.toLowerCase()?"selected":""}>${esc(v.name)}</option>`).join("");}
 
-/* ---------- Chart ---------- */
-function renderChart(){
-  const ps=[...OPP[CO].paises].filter(p=>p.proy>0).sort((a,b)=>b.proy-a.proy).slice(0,12);
-  const mx=Math.max(...ps.map(p=>p.proy),1);
-  document.getElementById("chart").innerHTML=ps.map(p=>{
-    const w=Math.max(2,p.proy/mx*100);
-    const g=p.growth>=0?`<span class="up">▲${p.growth}%</span>`:`<span class="dn">▼${Math.abs(p.growth)}%</span>`;
-    return `<div class="bar"><div class="nm" title="${p.name}">${p.name}</div><div class="track"><div class="fill" style="width:0%" data-w="${w}"></div></div><div class="val">${fmtK(p.proy)} ${g}</div></div>`;
-  }).join("");
-  setTimeout(()=>document.querySelectorAll("#chart .fill").forEach(f=>f.style.width=f.dataset.w+"%"),60);
-}
-
-/* ---------- Opp table ---------- */
-let sortK="l12",sortDir=-1;
-function renderTable(){
-  const ps=[...OPP[CO].paises].sort((a,b)=>{
-    let x=a[sortK],y=b[sortK];
-    if(typeof x==="string"){return String(x).localeCompare(String(y))*sortDir;}
-    return (x-y)*sortDir;
-  });
-  const bmap={crece:"b-crece",cae:"b-cae",estable:"b-estable",greenfield:"b-greenfield"};
-  const blbl={crece:"Crece",cae:"Cae",estable:"Estable",greenfield:"Greenfield"};
-  document.getElementById("oppbody").innerHTML=ps.map(p=>{
-    const hasV=p.l12>0;
-    const g=!hasV?'<span class="muted">—</span>':(p.growth>=0?`<span class="up">+${p.growth}%</span>`:`<span class="dn">${p.growth}%</span>`);
-    const chips=p.blancos.length?`<div class="chips">${p.blancos.map(b=>`<span class="chip">${b}</span>`).join("")}</div>`:'<span class="muted">—</span>';
-    return `<tr>
-      <td>${p.name}</td>
-      <td class="num">${hasV?fmt(p.l12):'$0'}</td>
-      <td class="num">${g}</td>
-      <td class="num">${hasV&&p.proy>0?fmt(p.proy):"—"}</td>
-      <td class="num">${p.cli}</td>
-      <td class="num">${p.ticket>0?fmt(p.ticket):"—"}</td>
-      <td><span class="badge ${bmap[p.status]}">${blbl[p.status]}</span></td>
-      <td>${chips}</td>
-    </tr>`;
-  }).join("");
-}
-document.querySelectorAll("#opptab th[data-k]").forEach(th=>th.onclick=()=>{
-  const k=th.dataset.k; if(sortK===k)sortDir*=-1; else{sortK=k;sortDir=(k==="name")?1:-1;} renderTable();
-});
-
-/* ---------- Prospects ---------- */
-function fillSelects(){
-  const list=PROS.filter(p=>p.encaja===CO_LABEL()||p.encaja==="Ambas");
-  const paises=[...new Set(list.map(p=>p.pais))].sort();
-  const tipos=[...new Set(list.map(p=>p.tipo))].sort();
-  document.getElementById("fpais").innerHTML='<option value="">Todos los países ('+paises.length+')</option>'+paises.map(p=>`<option>${p}</option>`).join("");
-  document.getElementById("ftipo").innerHTML='<option value="">Todos los tipos</option>'+tipos.map(t=>`<option>${t}</option>`).join("");
-}
 function renderPros(){
-  const q=document.getElementById("q").value.toLowerCase();
-  const fp=document.getElementById("fpais").value, ft=document.getElementById("ftipo").value;
-  let list=PROS.filter(p=>p.encaja===CO_LABEL()||p.encaja==="Ambas");
-  if(fp)list=list.filter(p=>p.pais===fp);
-  if(ft)list=list.filter(p=>p.tipo===ft);
-  if(q)list=list.filter(p=>(p.empresa+p.tipo+p.ciudad+p.que_vende+p.pais+p.notas).toLowerCase().includes(q));
-  list.sort((a,b)=>a.pais.localeCompare(b.pais)||a.empresa.localeCompare(b.empresa));
-  document.getElementById("pcount").textContent=list.length+" empresas potenciales"+(fp?" en "+fp:"")+" · que NO son tus clientes";
-  const dot={"JFK":"#FF7A45","Big Dream":"#36A8FF","Ambas":"#9AA7BC"};
-  document.getElementById("pgrid").innerHTML=list.map(p=>{
-    const web=p.web?`<a href="${p.web.startsWith('http')?p.web:'https://'+p.web}" target="_blank" rel="noopener">${p.web.replace(/^https?:\/\//,'').slice(0,30)} ↗</a>`:'<span class="muted">—</span>';
-    const cont=p.contacto?`<span class="muted">${p.contacto}</span>`:'';
-    const enc=p.encaja.replace(' ','');
-    return `<div class="pc">
-      <span class="fit-dot" style="background:${dot[p.encaja]}"></span>
-      ${p.ya_cliente==="posible"?'<span class="posible">⚠ verificar</span>':''}
-      <h4>${p.empresa}</h4>
-      <div class="loc">📍 ${p.pais}${p.ciudad?" · "+p.ciudad:""}</div>
-      <div class="desc">${p.que_vende}</div>
-      <div class="meta"><span class="tag t-${enc}">${p.encaja}</span><span class="tag t-type">${p.tipo}</span></div>
-      <div class="ln">${web}${cont}</div>
-      ${p.notas?`<div class="note">${p.notas}</div>`:''}
-      ${p.fuente?`<div class="note"><a href="${p.fuente}" target="_blank" rel="noopener" style="color:var(--soft)">fuente ↗</a></div>`:''}
-    </div>`;
-  }).join("")|| '<p class="muted">Sin resultados.</p>';
+  let list=ST.pros.slice();
+  if(fMine) list=list.filter(p=>p.asignado_email&&p.asignado_email.toLowerCase()===SES.email.toLowerCase());
+  if(fEstado) list=list.filter(p=>p.estado===fEstado);
+  if(fPais) list=list.filter(p=>p.pais===fPais);
+  if(fQ){const q=fQ.toLowerCase();list=list.filter(p=>((p.empresa||"")+(p.ciudad||"")+(p.direccion||"")+(p.tipo||"")+(p.que_vende||"")+(p.pais||"")).toLowerCase().includes(q));}
+  const paisesAll=[...new Set(ST.pros.map(p=>p.pais))].sort();
+  const grupos={}; list.forEach(p=>{(grupos[p.pais]=grupos[p.pais]||[]).push(p);});
+  const chips=['<span class="chip '+(fEstado===""?"on":"")+'" data-est="">Todos</span>']
+    .concat(EST.map(e=>`<span class="chip ${fEstado===e?"on":""}" data-est="${e}">${ESTL[e]}</span>`)).join("");
+  let h=`<div class="filters">
+    <input id="q" placeholder="🔎 Buscar empresa, ciudad, dirección..." value="${esc(fQ)}">
+    <select id="fpais"><option value="">Todos los países (${paisesAll.length})</option>${paisesAll.map(p=>`<option ${fPais===p?"selected":""}>${esc(p)}</option>`).join("")}</select>
+    ${!ST.esAdmin?'':''}
+    <span class="chip ${fMine?"on":""}" id="cmine">⭐ Asignados a mí</span>
+    <button class="btn p" id="addBtn">+ Agregar</button>
+  </div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${chips}</div>
+  <div class="count">${list.length} prospecto(s)${fPais?" en "+esc(fPais):""}</div>`;
+  const orderedPaises=Object.keys(grupos).sort();
+  if(!orderedPaises.length) return h+'<div class="empty">Sin prospectos con estos filtros.</div>';
+  h+=orderedPaises.map(pais=>{
+    const items=grupos[pais];
+    const asg=(ST.paisVend||[]).find(x=>x.pais===pais);
+    const adminPais= ST.esAdmin?`<div class="assignpais" onclick="event.stopPropagation()">Encargado país: <select data-pais="${esc(pais)}" class="selpais">${vendOptions(asg&&asg.vendedor_email)}</select></div>`:"";
+    return `<div class="paisgrp ${fPais||fQ||fEstado||fMine?"open":""}"><div class="paishd"><div><span class="arr">▶</span> <h3 style="display:inline">${esc(pais)}</h3> <span class="pc">${items.length}</span></div>${adminPais}</div>
+      <div class="paisbody">${items.map(card).join("")}</div></div>`;
+  }).join("");
+  return h;
 }
-["q","fpais","ftipo"].forEach(id=>document.getElementById(id).addEventListener("input",renderPros));
-
-/* ---------- tabs & company ---------- */
-document.querySelectorAll(".tabs .t").forEach(t=>t.onclick=()=>{
-  document.querySelectorAll(".tabs .t").forEach(x=>x.classList.remove("on"));t.classList.add("on");
-  document.querySelectorAll(".panel").forEach(p=>p.classList.remove("on"));
-  document.getElementById("panel-"+t.dataset.tab).classList.add("on");
-});
-document.querySelectorAll("#cotg button").forEach(b=>b.onclick=()=>{
-  document.querySelectorAll("#cotg button").forEach(x=>x.classList.remove("on"));b.classList.add("on");
-  CO=b.dataset.co; renderAll();
-});
-function renderAll(){renderKPIs();renderChart();renderTable();fillSelects();renderPros();}
-renderAll();
-</script>
-</body>
-</html>
+function card(p){
+  const web=p.web?`<a class="lnk" href="${p.web.startsWith("http")?p.web:"https://"+p.web}" target="_blank">${esc(p.web.replace(/^https?:\/\//,"").slice(0,28))} ↗</a>`:"";
+  const canEdit = ST.esAdmin || (p.asignado_email&&p.asignado_email.toLowerCase()===SES.email.toLowerCase()) || ST.paises.includes(p.pais);
+  const estSel = canEdit?`<select class="selest" data-id="${p.id}">${EST.map(e=>`<option value="${e}" ${p.estado===e?"selected":""}>${ESTL[e]}</option>`).join("")}</select>`:`<span class="tag">${ESTL[p.estado]||p.estado}</span>`;
+  const adminAsg = ST.esAdmin?`<select class="selasg" data-id="${p.id}">${vendOptions(p.asignado_email)}</select>`:"";
+  return `<div class="pc-card">
+    <span class="est e-${p.estado}">${ESTL[p.estado]||p.estado}</span>
+    <h4>${esc(p.empresa)}</h4>
+    <div class="loc">📍 ${esc(p.pais)}${p.ciudad?" · "+esc(p.ciudad):""}${p.direccion?"<br>"+esc(p.direccion):""}</div>
+    <div class="desc">${esc(p.que_vende||"")}</div>
+    <div class="row">${p.tipo?`<span class="tag">${esc(p.tipo)}</span>`:""}${web}${p.contacto?`<span class="mini">☎ ${esc(p.contacto)}</span>`:""}</div>
+    ${p.asignado_nombre?`<div class="asg">⭐ Asignado a ${esc(p.asignado_nombre)}</div>`:""}
+    <div class="row">${estSel}${adminAsg}${canEdit?`<button class="btn" style="padding:6px 10px" onclick="toggleEdit('${p.id}')">✎ datos</button>`:""}</div>
+    ${canEdit?`<div class="edit" id="ed-${p.id}">
+      <input id="c-${p.id}" placeholder="Contacto (tel/email)" value="${esc(p.contacto||"")}">
+      <input id="ci-${p.id}" placeholder="Ciudad" value="${esc(p.ciudad||"")}">
+      <input id="d-${p.id}" placeholder="Dirección" value="${esc(p.direccion||"")}">
+      <textarea id="n-${p.id}" placeholder="Notas" rows="2">${esc(p.notas||"")}</textarea>
+      <button class="btn p" style="padding:6px 12px" onclick="saveEdit('${p.id}')">Guardar</button>
+    </div>`:(p.notas?`<div class="mini">${esc(p.notas)}</div>`:"")}
+  </div>`;
+}
+function renderOpp(ps){
+  const top=[...ps].filter(p=>p.proy>0).sort((a,b)=>b.proy-a.proy).slice(0,12);
+  const mx=Math.max(...top.map(p=>p.proy),1);
+  const bars=top.map(p=>{const w=Math.max(2,p.proy/mx*100);const g=p.growth>=0?`<span class="up">▲${p.growth}%</span>`:`<span class="dn">▼${Math.abs(p.growth)}%</span>`;return `<div class="bar"><div class="nm">${esc(p.name)}</div><div class="track"><div class="fill" data-w="${w}"></div></div><div class="val">${fmtK(p.proy)} ${g}</div></div>`;}).join("");
+  const rows=[...ps].sort((a,b)=>b.l12-a.l12).map(p=>{const hv=p.l12>0;const g=!hv?'<span class="muted">—</span>':(p.growth>=0?`<span class="up">+${p.growth}%</span>`:`<span class="dn">${p.growth}%</span>`);const ch=p.blancos.length?`<div class="chips2">${p.blancos.map(b=>`<span class="c">${esc(b)}</span>`).join("")}</div>`:'<span class="muted">—</span>';return `<tr><td>${esc(p.name)}</td><td class="num">${hv?fmt(p.l12):"$0"}</td><td class="num">${g}</td><td class="num">${hv&&p.proy>0?fmt(p.proy):"—"}</td><td class="num">${p.cli}</td><td>${ch}</td></tr>`;}).join("");
+  return `<div class="chart"><div class="sec-h">Top proyección a 12 meses</div>${bars}</div>
+  <div class="tablewrap"><table><thead><tr><th>País</th><th class="num">Ventas 12m</th><th class="num">YoY</th><th class="num">Proyección</th><th class="num">Clientes</th><th>No vendes ahí</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <p class="mini" style="margin-top:8px">Snapshot Junio 2026 · proyección al ritmo actual.</p>`;
+}
+function bind(){
+  document.querySelectorAll(".tabs .t").forEach(t=>t.onclick=()=>{document.querySelectorAll(".tabs .t").forEach(x=>x.classList.remove("on"));t.classList.add("on");document.querySelectorAll(".panel").forEach(p=>p.classList.remove("on"));document.getElementById("p-"+t.dataset.tab).classList.add("on");setTimeout(()=>document.querySelectorAll("#p-opp .fill").forEach(f=>f.style.width=f.dataset.w+"%"),50);});
+  document.querySelectorAll(".paishd").forEach(h=>h.onclick=()=>h.parentElement.classList.toggle("open"));
+  const q=document.getElementById("q");if(q)q.oninput=e=>{fQ=e.target.value;const s=e.target.selectionStart;render();const n=document.getElementById("q");if(n){n.focus();n.setSelectionRange(s,s);}};
+  const fp=document.getElementById("fpais");if(fp)fp.onchange=e=>{fPais=e.target.value;render();};
+  document.querySelectorAll(".chip[data-est]").forEach(c=>c.onclick=()=>{fEstado=c.dataset.est;render();});
+  const cm=document.getElementById("cmine");if(cm)cm.onclick=()=>{fMine=!fMine;render();};
+  const ab=document.getElementById("addBtn");if(ab)ab.onclick=openAdd;
+  document.querySelectorAll(".selest").forEach(s=>s.onchange=async()=>{const r=await api("update",{id:s.dataset.id,fields:{estado:s.value}});if(r.ok){toast("Estado actualizado");const p=ST.pros.find(x=>x.id===s.dataset.id);if(p)p.estado=s.value;render();}else toast("Error");});
+  document.querySelectorAll(".selasg").forEach(s=>s.onchange=async()=>{const[em,nm]=(s.value||"|").split("|");const r=await api("assign",{id:s.dataset.id,vendedor_email:em,vendedor_nombre:nm});if(r.ok){toast(em?("Asignado a "+nm+" (correo enviado)"):"Asignación quitada");init();}else toast("Error");});
+  document.querySelectorAll(".selpais").forEach(s=>s.onchange=async()=>{const[em,nm]=(s.value||"|").split("|");const r=await api("assignPais",{pais:s.dataset.pais,vendedor_email:em,vendedor_nombre:nm});if(r.ok){toast("País asignado a "+(nm||"—"));init();}else toast("Error");});
+}
+function toggleEdit(id){document.getElementById("ed-"+id).classList.toggle("open");}
+async function saveEdit(id){const f={contacto:val("c-"+id),ciudad:val("ci-"+id),direccion:val("d-"+id),notas:val("n-"+id)};const r=await api("update",{id,fields:f});if(r.ok){toast("Guardado");const p=ST.pros.find(x=>x.id===id);if(p)Object.assign(p,f);render();}else toast("Error: "+(r.error||""));}
+function val(id){const e=document.getElementById(id);return e?e.value:undefined;}
+function openAdd(){document.getElementById("m_pais").value=(!ST.esAdmin&&ST.paises[0])||fPais||"";document.getElementById("addModal").classList.add("on");}
+function closeAdd(){document.getElementById("addModal").classList.remove("on");}
+async function saveAdd(){const f={empresa:val("m_empresa"),pais:val("m_pais"),ciudad:val("m_ciudad"),direccion:val("m_dir"),tipo:val("m_tipo"),que_vende:val("m_vende"),web:val("m_web"),contacto:val("m_contacto"),notas:val("m_notas")};if(!f.empresa||!f.pais){toast("Empresa y país son obligatorios");return;}const r=await api("add",{fields:f});if(r.ok){toast("Prospecto agregado");closeAdd();init();}else toast("Error: "+(r.error||""));}
+</script></body></html>
