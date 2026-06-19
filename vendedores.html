@@ -2341,6 +2341,7 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
       <button class="home-grid__item" id="home-vendedores" onclick="openVendedores()" style="display:none;"><svg class="home-grid__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Vendedores</button>
       <button class="home-grid__item" id="home-cobranzas" onclick="openCobranzas()" style="display:none;"><svg class="home-grid__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>Cobranzas</button>
       <button class="home-grid__item" id="home-dashboard" onclick="location.href='dashboard.html'" style="display:none;"><svg class="home-grid__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Dashboard</button>
+      <button class="home-grid__item" id="home-expansion" onclick="location.href='expansion.html'" style="display:none;position:relative;"><svg class="home-grid__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>Expansión<span id="exp-badge" style="display:none;position:absolute;top:8px;right:14px;background:#FF3B30;color:#fff;font-size:11px;font-weight:800;min-width:18px;height:18px;line-height:18px;border-radius:999px;text-align:center;padding:0 4px"></span></button>
     </div>
   </div>
 </div>
@@ -3641,6 +3642,19 @@ function showHome() {
   if (cBtn) cBtn.style.display = 'flex';
   const dBtn = document.getElementById('home-dashboard');
   if (dBtn) dBtn.style.display = 'flex';   // todos ven el dashboard (admin: todo; vendedor: solo su cuenta)
+  const eBtn = document.getElementById('home-expansion');
+  if (eBtn) eBtn.style.display = 'flex';   // Expansión (CRM de clientes potenciales)
+  // Aviso: prospectos por contactar asignados a este vendedor
+  try {
+    fetch('/.netlify/functions/prospectos', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'misPendientes', email: currentVendor.email }) })
+      .then(r=>r.json()).then(d=>{
+        if (d && d.ok && d.count > 0) {
+          const b = document.getElementById('exp-badge');
+          if (b) { b.textContent = d.count; b.style.display = 'block'; }
+          showToast(`📌 Tienes ${d.count} cliente${d.count!==1?'s':''} potencial${d.count!==1?'es':''} por contactar`);
+        }
+      }).catch(()=>{});
+  } catch(e){}
   goToScreen('home');
 }
 function logout() {
