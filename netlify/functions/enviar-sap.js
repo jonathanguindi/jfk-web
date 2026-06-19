@@ -57,7 +57,14 @@ exports.handler = async (event) => {
       Comments: comments || 'Pedido desde Portal JFK',
       DocumentLines: lines.map(l => {
         const line = { ItemCode: l.itemCode, Quantity: l.quantity };
-        if (l.discountPercent && l.discountPercent > 0) line.DiscountPercent = l.discountPercent;
+        // Precio negociado en el pedido: UnitPrice SOBREESCRIBE la lista de precios del
+        // cliente en SAP (antes se ignoraba y SAP aplicaba el precio de la lista = "precio Kennedy").
+        const up = Number(l.unitPrice);
+        if (l.unitPrice != null && up >= 0 && isFinite(up)) {
+          line.UnitPrice = up;
+        } else if (l.discountPercent && l.discountPercent > 0) {
+          line.DiscountPercent = l.discountPercent;
+        }
         return line;
       })
     };

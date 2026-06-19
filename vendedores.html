@@ -1601,6 +1601,8 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
 
 .cart-table-wrap {
   flex: 1;
+  min-width: 0;            /* evita que la tabla (min-width 720) estire toda la página en el cel */
+  max-width: 100%;
   overflow: auto;
   background: var(--bg-elevated);
   -webkit-overflow-scrolling: touch;
@@ -1656,6 +1658,14 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
   max-width: 180px;
 }
 .cart-table td.num-cell { text-align: center; font-variant-numeric: tabular-nums; }
+/* En celular: que la tabla del pedido quepa sin desbordar la pantalla */
+@media (max-width: 600px) {
+  .cart-table { min-width: 0; font-size: 0.72rem; }
+  .cart-table td.img-cell, .cart-table th.img-cell { display: none; }
+  .cart-table td.desc-cell { white-space: normal; max-width: none; }
+  .cart-table th, .cart-table td { padding: 0.4rem 0.35rem; }
+  .cart-table input.cell-input.qty-cell-input { width: 46px; }
+}
 .cart-table td.stock-cell {
   font-weight: 600;
   color: var(--text-muted);
@@ -3222,6 +3232,9 @@ let html5QrScanner = null;
 function openScanModal() {
   const modal = document.getElementById('scan-modal');
   modal.classList.add('show');
+  _scanCount = 0; _lastScanCode = '';
+  const hintEl = document.getElementById('scan-hint');
+  if (hintEl) { hintEl.textContent = 'Escanea para AGREGAR al carrito · cada lectura suma 1 bulto'; hintEl.className = 'scan-modal__hint'; hintEl.style.color = ''; }
   const manualInput = document.getElementById('scan-manual-input');
   manualInput.value = '';
   // Enfocar el input para que el lector USB escriba ahí
@@ -3234,7 +3247,7 @@ function openScanModal() {
     html5QrScanner.start(
       { facingMode: 'environment' },
       config,
-      (decodedText) => { onBarcodeDetected(decodedText); },
+      (decodedText) => { scanAddToCart(decodedText); },
       () => {} // ignorar errores de frame
     ).catch(err => {
       document.getElementById('scan-hint').textContent = 'No se pudo abrir la cámara. Usa el lector o escribe el código abajo.';
@@ -3263,6 +3276,43 @@ function onBarcodeDetected(code) {
   showToast(`Buscando código: ${code.trim()}`);
 }
 
+// ===== Escaneo CONTINUO: cada lectura agrega al carrito y queda listo para el siguiente =====
+let _lastScanCode = '', _lastScanT = 0, _scanCount = 0;
+async function scanAddToCart(code) {
+  code = (code || '').trim();
+  if (!code) return;
+  const now = Date.now();
+  if (code === _lastScanCode && now - _lastScanT < 1800) return; // evita la doble lectura del mismo código
+  _lastScanCode = code; _lastScanT = now;
+  const hint = document.getElementById('scan-hint');
+  const manual = document.getElementById('scan-manual-input');
+  if (manual) manual.value = '';
+  try {
+    const safe = code.replace(/[%,()]/g, '');
+    const { data } = await supa.from('products')
+      .select(`sap_item_code, name, stock, price_kennedy, line_jfk, items_per_box, volume_unit, volume_cft_per_unit, weight_kg_per_unit, volume_verified, barcode`)
+      .or(`barcode.eq.${safe},sap_item_code.eq.${safe}`).limit(1);
+    const p = data && data[0];
+    if (!p) {
+      if (hint) { hint.textContent = `❌ No encontrado: ${code}`; hint.className = 'scan-modal__hint warning'; }
+      try { navigator.vibrate && navigator.vibrate(120); } catch (e) {}
+      showToast(`No encontrado: ${code}`, true);
+      if (manual) manual.focus();
+      return;
+    }
+    const box = p.items_per_box || 1;
+    const cur = currentCart[p.sap_item_code];
+    updateQty(p, (cur ? cur.qty : 0) + box);   // suma 1 bulto
+    updateFooter();
+    _scanCount++;
+    if (hint) { hint.textContent = `✓ ${p.name} (+${box})  ·  ${_scanCount} escaneados`; hint.className = 'scan-modal__hint'; hint.style.color = 'var(--electric)'; }
+    try { navigator.vibrate && navigator.vibrate(40); } catch (e) {}
+  } catch (e) {
+    showToast('Error al buscar el código', true);
+  }
+  if (manual) manual.focus();   // listo para el siguiente, sin cerrar el escáner
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const scanBtn = document.getElementById('btn-scan-barcode');
   if (scanBtn) scanBtn.addEventListener('click', openScanModal);
@@ -3273,7 +3323,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (manualInput) {
     manualInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && manualInput.value.trim()) {
-        onBarcodeDetected(manualInput.value.trim());
+        scanAddToCart(manualInput.value.trim());   // agrega y limpia, queda listo para el siguiente
       }
     });
   }
@@ -4523,6 +4573,38 @@ const CONTAINER_CAPS = {
 };
 // ===== Indicador de contenedor =====
 function medidaOk(p) { return !!(p && p.volume_verified && parseFloat(p.volume_cft_per_unit) > 0); }
+// Completa el volumen/peso desde la base para productos del carrito que llegaron sin esos
+// datos (según cómo se agregaron). Así el cubicaje siempre sale si la base lo tiene.
+let _volEnrichBusy = false;
+async function enriquecerVolumenCarrito() {
+  if (_volEnrichBusy) return;
+  const faltan = Object.values(currentCart)
+    .filter(c => c.product && !(c.product.volume_verified && parseFloat(c.product.volume_cft_per_unit) > 0))
+    .map(c => c.product.sap_item_code).filter(Boolean);
+  if (!faltan.length) return;
+  _volEnrichBusy = true;
+  try {
+    const codes = [...new Set(faltan)];
+    let cambio = false;
+    for (let i = 0; i < codes.length; i += 300) {
+      const { data } = await supa.from('products')
+        .select('sap_item_code, volume_cft_per_unit, weight_kg_per_unit, volume_verified, items_per_box')
+        .in('sap_item_code', codes.slice(i, i + 300));
+      (data || []).forEach(p => {
+        const c = currentCart[p.sap_item_code];
+        if (c && c.product) {
+          c.product.volume_cft_per_unit = p.volume_cft_per_unit;
+          c.product.weight_kg_per_unit = p.weight_kg_per_unit;
+          c.product.volume_verified = p.volume_verified;
+          if (!c.product.items_per_box) c.product.items_per_box = p.items_per_box;
+          cambio = true;
+        }
+      });
+    }
+    if (cambio) updateContainerIndicator();
+  } catch (e) { /* sin datos: queda parcial */ }
+  finally { _volEnrichBusy = false; }
+}
 function calcularCargaActual() {
   let cft = 0, weight = 0, pend = 0, total = 0;
   Object.values(currentCart).forEach(({qty, product}) => {
@@ -4634,6 +4716,7 @@ function updateContainerIndicator() {
     if (pend > 0) {
       elHint.textContent = `⚠️ ${pend} de ${total} producto${total === 1 ? '' : 's'} sin medida — CBM parcial`;
       elHint.className = 'container-indicator__hint warning';
+      enriquecerVolumenCarrito();   // intenta completar el volumen desde la base
     }
   }
 
