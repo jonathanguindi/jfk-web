@@ -111,7 +111,9 @@ function paisFlag(n){const s=(n||"").toLowerCase().normalize("NFD").replace(/[̀
 // Ventas activas (últimos 12m). LIVE_V12 = en vivo desde SAP/Supabase (sync nocturno); si no, snapshot.
 let LIVE_V12=null, V12_FECHA="", V12_TOTAL=0;
 function normPais(s){return (s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z]/g,"");}
-function ventasDe(k){ if(LIVE_V12) return LIVE_V12[normPais(k)]||0; return VENTAS12[k]||0; }
+const V12N={}; Object.keys(VENTAS12).forEach(k=>{V12N[normPais(k)]=VENTAS12[k];});
+// Ventas del país: en vivo si matchea; si no, cae al snapshot (normalizado) para no poner $0 falso.
+function ventasDe(k){ const n=normPais(k); if(LIVE_V12){ const v=LIVE_V12[n]; if(v!=null) return v; } return (V12N[n]!=null?V12N[n]:(VENTAS12[k]||0)); }
 function fuenteVentas(){ return LIVE_V12 ? `<span class="up">● en vivo</span> · actualizado ${esc(V12_FECHA||"hoy")}` : `snapshot ${esc("Junio 2026")}`; }
 function toast(m){const t=document.getElementById("toast");t.textContent=m;t.style.display="block";setTimeout(()=>t.style.display="none",2200);}
 async function api(action,extra){const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({action,email:SES&&SES.email,nombre:SES&&SES.name},extra||{}))});return r.json();}

@@ -461,8 +461,8 @@ function renderDormidos(){
   rows.forEach(x=>{
     const tel=onlyTel(x.telefono), wa=tel.replace(/^\+/,'');
     const acc=[];
-    if(tel) acc.push(`<a class="dact" title="Llamar" href="tel:${tel}" onclick="event.stopPropagation()">📞</a>`);
-    if(wa)  acc.push(`<a class="dact" title="WhatsApp" target="_blank" href="https://wa.me/${wa}" onclick="event.stopPropagation()">💬</a>`);
+    if(tel.length>=7) acc.push(`<a class="dact" title="Llamar" href="tel:${tel}" onclick="event.stopPropagation()">📞</a>`);
+    if(wa.length>=8)  acc.push(`<a class="dact" title="WhatsApp" target="_blank" href="https://wa.me/${wa}" onclick="event.stopPropagation()">💬</a>`);
     if(x.email) acc.push(`<a class="dact" title="Correo" href="mailto:${esc(x.email)}" onclick="event.stopPropagation()">✉️</a>`);
     const col=x.dias>730?'var(--red)':'var(--amber)';
     h+=`<tr style="cursor:pointer" onclick="verCliente('${esc(x.card_code)}')">
