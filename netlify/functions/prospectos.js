@@ -116,6 +116,19 @@ exports.handler = async (event) => {
       return reply(200,{ok:true});
     }
 
+    if(action==='addBulk'){
+      if(!esAdmin) return reply(403,{ok:false,error:'Solo admin'});
+      const items=(b.items||[]).filter(x=>x&&x.empresa&&x.pais&&relevante(x.encaja));
+      if(!items.length) return reply(200,{ok:true,inserted:0,skipped:0});
+      const { data: ex } = await sb.from('prospectos').select('empresa,pais');
+      const seen=new Set((ex||[]).map(r=>((r.empresa||'')+'|'+(r.pais||'')).toLowerCase()));
+      const rows=[]; let skip=0;
+      for(const s of items){ const k=((s.empresa)+'|'+(s.pais)).toLowerCase(); if(seen.has(k)){skip++;continue;} seen.add(k);
+        rows.push({pais:s.pais,ciudad:s.ciudad||null,empresa:s.empresa,tipo:s.tipo||null,que_vende:s.que_vende||null,encaja:s.encaja||label,web:s.web||null,contacto:s.contacto||null,direccion:s.direccion||null,fuente:s.fuente||null,notas:s.notas||null,estado:'nuevo',creado_por:'investigación',historial:[{fecha:now(),quien:'investigación',accion:'Importado (2da ronda)'}]}); }
+      if(rows.length){ const {error}=await sb.from('prospectos').insert(rows); if(error) return reply(200,{ok:false,error:error.message}); }
+      return reply(200,{ok:true,inserted:rows.length,skipped:skip});
+    }
+
     if(action==='add'){
       const f = b.fields||{};
       if(!f.empresa || !f.pais) return reply(400,{ok:false,error:'empresa y país obligatorios'});
