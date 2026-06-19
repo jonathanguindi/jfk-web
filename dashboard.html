@@ -152,6 +152,49 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
 .map-legend{display:flex;align-items:center;gap:8px;margin-top:10px;font-family:var(--font-mono);font-size:.6rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);flex-wrap:wrap}
 .map-legend .sw{width:34px;height:8px;border-radius:3px;display:inline-block;background:linear-gradient(90deg,#CFE8F7,#0093D6,#0B4E78)}
 @keyframes sp{to{transform:rotate(360deg)}}
+
+/* ============ ELEVACIÓN DE DISEÑO (dirección creativa) ============ */
+:root{
+  --ease-spring:cubic-bezier(.34,1.56,.64,1); --ease-out:cubic-bezier(.16,1,.3,1);
+  --shadow-1:0 1px 2px rgba(14,16,22,.05);
+  --shadow-2:0 1px 2px rgba(14,16,22,.04), 0 8px 22px rgba(14,16,22,.07);
+  --shadow-3:0 2px 6px rgba(14,16,22,.05), 0 22px 48px rgba(14,16,22,.12);
+}
+[data-theme="dark"]{ --shadow-1:0 1px 2px rgba(0,0,0,.4); --shadow-2:0 8px 24px rgba(0,0,0,.45); --shadow-3:0 16px 44px rgba(0,0,0,.55); }
+@keyframes riseIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes drawLine{to{stroke-dashoffset:0}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes pulseNow{0%,100%{r:3.5}50%{r:5.5}}
+/* Topbar: profundidad + hilo de marca eléctrico→naranja (firma JFK) */
+.topbar{background:linear-gradient(180deg,#10294a 0%,var(--navy) 60%,#0b1830 100%);box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 10px 26px rgba(11,31,58,.20)}
+.topbar::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:linear-gradient(90deg,var(--electric),var(--punch));opacity:.95}
+.logo small{background:linear-gradient(90deg,var(--electric),#67d2f7);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+/* KPIs editoriales: cifra serif, halo en la principal, lift al hover, entrada escalonada */
+.kpi{box-shadow:var(--shadow-1);transition:box-shadow .25s var(--ease-out),transform .25s var(--ease-out),border-color .2s;animation:riseIn .5s var(--ease-out) both}
+.kpi:hover{box-shadow:var(--shadow-2);transform:translateY(-2px);border-color:var(--border)}
+.kpi .val{font-family:var(--font-serif);font-weight:600;font-size:1.72rem;letter-spacing:-.02em}
+.kpi.cta{border-left:none;position:relative;overflow:hidden}
+.kpi.cta::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:linear-gradient(90deg,var(--electric),var(--punch))}
+.kpi:nth-child(1){animation-delay:.02s}.kpi:nth-child(2){animation-delay:.07s}.kpi:nth-child(3){animation-delay:.12s}.kpi:nth-child(4){animation-delay:.17s}.kpi:nth-child(5){animation-delay:.22s}.kpi:nth-child(6){animation-delay:.27s}
+/* Cards: sombra escalonada + barrita de acento antes del título */
+.card{box-shadow:var(--shadow-2);transition:box-shadow .3s var(--ease-out)}
+.card:hover{box-shadow:var(--shadow-3)}
+.card>h3::before{content:"";width:3px;height:.95em;border-radius:2px;align-self:center;background:linear-gradient(180deg,var(--electric),color-mix(in srgb,var(--electric) 35%,transparent));flex:0 0 auto}
+.panel.active>.card{animation:riseIn .5s var(--ease-out) both}
+.panel.active>.card:nth-of-type(2){animation-delay:.06s}.panel.active>.card:nth-of-type(3){animation-delay:.12s}
+/* Tacto en botones y filas */
+.btn{transition:transform .12s var(--ease-out),background .15s,box-shadow .15s}
+.btn:active{transform:scale(.97)}
+.btn-cta:hover{box-shadow:0 4px 14px rgba(255,107,53,.30)}
+.prio{transition:background .15s,transform .15s var(--ease-out)}
+.prio:hover{transform:translateX(2px)}
+.seg button.active{box-shadow:0 1px 2px rgba(14,16,22,.12),0 1px 0 rgba(255,255,255,.5) inset}
+/* Gráficas: dibujo de entrada + punto "ahora" con latido */
+.spark-line{stroke-dasharray:1600;stroke-dashoffset:1600;animation:drawLine 1.1s var(--ease-out) .15s forwards}
+.spark-area{opacity:0;animation:fadeIn .8s ease .45s forwards}
+.spark-dot{opacity:0;animation:fadeIn .3s ease .95s forwards}
+.spark-dot--now{animation:fadeIn .3s ease .9s forwards, pulseNow 2.4s var(--ease-out) 1.2s infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
 /* Responsive móvil */
 @media(max-width:600px){
   .wrap{padding:0 14px 80px}
@@ -210,7 +253,7 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
   <!-- RESUMEN -->
   <section class="panel active" id="p-resumen">
     <div class="kpis" id="kpis"></div>
-    <div class="card" id="cardPrioridades" style="display:none"><h3>📞 Prioridades de hoy <span class="sub">clientes para reactivar · clic para ver y llamar</span></h3><div id="prioridades"></div></div>
+    <div class="card" id="cardPrioridades" style="display:none"><h3>📞 Prioridades de hoy <span class="sub">clientes para reactivar · toca para ver y llamar</span></h3><div id="prioridades"></div></div>
     <div class="card"><h3>Tendencia <span class="sub">ventas mensuales en USD</span>
       <span class="seg">
         <button class="active" id="segTrendMes" onclick="setTrendView('mes')">Mensual</button>
@@ -230,14 +273,14 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
   <!-- EXPLORAR (país -> clientes -> detalle) -->
   <section class="panel" id="p-explorar">
     <div class="card">
-      <h3>Mapa de ventas por país <span class="sub">intensidad = ventas · clic para filtrar</span>
+      <h3>Mapa de ventas por país <span class="sub">más oscuro = más ventas · toca un país para filtrar</span>
         <button class="btn btn-sm" id="mapClear" style="float:right;background:var(--bg-sunken);color:var(--text);display:none" onclick="limpiarPais()">✕ Quitar filtro de país</button>
       </h3>
       <div id="map" style="height:420px;width:100%"></div>
       <div class="map-legend"><span>Menos</span><span class="sw"></span><span>Más ventas</span><span style="margin-left:14px;display:inline-flex;align-items:center;gap:6px"><span class="sw" style="width:16px;background:var(--border)"></span> Sin ventas</span></div>
     </div>
     <div class="card">
-      <h3>Explorar <span class="sub">abre un grupo para ver sus clientes · clic en un cliente para el detalle</span>
+      <h3>Explorar <span class="sub">abre un grupo para ver sus clientes · toca uno para el detalle</span>
         <span class="seg" id="exploreSeg" style="float:right">
           <button class="active" id="segByPais" onclick="setExploreBy('pais')">Por país</button>
           <button id="segByVend" onclick="setExploreBy('vendedor')">Por vendedor</button>
@@ -279,7 +322,7 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
           <button id="segFam" onclick="setProdView('familia')">Por familia</button>
         </span>
       </h3>
-      <p class="muted" style="font-size:.78rem;margin:-6px 0 12px">Esto es lo que más mueve tu venta. Úsalo para saber qué ofrecer (cross-sell) a quien aún no lo compra.</p>
+      <p class="muted" style="font-size:.78rem;margin:-6px 0 12px">Esto es lo que más mueve tu venta. Úsalo para saber qué ofrecerle a quien aún no lo compra.</p>
       <div id="tblProductos"></div>
     </div>
   </section>
@@ -430,18 +473,27 @@ function renderPrioridades(){
   }).join('')+`<p class="muted" style="font-size:.74rem;margin:10px 2px 0">Estos clientes llevan tiempo sin comprar. Ábrelos para ver qué pedían y llámalos para recuperarlos.</p>`;
 }
 
+function countUp(el,to,fmt){
+  to=Number(to)||0;
+  if(matchMedia('(prefers-reduced-motion:reduce)').matches || to===0){ el.textContent=fmt(to); return; }
+  const dur=650,t0=performance.now();
+  (function tick(t){ const p=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-p,3);
+    el.textContent=fmt(to*e); if(p<1) requestAnimationFrame(tick); })(t0);
+}
 function renderKPIs(){
   const k=DATA.kpis||{};
+  const nInt=n=>Math.round(Number(n)||0).toLocaleString();
   const items=[
-    ['Ventas',fmtUSD(k.ventas_total),'cta'],
-    ['Facturas',(k.num_facturas||0).toLocaleString()],
-    ['Clientes',(k.num_clientes||0).toLocaleString()],
+    ['Ventas',k.ventas_total,fmtUSD,'cta'],
+    ['Facturas',k.num_facturas,nInt,''],
+    ['Clientes',k.num_clientes,nInt,''],
   ];
-  if(ES_ADMIN) items.push(['Vendedores',(k.num_vendedores||0).toLocaleString()]);
-  items.push(['Países',(k.num_paises||0).toLocaleString()]);
-  items.push(['Factura prom.',fmtUSD(k.ticket_promedio)]);
-  document.getElementById('kpis').innerHTML=items.map(([l,v,c])=>
-    `<div class="kpi ${c||''}"><div class="lbl">${l}</div><div class="val">${v}</div></div>`).join('');
+  if(ES_ADMIN) items.push(['Vendedores',k.num_vendedores,nInt,'']);
+  items.push(['Países',k.num_paises,nInt,'']);
+  items.push(['Factura prom.',k.ticket_promedio,fmtUSD,'']);
+  document.getElementById('kpis').innerHTML=items.map(([l,v,f,c],i)=>
+    `<div class="kpi ${c||''}"><div class="lbl">${l}</div><div class="val" data-kpi="${i}">${f(v)}</div></div>`).join('');
+  items.forEach(([l,v,f],i)=>{ const el=document.querySelector(`.val[data-kpi="${i}"]`); if(el) countUp(el,v,f); });
 }
 
 function tablaRanking(rows, opts){
@@ -493,17 +545,18 @@ function svgSerie(labels, vals, opts){
     defs=`<defs><linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--accent)" stop-opacity="0.18"/><stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>`;
     const pts=vals.map((v,i)=>({x:cx(i),y:baseY-(Math.max(0,Number(v)||0)/max)*plotH}));
     const P=pts.map(p=>p.x.toFixed(1)+','+p.y.toFixed(1));
-    body+=`<path d="M${P.join(' L')} L${pts[n-1].x.toFixed(1)},${baseY} L${pts[0].x.toFixed(1)},${baseY} Z" fill="url(#areaFill)"/>`;
+    body+=`<path class="spark-area" d="M${P.join(' L')} L${pts[n-1].x.toFixed(1)},${baseY} L${pts[0].x.toFixed(1)},${baseY} Z" fill="url(#areaFill)"/>`;
     if(partialIdx===n-1 && n>1){
-      body+=`<polyline points="${P.slice(0,n-1).join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
-      body+=`<line x1="${pts[n-2].x.toFixed(1)}" y1="${pts[n-2].y.toFixed(1)}" x2="${pts[n-1].x.toFixed(1)}" y2="${pts[n-1].y.toFixed(1)}" stroke="var(--accent)" stroke-width="2.5" stroke-dasharray="4 3" stroke-linecap="round"/>`;
+      body+=`<polyline class="spark-line" points="${P.slice(0,n-1).join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+      body+=`<line x1="${pts[n-2].x.toFixed(1)}" y1="${pts[n-2].y.toFixed(1)}" x2="${pts[n-1].x.toFixed(1)}" y2="${pts[n-1].y.toFixed(1)}" stroke="var(--accent)" stroke-width="2.5" stroke-dasharray="4 3" stroke-linecap="round" opacity="0.85"/>`;
     } else {
-      body+=`<polyline points="${P.join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+      body+=`<polyline class="spark-line" points="${P.join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
     }
     const maxI=vals.indexOf(Math.max(...vals.map(v=>Number(v)||0)));
     [...new Set([0,n-1,maxI])].forEach(i=>{ const p=pts[i];
-      body+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" fill="var(--bg-elevated)" stroke="var(--accent)" stroke-width="2"/>`;
-      body+=`<text x="${p.x.toFixed(1)}" y="${(p.y-9).toFixed(1)}" font-size="10" font-weight="600" fill="var(--text)" text-anchor="middle" font-family="var(--font-mono)">${fmtK(vals[i])}</text>`;
+      const cls=(i===partialIdx)?'spark-dot spark-dot--now':'spark-dot';
+      body+=`<circle class="${cls}" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" fill="var(--bg-elevated)" stroke="var(--accent)" stroke-width="2"/>`;
+      body+=`<text class="spark-dot" x="${p.x.toFixed(1)}" y="${(p.y-9).toFixed(1)}" font-size="10" font-weight="600" fill="var(--text)" text-anchor="middle" font-family="var(--font-mono)">${fmtK(vals[i])}</text>`;
     });
   }
   return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto;max-height:240px">${defs}${grid}${body}${xlab}</svg>`;
