@@ -15,28 +15,34 @@ async function emailVendor(empresa, to, nombre, pros, modo){
   try{
     if(!Resend || !process.env.RESEND_API_KEY || !to) return;
     const r = new Resend(process.env.RESEND_API_KEY);
+    const eh = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     const esReact = modo==='reactivar';
+    const webU = pros.web ? (String(pros.web).startsWith('http')?String(pros.web):'https://'+pros.web) : '';
     const intro = esReact
-      ? `<p>Se te asignó un <b style="color:#C0392B">cliente DORMIDO para reactivar — escríbele HOY</b>. Ya nos compraba y dejó de hacerlo; recuperarlo es venta casi segura:</p>`
+      ? `<p>Se te asignó un <b>cliente con historial en la empresa</b> para que le des seguimiento. Ya nos compraba y dejó de hacerlo — recuperarlo es venta casi segura.</p>`
       : `<p>Se te asignó un <b>cliente potencial</b> para contactar:</p>`;
     const filaReact = esReact ? `
-        ${pros.valor_anual?`<tr><td style="padding:4px 10px;color:#888">Valía/año</td><td style="padding:4px 10px"><b>${pros.valor_anual}</b></td></tr>`:''}
-        ${pros.ultima_compra?`<tr><td style="padding:4px 10px;color:#888">Última compra</td><td style="padding:4px 10px">${pros.ultima_compra}</td></tr>`:''}
-        ${pros.contacto?`<tr><td style="padding:4px 10px;color:#888">Contacto</td><td style="padding:4px 10px">${pros.contacto}</td></tr>`:''}` : '';
+        ${pros.valor_anual?`<tr><td style="padding:4px 10px;color:#888">Valía/año</td><td style="padding:4px 10px"><b>${eh(pros.valor_anual)}</b></td></tr>`:''}
+        ${pros.ultima_compra?`<tr><td style="padding:4px 10px;color:#888">Última compra</td><td style="padding:4px 10px">${eh(pros.ultima_compra)}</td></tr>`:''}
+        ${pros.contacto?`<tr><td style="padding:4px 10px;color:#888">Contacto</td><td style="padding:4px 10px">${eh(pros.contacto)}</td></tr>`:''}` : '';
+    const cierre = esReact
+      ? `<p>Es tu <b>oportunidad de demostrar que puedes y que quieres echar para adelante</b>. Escríbele o llámalo hoy, ofrécele lo que pedía y márcalo como <b>contactado</b> en el portal → <b>Expansión</b>. ¡Saludos!</p>`
+      : `<p>Consigue su contacto, llámalo y márcalo como <b>contactado</b> en el portal → <b>Expansión</b>.</p>`;
     const html = `<div style="font-family:Arial,sans-serif;font-size:14px;color:#0E1016">
-      <p>Hola ${nombre||''},</p>
+      <p>Hola ${eh(nombre)},</p>
       ${intro}
       <table style="border-collapse:collapse;font-size:14px">
-        <tr><td style="padding:4px 10px;color:#888">${esReact?'Cliente':'Empresa'}</td><td style="padding:4px 10px"><b>${pros.empresa||''}</b></td></tr>
-        <tr><td style="padding:4px 10px;color:#888">País</td><td style="padding:4px 10px">${pros.pais||''}${pros.ciudad?(' · '+pros.ciudad):''}</td></tr>
-        <tr><td style="padding:4px 10px;color:#888">${esReact?'Qué compraba':'Rubro'}</td><td style="padding:4px 10px">${pros.que_vende||pros.tipo||''}</td></tr>
+        <tr><td style="padding:4px 10px;color:#888">${esReact?'Cliente':'Empresa'}</td><td style="padding:4px 10px"><b>${eh(pros.empresa)}</b></td></tr>
+        <tr><td style="padding:4px 10px;color:#888">País</td><td style="padding:4px 10px">${eh(pros.pais)}${pros.ciudad?(' · '+eh(pros.ciudad)):''}</td></tr>
+        <tr><td style="padding:4px 10px;color:#888">${esReact?'Qué compraba':'Rubro'}</td><td style="padding:4px 10px">${eh(pros.que_vende||pros.tipo)}</td></tr>
         ${filaReact}
-        ${pros.web?`<tr><td style="padding:4px 10px;color:#888">Web</td><td style="padding:4px 10px"><a href="${pros.web.startsWith('http')?pros.web:'https://'+pros.web}">${pros.web}</a></td></tr>`:''}
+        ${webU?`<tr><td style="padding:4px 10px;color:#888">Web</td><td style="padding:4px 10px"><a href="${eh(webU)}">${eh(pros.web)}</a></td></tr>`:''}
       </table>
-      <p>${esReact?'Escríbele/llámalo ya, ofrécele lo que pedía y márcalo como <b>contactado</b>':'Consigue su contacto, llámalo y márcalo como <b>contactado</b>'} en el portal → <b>Expansión</b>.</p>
-      <p style="color:#888;font-size:12px">${empresa.nombreCorto||''}</p></div>`;
-    const subject = esReact ? `🔴 Reactivar cliente dormido: ${pros.empresa||''}` : `Nuevo cliente potencial para contactar: ${pros.empresa||''}`;
-    await r.emails.send({ from: empresa.from, to:[to], subject, html });
+      ${cierre}
+      <p style="color:#888;font-size:12px">${eh(empresa.nombreCorto)}</p></div>`;
+    const subject = esReact ? `Cliente para reactivar: ${eh(pros.empresa)}` : `Nuevo cliente potencial para contactar: ${eh(pros.empresa)}`;
+    const adminBcc = (process.env.VENTAS_ADMIN_EMAIL || empresa.admin || '').trim();
+    await r.emails.send({ from: empresa.from, to:[to], bcc: adminBcc?[adminBcc]:undefined, subject, html });
   }catch(e){ /* no romper la asignación si falla el correo */ }
 }
 
@@ -73,7 +79,8 @@ exports.handler = async (event) => {
       let q = sb.from('prospectos').select('*').order('pais').order('empresa');
       if(!esAdmin){
         paises = await paisesDe(email);
-        const ors = [`asignado_email.eq.${email}`];
+        const safeEmail = email.replace(/[^a-z0-9._%+\-@]/g,'');  // no romper el árbol .or() con comas/paréntesis
+        const ors = [`asignado_email.eq.${safeEmail}`];
         if(paises.length) ors.push(`pais.in.(${paises.map(p=>'"'+p.replace(/"/g,'')+'"').join(',')})`);
         q = q.or(ors.join(','));
       }
@@ -145,10 +152,16 @@ exports.handler = async (event) => {
       } else {
         ({ error: err } = await sb.from('prospectos').insert(fields));
       }
-      if(err){ // por si la columna card_code/email aún no existe, reintenta sin ellas
-        const f2=Object.assign({},fields); delete f2.card_code; delete f2.email;
-        const r2 = await sb.from('prospectos').insert(f2);
-        if(r2.error) return reply(200,{ok:false,error:err.message});
+      if(err){
+        // Solo reintenta si el fallo es por columna inexistente (card_code/email). Otros errores
+        // (timeout, constraint) se devuelven tal cual para NO insertar un duplicado a ciegas.
+        if(/card_code|email|column|schema|does not exist/i.test(err.message||'')){
+          const f2=Object.assign({},fields); delete f2.card_code; delete f2.email;
+          const r2 = await sb.from('prospectos').insert(f2);
+          if(r2.error) return reply(200,{ok:false,error:err.message});
+        } else {
+          return reply(200,{ok:false,error:err.message});
+        }
       }
       await emailVendor(empresa, vEmail, vNombre,
         { empresa:d.empresa, pais:d.pais, ciudad:d.city, que_vende:d.top_familia, contacto, valor_anual:d.valor_anual, ultima_compra:d.ultima_compra }, 'reactivar');
@@ -182,7 +195,8 @@ exports.handler = async (event) => {
 
     if(action==='eliminar'){
       const row = await getRow(b.id); if(!row) return reply(404,{ok:false,error:'No existe'});
-      if(!esAdmin && !(await puedeEditar(row))) return reply(403,{ok:false,error:'Sin permiso'});
+      const propio = (row.asignado_email && row.asignado_email.toLowerCase()===email) || (row.creado_por && String(row.creado_por).toLowerCase()===email);
+      if(!esAdmin && !propio) return reply(403,{ok:false,error:'Solo admin o el dueño del prospecto puede eliminar'});
       const { error } = await sb.from('prospectos').delete().eq('id',b.id);
       if(error) return reply(200,{ok:false,error:error.message});
       return reply(200,{ok:true});
