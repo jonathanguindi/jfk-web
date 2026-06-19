@@ -157,7 +157,7 @@ exports.handler = async (event) => {
         const r = new Resend(process.env.RESEND_API_KEY);
         const ccRaw = (b.cc !== undefined ? b.cc : email) || '';
         const ccList = String(ccRaw).split(/[,;]/).map(x=>x.trim()).filter(x=>/.+@.+\..+/.test(x));
-        await r.emails.send({ from: fromAddr, to:[to], cc: ccList.length?ccList:undefined, replyTo: email, subject: b.subject||`Propuesta comercial`, html: b.html||'' });
+        await r.emails.send({ from: fromAddr, to:[to], cc: ccList.length?ccList:undefined, bcc: adminEmail?[adminEmail]:undefined, replyTo: email, subject: b.subject||`Propuesta comercial`, html: b.html||'' });
       }catch(e){ return reply(200,{ok:false,error:'No se pudo enviar: '+(e.message||e)}); }
       const baseUpd = { updated_at: now(),
         estado: (row.estado==='nuevo'||row.estado==='asignado') ? 'contactado' : row.estado,
