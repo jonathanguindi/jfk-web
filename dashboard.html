@@ -447,7 +447,8 @@ function renderDormidos(){
   const lista=Array.isArray(DORM)?DORM:[];
   const q=(document.getElementById('dormSearch').value||'').trim().toLowerCase();
   const rows=q? lista.filter(x=>((x.name||'')+(x.pais||'')+(x.vendedor||'')).toLowerCase().includes(q)) : lista;
-  const totRun=lista.reduce((s,x)=>s+(Number(x.ult_ano)||0),0);
+  const valDorm=x=>Number(x.valor_anual!=null?x.valor_anual:(x.ult_ano||0))||0;
+  const totRun=lista.reduce((s,x)=>s+valDorm(x),0);
   document.getElementById('dormResumen').innerHTML=
     `<div class="kpis" style="margin-bottom:14px">
       <div class="kpi"><div class="lbl">Clientes dormidos</div><div class="val">${lista.length.toLocaleString()}</div></div>
@@ -466,8 +467,8 @@ function renderDormidos(){
     const col=x.dias>730?'var(--red)':'var(--amber)';
     h+=`<tr style="cursor:pointer" onclick="verCliente('${esc(x.card_code)}')">
       <td><b>${esc(x.name)}</b>${x.inactivo_sap?' <span class="contact-badge off" style="font-size:.62rem">inactivo SAP</span>':''}
-        <div class="muted" style="font-size:.74rem">${esc(x.pais||'')}${x.vendedor?' · '+esc(x.vendedor):''}</div></td>
-      <td class="num" style="font-weight:600;white-space:nowrap">${fmtUSD(x.ult_ano)}</td>
+        <div class="muted" style="font-size:.74rem">${esc(x.pais||'')}${x.vendedor?' · '+esc(x.vendedor):''}${x.n_compras?' · '+x.n_compras+' órdenes'+(x.meses_activos?' en '+x.meses_activos+' meses':''):''}</div></td>
+      <td class="num" style="font-weight:600;white-space:nowrap">${fmtUSD(valDorm(x))}</td>
       <td style="white-space:nowrap;color:${col};font-weight:600">${tiempoSin(x.dias)}<div class="muted" style="font-size:.72rem;font-weight:400">${fmtFecha(x.ultima_compra)}</div></td>
       <td class="muted" style="font-size:.78rem">${esc(x.top_familia||'—')}</td>
       <td style="white-space:nowrap">${acc.join(' ')||'<span class="muted" style="font-size:.74rem">sin datos</span>'}</td>

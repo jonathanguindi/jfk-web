@@ -18,7 +18,7 @@ exports.handler = async (event) => {
   if (body.token !== expected) return reply(401, { ok: false, error: 'Token inválido' });
 
   try {
-    const res = await runVentasSync({ reset: !!body.reset });
+    const res = await runVentasSync({ reset: !!body.reset, refreshBP: !!body.bp });
     return reply(200, res);
   } catch (e) {
     return reply(500, { ok: false, error: e.message });

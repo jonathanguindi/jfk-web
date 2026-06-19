@@ -123,7 +123,7 @@ async function runCobranzasJob(hoy = new Date()) {
             </tr></thead>
             <tbody>${rows}</tbody>
           </table>
-          <p style="margin:18px 0 0"><a href="${link}" style="background:#FF6B35;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:700">Revisar y aprobar en el portal</a></p>
+          <p style="margin:18px 0 0"><a href="${link}" style="background:rgb(${(empresa.accent || [255,107,53]).join(',')});color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:700">Revisar y aprobar en el portal</a></p>
           <p style="color:#999;font-size:12px;margin-top:14px">Aprueba o descarta cada envío en la sección <b>Cobranzas</b> del portal. Los correos a los clientes solo se envían tras tu aprobación.</p>
         </div>`
       });

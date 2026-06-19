@@ -63,7 +63,7 @@ async function sapGetAll(cookie, path) {
 
 // ── Mapas de catálogo (se cargan una vez por sincronización) ──────────────────
 async function cargarMapas(cookie) {
-  const bpSelect = 'BusinessPartners?$select=CardCode,CardName,EmailAddress,Phone1,Phone2,Cellular,Address,City,Country,ContactPerson,SalesPersonCode,Valid';
+  const bpSelect = 'BusinessPartners?$select=CardCode,CardName,EmailAddress,Phone1,Phone2,Cellular,Address,City,Country,ContactPerson,SalesPersonCode,Valid,CurrentAccountBalance';
   // IMPORTANTE: en SECUENCIA, no en paralelo. El Service Layer de SAP B1 limita las
   // peticiones concurrentes por sesión y varias fallaban en silencio (nombres vacíos).
   const vend   = await sapGetAll(cookie, 'SalesPersons?$select=SalesEmployeeCode,SalesEmployeeName').catch(() => []);
@@ -103,6 +103,7 @@ async function cargarMapas(cookie) {
     contact_person: b.ContactPerson || null,
     sales_person_code: (b.SalesPersonCode != null && b.SalesPersonCode > 0) ? b.SalesPersonCode : null,
     valid: b.Valid || null,
+    balance: Number(b.CurrentAccountBalance) || 0,
   }));
 
   return { vendedor, grupoNombre, itemGrupo, paisNombre, clientePais, clientes };

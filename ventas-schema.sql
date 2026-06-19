@@ -490,3 +490,84 @@ as $$
     left join ventas_clientes c on c.card_code = d.card_code
   ) x;
 $$;
+-- ───────────────────────────────────────────────────────────────────────────
+-- 1) Saldo (lo que el cliente DEBE) en la ficha. Lo llena el sync nocturno desde
+--    SAP (CurrentAccountBalance). Si ya existe, no hace nada.
+-- ───────────────────────────────────────────────────────────────────────────
+alter table ventas_clientes add column if not exists balance numeric default 0;
+
+-- ───────────────────────────────────────────────────────────────────────────
+-- 2) RPC clientes DORMIDOS (para reactivar) — v2.
+--    Reglas nuevas:
+--      • NO lista a quien debe plata (saldo > p_deuda_max) -> es cobranza, no reactivación.
+--      • NO lista "one-time business" (ráfaga única tipo venta de pandemia):
+--          exige >=2 compras, en >=2 meses distintos, repartidas en >=90 días.
+--      • Ordena e importa por su VALOR ANUAL real = histórico / años activo
+--        (no por una compra grande aislada).
+--    Parámetros: p_dias (umbral inactividad), p_vendedores (scope), p_deuda_max.
+-- ───────────────────────────────────────────────────────────────────────────
+drop function if exists ventas_dormidos(integer, integer[]);
+drop function if exists ventas_dormidos(integer, integer[], numeric);
+create or replace function ventas_dormidos(p_dias integer default 180,
+                                           p_vendedores integer[] default null,
+                                           p_deuda_max numeric default 50)
+returns jsonb
+language sql stable
+as $$
+  with base as (
+    select * from ventas_lineas
+    where (p_vendedores is null or sales_person_code = any(p_vendedores))
+  ),
+  agg as (
+    select card_code,
+           coalesce(max(card_name), card_code)               as name,
+           coalesce(max(country_name), max(country_code))     as pais,
+           min(doc_date)                                      as primera_compra,
+           max(doc_date)                                      as ultima_compra,
+           count(distinct (doc_type||doc_entry))              as n_compras,
+           count(distinct date_trunc('month', doc_date))      as meses_activos,
+           sum(line_total)                                    as total_hist
+    from base group by card_code
+  ),
+  dorm as (
+    select *, greatest((ultima_compra - primera_compra), 0) as span_dias
+    from agg
+    where ultima_compra < current_date - p_dias and total_hist > 0
+  ),
+  vend as (
+    select distinct on (b.card_code) b.card_code, b.sales_person_name as vendedor
+    from base b join dorm d on d.card_code = b.card_code
+    order by b.card_code, b.doc_date desc
+  ),
+  fam as (
+    select card_code, item_group_name from (
+      select b.card_code, b.item_group_name,
+             row_number() over (partition by b.card_code order by sum(b.line_total) desc) rn
+      from base b join dorm d on d.card_code = b.card_code
+      where b.item_group_name is not null
+      group by b.card_code, b.item_group_name
+    ) z where rn = 1
+  )
+  select coalesce(jsonb_agg(x order by x.valor_anual desc nulls last), '[]'::jsonb) from (
+    select d.card_code, d.name, d.pais,
+           coalesce(v.vendedor,'')                  as vendedor,
+           d.ultima_compra,
+           (current_date - d.ultima_compra)         as dias,
+           d.n_compras, d.meses_activos, d.total_hist,
+           round(d.total_hist / greatest(d.span_dias/365.0, 1.0))::numeric as valor_anual,
+           coalesce(f.item_group_name,'')           as top_familia,
+           c.email,
+           coalesce(c.cellular, c.phone1, c.phone2) as telefono,
+           c.contact_person, c.city,
+           coalesce(c.balance,0)                    as deuda,
+           (c.valid is not null and c.valid ~* 'NO') as inactivo_sap
+    from dorm d
+    left join vend v on v.card_code = d.card_code
+    left join fam  f on f.card_code = d.card_code
+    left join ventas_clientes c on c.card_code = d.card_code
+    where coalesce(c.balance,0) <= p_deuda_max   -- fuera los que deben plata
+      and d.n_compras    >= 2                     -- fuera one-time
+      and d.meses_activos >= 2                    -- compró en >=2 meses distintos
+      and d.span_dias    >= 90                    -- repartido en el tiempo (no ráfaga única)
+  ) x;
+$$;

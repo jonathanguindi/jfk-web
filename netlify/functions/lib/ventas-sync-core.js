@@ -75,7 +75,7 @@ async function runVentasSync(opts = {}) {
     try {
       const { data: bpRows } = await sb.from('ventas_sync_state').select('updated_at').eq('doc_type', 'BP').limit(1);
       const last = (bpRows && bpRows[0] && bpRows[0].updated_at) ? new Date(bpRows[0].updated_at).getTime() : 0;
-      const fresco = !opts.reset && (Date.now() - last < 12 * 3600 * 1000);
+      const fresco = !opts.reset && !opts.refreshBP && (Date.now() - last < 12 * 3600 * 1000);
       if (fresco) {
         resumen.clientes = 'omitido (fresco)';
       } else {
