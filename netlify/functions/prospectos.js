@@ -157,10 +157,11 @@ exports.handler = async (event) => {
         const r = new Resend(process.env.RESEND_API_KEY);
         await r.emails.send({ from: fromAddr, to:[to], replyTo: email, subject: b.subject||`Propuesta comercial`, html: b.html||'' });
       }catch(e){ return reply(200,{ok:false,error:'No se pudo enviar: '+(e.message||e)}); }
-      const upd = { email: to, updated_at: now(),
+      const baseUpd = { updated_at: now(),
         estado: (row.estado==='nuevo'||row.estado==='asignado') ? 'contactado' : row.estado,
         historial: log(row, `Correo enviado a ${to} por ${b.nombre||email}`) };
-      await sb.from('prospectos').update(upd).eq('id', b.id);
+      let { error: e2 } = await sb.from('prospectos').update({ ...baseUpd, email: to }).eq('id', b.id);
+      if (e2) { await sb.from('prospectos').update(baseUpd).eq('id', b.id); } // si no existe la columna email
       return reply(200,{ok:true});
     }
 
