@@ -1027,6 +1027,10 @@ input, textarea { font-family: inherit; }
   padding: 3px 7px; border-radius: 999px; letter-spacing: 0.02em;
   box-shadow: 0 2px 6px rgba(0,0,0,0.22); pointer-events: none;
 }
+.cart-prev-price {
+  font-size: 0.62rem; font-weight: 700; color: #1D9E75;
+  margin-top: 2px; white-space: nowrap;
+}
 .pedido-card__status-dot {
   position: absolute;
   top: 0.6rem;
@@ -3411,6 +3415,7 @@ let currentVendor = null;
 let currentCustomer = null;
 let offerMode = false; // true cuando se entra por el cuadro "Oferta" del home
 let clientBoughtCodes = new Set(); // códigos que el cliente seleccionado ya compró antes
+let clientBoughtInfo = {}; // item_code -> { precio_ultimo, fecha_ultima, veces_comprado } del último que pagó
 let onlyBought = false; // modo reposición: mostrar solo lo que el cliente ya compra
 let globalDiscount = 0; // % descuento global aplicado a todo el carrito (DEBE declararse antes de usarse)
 let currentCart = {}; globalDiscount = 0; // { sap_item_code: { qty, discount, product } }
@@ -3627,7 +3632,7 @@ function showHome() {
 }
 function logout() {
   localStorage.removeItem(SESSION_KEY);
-  currentVendor = null; currentCustomer = null; currentCart = {}; globalDiscount = 0; offerMode = false; clientBoughtCodes = new Set(); onlyBought = false; minBox = false; hideBought = false; clearPinBuffer();
+  currentVendor = null; currentCustomer = null; currentCart = {}; globalDiscount = 0; offerMode = false; clientBoughtCodes = new Set(); clientBoughtInfo = {}; onlyBought = false; minBox = false; hideBought = false; clearPinBuffer();
   document.getElementById('login-email').value = '';
   goToScreen('login');
 }
@@ -4347,11 +4352,22 @@ function highlightMatches(text, term) {
 // Trae los productos que el cliente seleccionado ya compró (para marcarlos en el catálogo)
 async function loadClientBought(cc) {
   clientBoughtCodes = new Set();
+  clientBoughtInfo = {};
   if (!cc) return;
+  // Guarda código + último precio/fecha/veces de cada producto que el cliente ya compró
+  const registrar = (r) => {
+    if (!r || !r.item_code) return;
+    clientBoughtCodes.add(r.item_code);
+    clientBoughtInfo[r.item_code] = {
+      precio_ultimo: parseFloat(r.precio_ultimo) || 0,
+      fecha_ultima: (r.fecha_ultima || '').slice(0, 10),
+      veces_comprado: Number(r.veces_comprado) || 0
+    };
+  };
   try {
     const { data, error } = await supa.rpc('get_client_products', { p_card_code: cc });
     if (!error && data && data.length) {
-      data.forEach(r => { if (r.item_code) clientBoughtCodes.add(r.item_code); });
+      data.forEach(registrar);
     } else {
       // Sin cache: bajar de SAP y guardar para la próxima
       try {
@@ -4362,7 +4378,7 @@ async function loadClientBought(cc) {
         if (r.ok) {
           const hd = await r.json();
           if (hd && hd.ok && Array.isArray(hd.productos)) {
-            hd.productos.forEach(p => { if (p.item_code) clientBoughtCodes.add(p.item_code); });
+            hd.productos.forEach(registrar);
             if (hd.productos.length) { try { await supa.rpc('save_client_products', { p_card_code: cc, p_rows: hd.productos }); } catch (e) {} }
           }
         }
@@ -4373,19 +4389,34 @@ async function loadClientBought(cc) {
   if (currentCustomer && currentCustomer.sap_card_code === cc) markBoughtCards();
 }
 
+// Texto/atributos del sello "Ya lo compra" con el último precio que pagó el cliente
+function boughtBadgeParts(code) {
+  const info = clientBoughtInfo[code];
+  if (info && info.precio_ultimo > 0) {
+    const fecha = info.fecha_ultima ? ` el ${info.fecha_ultima}` : '';
+    const veces = info.veces_comprado ? ` · ${info.veces_comprado} ${info.veces_comprado === 1 ? 'vez' : 'veces'}` : '';
+    return { text: `✓ Antes $${info.precio_ultimo.toFixed(2)}`, title: `Última vez que lo compró: $${info.precio_ultimo.toFixed(2)}${fecha}${veces}` };
+  }
+  return { text: '✓ Ya lo compra', title: 'Este cliente ya lo compra' };
+}
+function boughtBadgeHTML(code) {
+  if (!clientBoughtCodes.has(code)) return '';
+  const b = boughtBadgeParts(code);
+  return `<div class="pedido-card__bought" title="${escapeHtml(b.title)}">${escapeHtml(b.text)}</div>`;
+}
+
 // Pinta/quita el sello "Ya lo compra" en las tarjetas ya visibles
 function markBoughtCards() {
   document.querySelectorAll('#pedido-grid .pedido-card[data-pcode]').forEach(card => {
     const code = card.getAttribute('data-pcode');
     const has = clientBoughtCodes.has(code);
     let badge = card.querySelector('.pedido-card__bought');
-    if (has && !badge) {
-      badge = document.createElement('div');
-      badge.className = 'pedido-card__bought';
-      badge.title = 'Este cliente ya lo compra';
-      badge.textContent = '✓ Ya lo compra';
-      card.appendChild(badge);
-    } else if (!has && badge) {
+    if (has) {
+      const b = boughtBadgeParts(code);
+      if (!badge) { badge = document.createElement('div'); badge.className = 'pedido-card__bought'; card.appendChild(badge); }
+      badge.title = b.title;
+      badge.textContent = b.text;
+    } else if (badge) {
       badge.remove();
     }
   });
@@ -4433,7 +4464,7 @@ function renderProductCard(p) {
   return `
     <div class="pedido-card ${currentQty > 0 ? 'has-qty' : ''}" data-pcode="${escapeHtml(p.sap_item_code)}">
       <div class="pedido-card__status-dot"></div>
-      ${clientBoughtCodes.has(p.sap_item_code) ? '<div class="pedido-card__bought" title="Este cliente ya lo compra">✓ Ya lo compra</div>' : ''}
+      ${boughtBadgeHTML(p.sap_item_code)}
       <div class="pedido-card__menu-dots">⋯</div>
       <div class="pedido-card__image pedido-card__image--empty">
         <img src="${PRODUCT_IMG_BASE}/${encodeURIComponent(p.sap_item_code)}.jpg"
@@ -4903,6 +4934,10 @@ function renderCart() {
     const priceFinal = lineUnitBase(it);            // precio fijo o lista×(1-desc)
     const lineTotal = qty * lineUnitFinal(it);
     const discShown = (it.fixedPrice != null) ? '' : (discount||0).toFixed(2);
+    const prev = clientBoughtInfo[product.sap_item_code];
+    const prevHtml = (prev && prev.precio_ultimo > 0)
+      ? `<div class="cart-prev-price" title="Último precio que pagó este cliente${prev.fecha_ultima ? ' el ' + prev.fecha_ultima : ''}">antes $${prev.precio_ultimo.toFixed(2)}</div>`
+      : '';
     const icon = LINE_ICONS[product.line_jfk] || LINE_ICONS['Otros'];
     const stock = product.stock || 0;
     const stockClass = qty > stock ? 'stock-cell stock-cell--over' : (stock === 0 ? 'stock-cell stock-cell--zero' : 'stock-cell');
@@ -4915,7 +4950,7 @@ function renderCart() {
         <td class="desc-cell">${escapeHtml(product.name || '')}</td>
         <td class="num-cell"><input type="number" class="cell-input qty-cell-input" value="${qty}" min="1" data-field="qty"></td>
         <td class="num-cell ${stockClass}">${stock}</td>
-        <td class="num-cell">$${listPrice.toFixed(2)}</td>
+        <td class="num-cell">$${listPrice.toFixed(2)}${prevHtml}</td>
         <td class="num-cell"><input type="number" class="cell-input disc-cell-input" value="${discShown}" min="0" max="100" step="0.01" data-field="disc"></td>
         <td class="num-cell"><input type="number" class="cell-input price-cell-input" value="${priceFinal.toFixed(2)}" min="0" step="0.01" data-field="price"></td>
         <td class="total-cell">$${lineTotal.toFixed(2)}</td>
