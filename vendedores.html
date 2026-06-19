@@ -1031,6 +1031,9 @@ input, textarea { font-family: inherit; }
   font-size: 0.62rem; font-weight: 700; color: #1D9E75;
   margin-top: 2px; white-space: nowrap;
 }
+/* Referencia de precio bajo la descripción (solo en celular, donde se ocultan esas columnas) */
+.cart-cell-meta { display: none; font-size: 0.64rem; font-weight: 600; color: var(--text-muted); margin-top: 3px; }
+.cart-cell-meta .prev { color: #1D9E75; }
 .pedido-card__status-dot {
   position: absolute;
   top: 0.6rem;
@@ -1667,15 +1670,25 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
 .sug-chip:active{transform:scale(.96)}
 .sug-chip.sug-re{border-color:rgba(232,163,23,.5);background:rgba(232,163,23,.08)}
 .sug-chip.sug-cs{border-color:rgba(0,159,227,.5);background:rgba(0,159,227,.08)}
-/* En celular: que la tabla del pedido quepa sin desbordar la pantalla */
+/* En celular: que la tabla del pedido quepa SIN desplazar de lado.
+   Mostramos solo lo esencial (imagen, descripción, cantidad, precio, total, quitar) y
+   ocultamos columnas de bajo valor (selección, referencia, inventario, precio lista, %, cajas).
+   La referencia "Lista $X · antes $Y" se muestra bajo la descripción en su lugar. */
 @media (max-width: 600px) {
-  .cart-table { min-width: 0; font-size: 0.72rem; }
-  /* El dueño SÍ quiere ver la imagen en el celular: mostramos un thumbnail compacto */
-  .cart-table td.img-cell, .cart-table th.img-cell { display: table-cell; width: 40px; padding: 0.35rem 0.25rem; }
+  .cart-table { min-width: 0; width: 100%; font-size: 0.72rem; }
+  .cart-table th, .cart-table td { padding: 0.4rem 0.25rem; }
+  .cart-table th:nth-child(1), .cart-table td:nth-child(1),
+  .cart-table th:nth-child(3), .cart-table td:nth-child(3),
+  .cart-table th:nth-child(6), .cart-table td:nth-child(6),
+  .cart-table th:nth-child(7), .cart-table td:nth-child(7),
+  .cart-table th:nth-child(8), .cart-table td:nth-child(8),
+  .cart-table th:nth-child(11), .cart-table td:nth-child(11) { display: none; }
+  .cart-table td.img-cell, .cart-table th.img-cell { display: table-cell; width: 40px; padding: 0.35rem 0.2rem; }
   .cart-table .img-icon { width: 34px; height: 34px; }
-  .cart-table td.desc-cell { white-space: normal; max-width: 120px; }
-  .cart-table th, .cart-table td { padding: 0.4rem 0.35rem; }
-  .cart-table input.cell-input.qty-cell-input { width: 46px; }
+  .cart-table td.desc-cell { white-space: normal; max-width: none; }
+  .cart-table td.total-cell { padding-right: 0.4rem; }
+  .cart-table input.cell-input { width: 48px; }
+  .cart-cell-meta { display: block; }
 }
 .cart-table td.stock-cell {
   font-weight: 600;
@@ -4947,7 +4960,7 @@ function renderCart() {
         <td class="check-cell"><input type="checkbox" class="row-check" data-field="check" ${checked}></td>
         <td class="img-cell"><div class="img-icon"><img src="${PRODUCT_IMG_BASE}/${encodeURIComponent(product.sap_item_code)}.jpg" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:4px;" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><span style="display:none;width:100%;height:100%;align-items:center;justify-content:center;">${icon}</span></div></td>
         <td class="code-cell">${escapeHtml(product.sap_item_code)}</td>
-        <td class="desc-cell">${escapeHtml(product.name || '')}</td>
+        <td class="desc-cell">${escapeHtml(product.name || '')}<div class="cart-cell-meta">Lista $${listPrice.toFixed(2)}${(prev && prev.precio_ultimo > 0) ? ` · <span class="prev">antes $${prev.precio_ultimo.toFixed(2)}</span>` : ''}</div></td>
         <td class="num-cell"><input type="number" class="cell-input qty-cell-input" value="${qty}" min="1" data-field="qty"></td>
         <td class="num-cell ${stockClass}">${stock}</td>
         <td class="num-cell">$${listPrice.toFixed(2)}${prevHtml}</td>
