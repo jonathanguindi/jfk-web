@@ -65,7 +65,10 @@ exports.handler = async (event) => {
 
     if (body.dormidos) {
       const dias = Number(body.dias) > 0 ? Math.round(Number(body.dias)) : 180;
-      const { data, error } = await sb.rpc('ventas_dormidos', { p_dias: dias, p_vendedores });
+      const deudaMax = Number(body.deudaMax) >= 0 ? Number(body.deudaMax) : 50;
+      // Pasamos los 3 parámetros para apuntar siempre a la versión nueva del RPC
+      // (evita la ambigüedad si quedó la firma vieja de 2 args en la base).
+      const { data, error } = await sb.rpc('ventas_dormidos', { p_dias: dias, p_vendedores, p_deuda_max: deudaMax });
       if (error) return reply(500, { ok: false, error: error.message });
       return reply(200, { ok: true, dormidos: data || [], scope });
     }
