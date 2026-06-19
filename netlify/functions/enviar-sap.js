@@ -41,7 +41,7 @@ exports.handler = async (event) => {
 
   try {
     const payload = JSON.parse(event.body || '{}');
-    const { cardCode, comments, lines } = payload;
+    const { cardCode, comments, lines, salesPersonCode, orderRef } = payload;
 
     if (!cardCode || !lines || lines.length === 0) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Faltan datos: cardCode y lines son obligatorios' }) };
@@ -54,6 +54,22 @@ exports.handler = async (event) => {
 
     const cookies = await sapLogin();
     const hoy = new Date().toISOString().slice(0, 10);
+
+    // ANTI-DUPLICADO: si ya existe una orden con este orderRef (NumAtCard), devolverla
+    // en vez de crear otra (evita duplicados si el vendedor reintenta tras un timeout).
+    if (orderRef) {
+      try {
+        const ref = String(orderRef).replace(/'/g, "''");
+        const chk = await fetch(`${SAP_URL}/Orders?$select=DocEntry,DocNum,CardName,DocTotal&$filter=NumAtCard eq '${ref}'&$top=1`, { headers: { 'Cookie': cookies, 'Content-Type': 'application/json' }, agent });
+        if (chk.ok) {
+          const cj = await chk.json();
+          if (cj.value && cj.value.length) {
+            const d0 = cj.value[0];
+            return { statusCode: 200, headers, body: JSON.stringify({ success: true, duplicate: true, docEntry: d0.DocEntry, docNum: d0.DocNum, cardName: d0.CardName, docTotal: d0.DocTotal }) };
+          }
+        }
+      } catch (e) { /* si la verificación falla, seguimos y creamos normal */ }
+    }
 
     const orden = {
       CardCode: cardCode,
@@ -74,6 +90,11 @@ exports.handler = async (event) => {
         return line;
       })
     };
+    // Atribuir la orden al vendedor en SAP (antes iba sin SalesPersonCode → métricas mal atribuidas).
+    const spc = Number(salesPersonCode);
+    if (salesPersonCode != null && Number.isInteger(spc) && spc > 0) orden.SalesPersonCode = spc;
+    // Referencia única para el anti-duplicado.
+    if (orderRef) orden.NumAtCard = String(orderRef).slice(0, 100);
 
     const res = await fetch(`${SAP_URL}/Orders`, {
       method: 'POST',

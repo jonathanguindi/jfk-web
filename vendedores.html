@@ -1658,6 +1658,11 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
   max-width: 180px;
 }
 .cart-table td.num-cell { text-align: center; font-variant-numeric: tabular-nums; }
+/* Chips de sugerencias (recompra / cross-sell) en el pedido */
+.sug-chip{border:1px solid var(--border);background:var(--bg-elevated);color:var(--text);border-radius:999px;padding:.4rem .7rem;font-size:.78rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:transform .12s,border-color .15s,background .15s;}
+.sug-chip:active{transform:scale(.96)}
+.sug-chip.sug-re{border-color:rgba(232,163,23,.5);background:rgba(232,163,23,.08)}
+.sug-chip.sug-cs{border-color:rgba(0,159,227,.5);background:rgba(0,159,227,.08)}
 /* En celular: que la tabla del pedido quepa sin desbordar la pantalla */
 @media (max-width: 600px) {
   .cart-table { min-width: 0; font-size: 0.72rem; }
@@ -2529,6 +2534,9 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
 
   <div class="pedido-subtabs" id="pedido-subtabs" style="display:none;"></div>
 
+  <div id="offer-banner" style="display:none;margin:0 0 .6rem;"></div>
+  <div id="sugerencias-banner" style="display:none;margin:0 0 .6rem;"></div>
+
   <div class="pedido-grid" id="pedido-grid">
     <div class="pedido-loading"><div class="spinner"></div><div style="margin-top:1rem;">Cargando productos...</div></div>
   </div>
@@ -3074,6 +3082,9 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
           <span style="font-weight:700;color:#FF6B35;font-size:1.1rem;" id="confirm-total">$0.00</span>
         </div>
       </div>
+      <div style="font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:#999;margin:0 0 .4rem;">Revisa precios antes de enviar</div>
+      <div id="confirm-lines" style="max-height:34vh;overflow:auto;margin-bottom:.8rem;border:1px solid #eee;border-radius:10px;"></div>
+      <div id="confirm-warn" style="display:none;margin-bottom:1rem;padding:.7rem .8rem;border-radius:10px;font-size:.82rem;"></div>
       <div style="display:flex;gap:0.6rem;">
         <button onclick="closeConfirmModal()" style="flex:1;padding:0.85rem;border:1px solid #ddd;border-radius:10px;background:transparent;cursor:pointer;font-size:0.9rem;font-weight:600;color:#666;">Cancelar</button>
         <button onclick="confirmSubmitOrder()" style="flex:2;padding:0.85rem;border:none;border-radius:10px;background:#061A2E;color:#fff;cursor:pointer;font-size:0.9rem;font-weight:700;">Crear Orden en SAP</button>
@@ -3862,6 +3873,101 @@ function selectCustomer(c) {
   if (oa) oa.style.display = offerMode ? 'block' : 'none';
   loadProducts();
   loadClientBought(c.sap_card_code);
+  revisarOfertaActiva(c.sap_card_code);     // #4: banner si hay oferta activa
+  cargarSugerencias(c.sap_card_code);       // #2: sugerencias de recompra / cross-sell
+}
+
+// ===== #4 · Oferta activa del cliente (reusar al armar el pedido) =====
+async function revisarOfertaActiva(cardCode) {
+  const box = document.getElementById('offer-banner'); if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+  try {
+    const { data } = await supa.from('client_offers')
+      .select('id,title,cart_data,expires_at,total_amount')
+      .eq('sap_card_code', cardCode).eq('status', 'active')
+      .gt('expires_at', new Date().toISOString())
+      .order('expires_at', { ascending: false }).limit(1);
+    const o = data && data[0];
+    if (!o || !box) return;
+    const hrs = Math.max(1, Math.round((new Date(o.expires_at) - new Date()) / 3600000));
+    window._ofertaActiva = o;
+    box.innerHTML = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:.7rem .9rem;border:1px solid var(--punch);background:rgba(255,107,53,.08);border-radius:12px;">
+      <span style="font-size:1.1rem;">🎁</span>
+      <div style="flex:1;min-width:0;"><b>${escapeHtml(o.title || 'Oferta especial')}</b> — vence en ${hrs}h · ${o.cart_data && o.cart_data.items ? o.cart_data.items.length : 0} productos a precio ofertado</div>
+      <button class="btn" onclick="cargarOfertaAlPedido()" style="background:var(--punch);color:#fff;border:none;border-radius:9px;padding:.5rem .9rem;font-weight:700;cursor:pointer;white-space:nowrap;">Cargar oferta al pedido</button>
+    </div>`;
+    box.style.display = 'block';
+  } catch (e) {}
+}
+async function cargarOfertaAlPedido() {
+  const o = window._ofertaActiva; if (!o || !o.cart_data || !o.cart_data.items) return;
+  if (Object.keys(currentCart).length && !confirm('Esto reemplaza el carrito actual con la oferta. ¿Continuar?')) return;
+  const items = o.cart_data.items;
+  const codes = items.map(i => i.code).filter(Boolean);
+  let prodMap = {};
+  try {
+    for (let i = 0; i < codes.length; i += 300) {
+      const { data } = await supa.from('products')
+        .select(`sap_item_code, name, stock, price_kennedy, line_jfk, items_per_box, volume_unit, volume_cft_per_unit, weight_kg_per_unit, volume_verified, barcode`)
+        .in('sap_item_code', codes.slice(i, i + 300));
+      (data || []).forEach(p => { prodMap[p.sap_item_code] = p; });
+    }
+  } catch (e) {}
+  currentCart = {};
+  items.forEach(it => {
+    const base = prodMap[it.code] || { sap_item_code: it.code, name: it.name, items_per_box: it.items_per_box || 1, line_jfk: it.line_jfk };
+    // el precio de la oferta manda: lo guardamos como price_kennedy con descuento 0
+    currentCart[it.code] = { qty: it.qty, discount: 0, product: { ...base, price_kennedy: it.offer_price } };
+  });
+  globalDiscount = (o.cart_data.global_discount) || 0;
+  const gi = document.getElementById('global-discount-input'); if (gi) gi.value = globalDiscount;
+  updateFooter();
+  showToast('🎁 Oferta cargada al pedido (' + items.length + ' productos)');
+  document.getElementById('offer-banner').style.display = 'none';
+}
+
+// ===== #2 · Sugerencias (recompra + cross-sell) dentro del pedido =====
+async function cargarSugerencias(cardCode) {
+  const box = document.getElementById('sugerencias-banner'); if (!box) return;
+  box.style.display = 'none'; box.innerHTML = '';
+  try {
+    const r = await fetch('/.netlify/functions/ventas-dashboard', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: (currentVendor && currentVendor.email) || '', cardCode, reco: true })
+    });
+    const j = await r.json();
+    if (!j.ok || !j.reco) return;
+    const reo = (j.reco.reorden || []).slice(0, 4);
+    const cs = (j.reco.crosssell || []).slice(0, 4);
+    if (!reo.length && !cs.length) return;
+    const chip = (txt, name, kind) => `<button class="sug-chip sug-${kind}" onclick='agregarSugerencia(${JSON.stringify(name)})'>${kind === 're' ? '🔁' : '✨'} ${escapeHtml(txt)} <span style="opacity:.6">+1 bulto</span></button>`;
+    let html = '<div style="border:1px solid var(--border);border-radius:12px;padding:.7rem .9rem;background:var(--bg-elevated);">';
+    html += '<div style="font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.5rem;">💡 Sugerencias para este cliente</div>';
+    html += '<div style="display:flex;gap:.4rem;flex-wrap:wrap;">';
+    reo.forEach(x => html += chip((x.descripcion || '').slice(0, 28) + ' · le toca', x.descripcion, 're'));
+    cs.forEach(x => html += chip((x.descripcion || '').slice(0, 28) + ' · ' + (x.pct_peers || 0) + '% zona', x.descripcion, 'cs'));
+    html += '</div></div>';
+    box.innerHTML = html;
+    box.style.display = 'block';
+  } catch (e) {}
+}
+async function agregarSugerencia(nombre) {
+  try {
+    const safe = (nombre || '').replace(/[%,()]/g, '').trim();
+    if (!safe) return;
+    const { data } = await supa.from('products')
+      .select(`sap_item_code, name, stock, price_kennedy, line_jfk, items_per_box, volume_unit, volume_cft_per_unit, weight_kg_per_unit, volume_verified, barcode`)
+      .ilike('name', '%' + safe + '%').gt('price_kennedy', 0).limit(1);
+    const p = data && data[0];
+    if (!p) {   // no resuelto: lo buscamos en el catálogo para que el vendedor elija
+      document.getElementById('search-product').value = nombre; searchTerm = nombre; currentPage = 0; loadProducts();
+      showToast('Búscalo y agrégalo: ' + nombre); return;
+    }
+    const box = p.items_per_box || 1;
+    const cur = currentCart[p.sap_item_code];
+    updateQty(p, (cur ? cur.qty : 0) + box);
+    updateFooter();
+    showToast('✓ ' + p.name + ' (+' + box + ')');
+  } catch (e) { showToast('No se pudo agregar', true); }
 }
 
 function setRepoActiveBtn(mode) {
@@ -4975,6 +5081,32 @@ function submitOrder() {
   document.getElementById('confirm-items').textContent = items.length + ' producto' + (items.length !== 1 ? 's' : '');
   document.getElementById('confirm-units').textContent = totalUnits + ' unidades';
   document.getElementById('confirm-total').textContent = '$' + totalAmount.toFixed(2) + (globalDiscount > 0 ? ` (-${globalDiscount}% global)` : '');
+  // Detalle de líneas con su precio final + alerta de precio bajo costo / bajo lista
+  let bajoCosto = 0, bajoLista = 0;
+  const rowsHtml = items.map(({qty, discount, product}) => {
+    const pf = parseFloat(product.price_kennedy || 0) * (1 - (discount||0)/100) * (1 - globalDiscount/100);
+    const lista = parseFloat(product.price_kennedy) || 0;
+    const cost = parseFloat(product.cif_cost || product.fob_cost || 0) || 0;   // solo admin trae costo
+    const esBajoCosto = cost > 0 && pf < cost;
+    const esBajoLista = !esBajoCosto && lista > 0 && pf < lista - 0.0001;
+    if (esBajoCosto) bajoCosto++; else if (esBajoLista) bajoLista++;
+    const col = esBajoCosto ? '#b3261e' : '#0E1016';
+    const flag = esBajoCosto ? '<span style="color:#b3261e;font-weight:700"> ⚠ bajo costo</span>'
+              : (esBajoLista ? '<span style="color:#E8A317"> ↓ bajo lista</span>' : '');
+    return `<div style="display:flex;justify-content:space-between;gap:8px;padding:.5rem .6rem;border-bottom:1px solid #f0f0f0;font-size:.82rem;">
+      <div style="min-width:0;"><div style="font-weight:600;color:${col};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:48vw;">${escapeHtml(product.name || product.sap_item_code)}</div>
+        <div style="color:#888;font-size:.74rem;">${qty} × $${pf.toFixed(2)}${flag}</div></div>
+      <div style="font-weight:700;white-space:nowrap;color:${col};">$${(pf*qty).toFixed(2)}</div></div>`;
+  }).join('');
+  document.getElementById('confirm-lines').innerHTML = rowsHtml;
+  const warn = document.getElementById('confirm-warn');
+  if (bajoCosto > 0) {
+    warn.style.display = 'block'; warn.style.background = 'rgba(229,72,77,.10)'; warn.style.border = '1px solid rgba(229,72,77,.4)'; warn.style.color = '#b3261e';
+    warn.innerHTML = `⚠ <b>${bajoCosto}</b> línea(s) por <b>debajo del costo</b>. Revisa antes de crear la orden.`;
+  } else if (bajoLista > 0) {
+    warn.style.display = 'block'; warn.style.background = 'rgba(232,163,23,.10)'; warn.style.border = '1px solid rgba(232,163,23,.4)'; warn.style.color = '#8a6d00';
+    warn.innerHTML = `${bajoLista} línea(s) con precio por debajo de la lista (descuento aplicado).`;
+  } else { warn.style.display = 'none'; }
   document.getElementById('confirm-modal').classList.add('show');
 }
 
@@ -5171,6 +5303,21 @@ async function confirmSendOffer() {
 }
 
 // Paso 2: al confirmar, guarda en Supabase Y envía a SAP
+// Resuelve el código de vendedor en SAP (por correo, vía cobranza_vendedores) — con caché por correo.
+let _vsc = { email: null, code: null };
+async function getVendorSapCode() {
+  const email = ((currentVendor && currentVendor.email) || '').trim().toLowerCase();
+  if (!email) return null;
+  if (_vsc.email === email) return _vsc.code;
+  let code = null;
+  try {
+    const { data } = await supa.from('cobranza_vendedores').select('sap_code,email,activo');
+    const row = (data || []).find(r => r.activo !== false && (r.email || '').toLowerCase().split(/[,;]/).map(s => s.trim()).includes(email) && r.sap_code != null);
+    if (row) code = Number(row.sap_code);
+  } catch (e) {}
+  _vsc = { email, code };
+  return code;
+}
 async function confirmSubmitOrder() {
   closeConfirmModal();
   const items = Object.values(currentCart);
@@ -5264,13 +5411,16 @@ async function confirmSubmitOrder() {
           unitPrice: unitPrice
         };
       });
+      const spCode = await getVendorSapCode();   // código de vendedor en SAP (para atribución)
       const sapRes = await fetch('/.netlify/functions/enviar-sap', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           cardCode: currentCustomer.sap_card_code,
           comments: `Pedido ${order.order_number} - Vendedor: ${currentVendor.name}${globalDiscount > 0 ? ` (Desc global: ${globalDiscount}%)` : ''}${notes ? ' - ' + notes : ''}`,
-          lines: sapLines
+          lines: sapLines,
+          salesPersonCode: spCode,
+          orderRef: order.order_number
         })
       });
       const sapData = await sapRes.json();
