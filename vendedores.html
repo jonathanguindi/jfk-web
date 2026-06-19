@@ -4492,14 +4492,23 @@ function updateQty(product, qty) {
   autoSaveDraft();
 }
 
+// Precio unitario de una línea del carrito. Soporta PRECIO FIJO absoluto (it.fixedPrice),
+// que puede estar ARRIBA o abajo de la lista; el precio fijo NO se reduce por el descuento global.
+function lineUnitBase(it){   // antes del global
+  if (it && it.fixedPrice != null && isFinite(it.fixedPrice) && Number(it.fixedPrice) >= 0) return Number(it.fixedPrice);
+  return (parseFloat(it.product.price_kennedy) || 0) * (1 - (it.discount || 0) / 100);
+}
+function lineUnitFinal(it){   // lo que realmente se cobra
+  if (it && it.fixedPrice != null && isFinite(it.fixedPrice) && Number(it.fixedPrice) >= 0) return Number(it.fixedPrice);
+  return lineUnitBase(it) * (1 - (globalDiscount || 0) / 100);
+}
 function updateFooter() {
   const items = Object.values(currentCart);
   let totalAmount = 0;
   let totalUnits = 0;
-  items.forEach(({qty, discount, product}) => {
-    const price = parseFloat(product.price_kennedy) * (1 - (discount || 0) / 100);
-    totalAmount += qty * price;
-    totalUnits += qty;
+  items.forEach(it => {
+    totalAmount += it.qty * lineUnitFinal(it);
+    totalUnits += it.qty;
   });
   document.getElementById('footer-total').textContent = `$${totalAmount.toFixed(2)}`;
   const startIdx = currentPage * PAGE_SIZE + 1;
@@ -4520,7 +4529,7 @@ function applyBulkDiscount() {
   let d = parseFloat(val) || 0;
   d = Math.max(0, Math.min(100, d));
   selectedRows.forEach(pcode => {
-    if (currentCart[pcode]) currentCart[pcode].discount = d;
+    if (currentCart[pcode]) { currentCart[pcode].discount = d; delete currentCart[pcode].fixedPrice; }
   });
   showToast(`${d}% aplicado a ${selectedRows.size} producto(s)`);
   renderCart();
@@ -4531,21 +4540,15 @@ function applyBulkPrice() {
   const val = prompt(`Precio fijo por unidad para ${selectedRows.size} producto(s) seleccionado(s):`, '');
   if (val === null) return;
   const precio = parseFloat(String(val).replace(',', '.'));
-  if (!(precio > 0)) { showToast('Escribe un precio válido (mayor a 0)', true); return; }
-  let ok = 0, sinLista = 0, mayorLista = 0;
+  if (!(precio >= 0) || !isFinite(precio)) { showToast('Escribe un precio válido', true); return; }
+  let ok = 0;
   selectedRows.forEach(pcode => {
     const it = currentCart[pcode]; if (!it) return;
-    const list = parseFloat(it.product.price_kennedy) || 0;
-    if (!(list > 0)) { sinLista++; return; }
-    if (precio > list) mayorLista++;
-    // El carrito trabaja con % de descuento sobre la lista: convertimos el precio fijo.
-    it.discount = Math.max(0, Math.min(100, (1 - precio / list) * 100));
+    it.fixedPrice = precio;   // precio fijo absoluto (puede ir ARRIBA o abajo de la lista)
     ok++;
   });
   let msg = `Precio fijo $${precio.toFixed(2)} aplicado a ${ok} producto(s)`;
-  if (mayorLista) msg += ` · ${mayorLista} arriba de la lista quedaron al precio de lista (no se puede subir con descuento)`;
-  if (sinLista) msg += ` · ${sinLista} sin precio de lista`;
-  if ((globalDiscount || 0) > 0) msg += ` · OJO: el descuento global ${globalDiscount}% se resta encima`;
+  if ((globalDiscount || 0) > 0) msg += ` · el precio fijo NO se afecta por el descuento global`;
   showToast(msg);
   renderCart();
 }
@@ -4890,14 +4893,14 @@ function renderCart() {
 
   footer.style.display = 'block';
 
-  const rows = items.map(({qty, discount, product}) => {
+  const rows = items.map((it) => {
+    const {qty, discount, product} = it;
     const itemsPerBox = product.items_per_box || 1;
     const boxes = Math.ceil(qty / itemsPerBox);
     const listPrice = parseFloat(product.price_kennedy);
-    const priceFinal = listPrice * (1 - (discount||0)/100);
-    // Aplicar descuento global si existe
-    const priceWithGlobal = priceFinal * (1 - (globalDiscount||0)/100);
-    const lineTotal = qty * priceWithGlobal;
+    const priceFinal = lineUnitBase(it);            // precio fijo o lista×(1-desc)
+    const lineTotal = qty * lineUnitFinal(it);
+    const discShown = (it.fixedPrice != null) ? '' : (discount||0).toFixed(2);
     const icon = LINE_ICONS[product.line_jfk] || LINE_ICONS['Otros'];
     const stock = product.stock || 0;
     const stockClass = qty > stock ? 'stock-cell stock-cell--over' : (stock === 0 ? 'stock-cell stock-cell--zero' : 'stock-cell');
@@ -4911,7 +4914,7 @@ function renderCart() {
         <td class="num-cell"><input type="number" class="cell-input qty-cell-input" value="${qty}" min="1" data-field="qty"></td>
         <td class="num-cell ${stockClass}">${stock}</td>
         <td class="num-cell">$${listPrice.toFixed(2)}</td>
-        <td class="num-cell"><input type="number" class="cell-input disc-cell-input" value="${(discount||0).toFixed(2)}" min="0" max="100" step="0.01" data-field="disc"></td>
+        <td class="num-cell"><input type="number" class="cell-input disc-cell-input" value="${discShown}" min="0" max="100" step="0.01" data-field="disc"></td>
         <td class="num-cell"><input type="number" class="cell-input price-cell-input" value="${priceFinal.toFixed(2)}" min="0" step="0.01" data-field="price"></td>
         <td class="total-cell">$${lineTotal.toFixed(2)}</td>
         <td class="num-cell">${boxes}</td>
@@ -4984,18 +4987,15 @@ function renderCart() {
           let d = parseFloat(el.value) || 0;
           d = Math.max(0, Math.min(100, d));
           currentCart[pcode].discount = d;
+          delete currentCart[pcode].fixedPrice;   // el % manda: se quita el precio fijo
           renderCart();
           autoSaveDraft();
         });
       } else if (field === 'price') {
         el.addEventListener('change', () => {
-          // Cambio el precio final → recalculo el % de descuento
-          const newPrice = parseFloat(el.value) || 0;
-          const listPrice = parseFloat(currentCart[pcode].product.price_kennedy);
-          if (listPrice > 0) {
-            const newDisc = Math.max(0, Math.min(100, (1 - newPrice / listPrice) * 100));
-            currentCart[pcode].discount = newDisc;
-          }
+          // Precio FIJO absoluto: puede estar arriba o abajo de la lista.
+          const newPrice = parseFloat(String(el.value).replace(',', '.'));
+          if (newPrice >= 0 && isFinite(newPrice)) currentCart[pcode].fixedPrice = newPrice;
           renderCart();
           autoSaveDraft();
         });
@@ -5024,18 +5024,17 @@ function renderCart() {
     });
   });
 
-  // Totales
+  // Totales (soporta precio fijo absoluto por línea)
   let subtotal = 0;
   let totalBoxes = 0;
-  items.forEach(({qty, discount, product}) => {
-    const priceFinal = parseFloat(product.price_kennedy) * (1 - (discount||0)/100);
-    subtotal += qty * priceFinal;
-    const ipb = product.items_per_box || 1;
-    totalBoxes += Math.ceil(qty / ipb);
+  let total = 0;
+  items.forEach(it => {
+    subtotal += it.qty * lineUnitBase(it);     // antes del global (precio fijo o lista×(1-desc))
+    total += it.qty * lineUnitFinal(it);       // lo que se cobra (precio fijo NO recibe global)
+    totalBoxes += Math.ceil(it.qty / (it.product.items_per_box || 1));
   });
-  // Aplicar descuento global
-  const globalDiscAmount = subtotal * (globalDiscount/100);
-  const total = subtotal - globalDiscAmount;
+  // El "descuento" mostrado = lo que el global le quita a las líneas no-fijas
+  const globalDiscAmount = subtotal - total;
 
   document.getElementById('cart-subtotal').textContent = `$${subtotal.toFixed(2)}`;
   document.getElementById('cart-total').textContent = `$${total.toFixed(2)}`;
@@ -5092,13 +5091,8 @@ function submitOrder() {
   if (items.length === 0) { showToast('Sin productos', true); return; }
   if (!currentCustomer) { showToast('Selecciona un cliente primero', true); return; }
 
-  let totalUnits = 0, subtotalAmount = 0;
-  items.forEach(({qty, discount, product}) => {
-    const priceFinal = parseFloat(product.price_kennedy) * (1 - (discount||0)/100);
-    totalUnits += qty;
-    subtotalAmount += qty * priceFinal;
-  });
-  const totalAmount = subtotalAmount * (1 - globalDiscount/100);
+  let totalUnits = 0, totalAmount = 0;
+  items.forEach(it => { totalUnits += it.qty; totalAmount += it.qty * lineUnitFinal(it); });
 
   // Llenar el modal de confirmación
   document.getElementById('confirm-customer').textContent = currentCustomer.name;
@@ -5108,8 +5102,9 @@ function submitOrder() {
   document.getElementById('confirm-total').textContent = '$' + totalAmount.toFixed(2) + (globalDiscount > 0 ? ` (-${globalDiscount}% global)` : '');
   // Detalle de líneas con su precio final + alerta de precio bajo costo / bajo lista
   let bajoCosto = 0, bajoLista = 0;
-  const rowsHtml = items.map(({qty, discount, product}) => {
-    const pf = parseFloat(product.price_kennedy || 0) * (1 - (discount||0)/100) * (1 - globalDiscount/100);
+  const rowsHtml = items.map((it) => {
+    const {qty, product} = it;
+    const pf = lineUnitFinal(it);
     const lista = parseFloat(product.price_kennedy) || 0;
     const cost = parseFloat(product.cif_cost || product.fob_cost || 0) || 0;   // solo admin trae costo
     const esBajoCosto = cost > 0 && pf < cost;
@@ -5117,7 +5112,8 @@ function submitOrder() {
     if (esBajoCosto) bajoCosto++; else if (esBajoLista) bajoLista++;
     const col = esBajoCosto ? '#b3261e' : '#0E1016';
     const flag = esBajoCosto ? '<span style="color:#b3261e;font-weight:700"> ⚠ bajo costo</span>'
-              : (esBajoLista ? '<span style="color:#E8A317"> ↓ bajo lista</span>' : '');
+              : (esBajoLista ? '<span style="color:#E8A317"> ↓ bajo lista</span>'
+              : (it.fixedPrice != null ? '<span style="color:#0a7d33"> precio fijo</span>' : ''));
     return `<div style="display:flex;justify-content:space-between;gap:8px;padding:.5rem .6rem;border-bottom:1px solid #f0f0f0;font-size:.82rem;">
       <div style="min-width:0;"><div style="font-weight:600;color:${col};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:48vw;">${escapeHtml(product.name || product.sap_item_code)}</div>
         <div style="color:#888;font-size:.74rem;">${qty} × $${pf.toFixed(2)}${flag}</div></div>
@@ -5349,10 +5345,7 @@ async function confirmSubmitOrder() {
   if (items.length === 0) { showToast('Sin productos', true); return; }
 
   // Seguridad de precio: no permitir enviar productos en $0 (evita órdenes a precio cero en SAP).
-  const sinPrecio = items.filter(({discount, product}) => {
-    const final = parseFloat(product.price_kennedy || 0) * (1 - (discount||0)/100) * (1 - (globalDiscount||0)/100);
-    return !(final > 0);
-  });
+  const sinPrecio = items.filter(it => !(lineUnitFinal(it) > 0));
   if (sinPrecio.length) {
     showToast('No se envió: ' + sinPrecio.length + ' producto(s) quedan en $0 (' + sinPrecio.slice(0,3).map(i=>i.product.name).join(', ') + '). Ponles precio o quítalos.', true);
     return;
@@ -5363,16 +5356,15 @@ async function confirmSubmitOrder() {
   btn.textContent = 'Enviando...';
   showLoading(true);
 
-  let totalUnits = 0, subtotal = 0, totalCft = 0, totalWeight = 0;
-  items.forEach(({qty, discount, product}) => {
-    const priceFinal = parseFloat(product.price_kennedy) * (1 - (discount||0)/100);
+  let totalUnits = 0, totalAmount = 0, totalCft = 0, totalWeight = 0;
+  items.forEach(it => {
+    const {qty, product} = it;
     totalUnits += qty;
-    subtotal += qty * priceFinal;
+    totalAmount += qty * lineUnitFinal(it);
     totalCft += medidaOk(product) ? qty * parseFloat(product.volume_cft_per_unit || 0) : 0;
     totalWeight += qty * parseFloat(product.weight_kg_per_unit || 0);
   });
-  // Aplicar descuento global al monto total guardado
-  const totalAmount = subtotal * (1 - (globalDiscount||0)/100);
+  // 1 pie cúbico (CFT) = 0.0283168 metros cúbicos (CBM)
   // 1 pie cúbico (CFT) = 0.0283168 metros cúbicos (CBM)
   const totalCbm = totalCft * 0.0283168;
 
@@ -5397,13 +5389,12 @@ async function confirmSubmitOrder() {
       .select().single();
     if (oError) throw oError;
 
-    const itemRows = items.map(({qty, discount, product}) => {
-      // Precio final = precio lista × (1 - desc individual) × (1 - desc global)
-      const priceWithIndividual = parseFloat(product.price_kennedy) * (1 - (discount||0)/100);
-      const priceFinal = priceWithIndividual * (1 - (globalDiscount||0)/100);
+    const itemRows = items.map((it) => {
+      const {qty, discount, product} = it;
+      const priceFinal = lineUnitFinal(it);   // precio fijo o lista×(1-desc)×(1-global)
       const noteDiscParts = [];
-      if (discount > 0) noteDiscParts.push(`Ind: ${discount}%`);
-      if (globalDiscount > 0) noteDiscParts.push(`Global: ${globalDiscount}%`);
+      if (it.fixedPrice != null) noteDiscParts.push(`Precio fijo: $${Number(it.fixedPrice).toFixed(2)}`);
+      else { if (discount > 0) noteDiscParts.push(`Ind: ${discount}%`); if (globalDiscount > 0) noteDiscParts.push(`Global: ${globalDiscount}%`); }
       return {
         order_id: order.id,
         product_sap_code: product.sap_item_code,
@@ -5425,11 +5416,10 @@ async function confirmSubmitOrder() {
     let sapOk = false;
     let sapErrorMsg = '';
     try {
-      const sapLines = items.map(({qty, discount, product}) => {
-        // Mandar el PRECIO UNITARIO FINAL a SAP (respeta oferta, precio de Excel y descuentos)
-        const indFactor = 1 - (discount||0)/100;
-        const globalFactor = 1 - (globalDiscount||0)/100;
-        const unitPrice = parseFloat((parseFloat(product.price_kennedy||0) * indFactor * globalFactor).toFixed(4));
+      const sapLines = items.map((it) => {
+        const {qty, product} = it;
+        // PRECIO UNITARIO FINAL a SAP (precio fijo absoluto, o lista×(1-desc)×(1-global))
+        const unitPrice = parseFloat(lineUnitFinal(it).toFixed(4));
         return {
           itemCode: product.sap_item_code,
           quantity: qty,
@@ -5697,10 +5687,11 @@ async function generateOrderPDF(order, items, notes) {
     ? ['Foto', 'Referencia', 'Descripción', 'Cant', 'Precio', 'Total', 'Cajas']
     : ['Referencia', 'Descripción', 'Cant', 'Precio', 'Total', 'Cajas'];
   const headers = [headCols];
-  const rows = items.map(({qty, discount, product}) => {
+  const rows = items.map((it) => {
+    const {qty, product} = it;
     const itemsPerBox = product.items_per_box || 1;
     const boxes = Math.ceil(qty / itemsPerBox);
-    const priceFinal = parseFloat(product.price_kennedy) * (1 - (discount||0)/100);
+    const priceFinal = lineUnitFinal(it);
     const base = [
       product.sap_item_code,
       product.name || '',
@@ -5715,11 +5706,10 @@ async function generateOrderPDF(order, items, notes) {
   let totalAmt = 0;
   let totalUnits = 0;
   let totalBoxes = 0;
-  items.forEach(({qty, discount, product}) => {
-    const priceFinal = parseFloat(product.price_kennedy) * (1 - (discount||0)/100);
-    totalAmt += qty * priceFinal;
-    totalUnits += qty;
-    totalBoxes += Math.ceil(qty / (product.items_per_box || 1));
+  items.forEach((it) => {
+    totalAmt += it.qty * lineUnitFinal(it);
+    totalUnits += it.qty;
+    totalBoxes += Math.ceil(it.qty / (it.product.items_per_box || 1));
   });
 
   const colStylesNoPhoto = {
@@ -5919,10 +5909,9 @@ function updateMasterFab() {
 
 // Obtener los items actuales formateados para cotización
 function getQuoteItems() {
-  return Object.values(currentCart).map(({qty, discount, product}) => {
-    // Precio con descuento individual + descuento global
-    const priceWithIndividual = parseFloat(product.price_kennedy || 0) * (1 - (discount||0)/100);
-    const priceFinal = priceWithIndividual * (1 - (globalDiscount||0)/100);
+  return Object.values(currentCart).map((it) => {
+    const {qty, product} = it;
+    const priceFinal = lineUnitFinal(it);   // precio fijo o lista×(1-desc)×(1-global)
     const itemsPerBox = product.items_per_box || 1;
     return {
       referencia: product.sap_item_code || '',
@@ -7250,12 +7239,8 @@ async function saveDraft() {
   const items = Object.values(currentCart);
   if (items.length === 0) return;
 
-  let subtotal = 0;
-  items.forEach(({qty, discount, product}) => {
-    subtotal += qty * parseFloat(product.price_kennedy || 0) * (1 - (discount||0)/100);
-  });
-  // Aplicar descuento global al total guardado
-  const totalAmount = subtotal * (1 - (globalDiscount||0)/100);
+  let totalAmount = 0;
+  items.forEach((it) => { totalAmount += it.qty * lineUnitFinal(it); });
 
   // Serializar el carrito (guardamos solo lo necesario del producto)
   const cartData = {};
