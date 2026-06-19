@@ -4,6 +4,26 @@
 
 const https = require('https');
 const agent = new https.Agent({ rejectUnauthorized: false });
+const { getSupabase } = require('./lib/supabase');
+const { getEmpresa } = require('./lib/empresa-config');
+
+// Resuelve el código de vendedor en SAP a partir del correo, leyendo cobranza_vendedores
+// con la SERVICE KEY (la tabla tiene RLS y el navegador no la puede leer → el front
+// mandaba salesPersonCode null y la orden quedaba sin atribución de vendedor).
+async function resolverSalesPersonCode(vendorEmail) {
+  if (!vendorEmail) return null;
+  try {
+    const sb = getSupabase(getEmpresa());
+    if (!sb) return null;
+    const { data: rows } = await sb.from('cobranza_vendedores').select('sap_code,email,activo');
+    const target = String(vendorEmail).trim().toLowerCase();
+    const row = (rows || []).find(r =>
+      r.activo !== false &&
+      (r.email || '').toLowerCase().split(/[,;]/).map(s => s.trim()).includes(target) &&
+      r.sap_code != null);
+    return row ? Number(row.sap_code) : null;
+  } catch (e) { return null; }
+}
 
 const SAP_URL = process.env.SAP_SERVICE_LAYER_URL;
 const SAP_DB = process.env.SAP_COMPANY_DB;
@@ -41,7 +61,7 @@ exports.handler = async (event) => {
 
   try {
     const payload = JSON.parse(event.body || '{}');
-    const { cardCode, comments, lines, salesPersonCode, orderRef } = payload;
+    const { cardCode, comments, lines, salesPersonCode, vendorEmail, orderRef } = payload;
 
     if (!cardCode || !lines || lines.length === 0) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Faltan datos: cardCode y lines son obligatorios' }) };
@@ -91,8 +111,14 @@ exports.handler = async (event) => {
       })
     };
     // Atribuir la orden al vendedor en SAP (antes iba sin SalesPersonCode → métricas mal atribuidas).
-    const spc = Number(salesPersonCode);
-    if (salesPersonCode != null && Number.isInteger(spc) && spc > 0) orden.SalesPersonCode = spc;
+    // Si el front no logró resolver el código (RLS le impide leer cobranza_vendedores),
+    // lo resolvemos aquí en el servidor a partir del correo del vendedor.
+    let spc = Number(salesPersonCode);
+    if (!(salesPersonCode != null && Number.isInteger(spc) && spc > 0)) {
+      const resolved = await resolverSalesPersonCode(vendorEmail);
+      if (resolved != null) spc = resolved;
+    }
+    if (Number.isInteger(spc) && spc > 0) orden.SalesPersonCode = spc;
     // Referencia única para el anti-duplicado.
     if (orderRef) orden.NumAtCard = String(orderRef).slice(0, 100);
 

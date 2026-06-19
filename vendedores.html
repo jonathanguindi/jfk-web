@@ -5437,6 +5437,7 @@ async function confirmSubmitOrder() {
           comments: `Pedido ${order.order_number} - Vendedor: ${currentVendor.name}${globalDiscount > 0 ? ` (Desc global: ${globalDiscount}%)` : ''}${notes ? ' - ' + notes : ''}`,
           lines: sapLines,
           salesPersonCode: spCode,
+          vendorEmail: (currentVendor && currentVendor.email) || null,
           orderRef: order.order_number
         })
       });
