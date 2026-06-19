@@ -180,6 +180,14 @@ exports.handler = async (event) => {
       return reply(200,{ok:true});
     }
 
+    if(action==='eliminar'){
+      const row = await getRow(b.id); if(!row) return reply(404,{ok:false,error:'No existe'});
+      if(!esAdmin && !(await puedeEditar(row))) return reply(403,{ok:false,error:'Sin permiso'});
+      const { error } = await sb.from('prospectos').delete().eq('id',b.id);
+      if(error) return reply(200,{ok:false,error:error.message});
+      return reply(200,{ok:true});
+    }
+
     if(action==='add'){
       const f = b.fields||{};
       if(!f.empresa || !f.pais) return reply(400,{ok:false,error:'empresa y país obligatorios'});
