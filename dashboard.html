@@ -127,6 +127,8 @@ tr.clickable:hover td{background:var(--bg-sunken);box-shadow:inset 2px 0 0 var(-
 .contact{border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:16px;background:var(--bg-sunken)}
 .contact.on{border-color:rgba(31,169,113,.4)} .contact.warn{border-color:rgba(232,163,23,.45)} .contact.off{border-color:rgba(229,72,77,.4)}
 .contact-h{margin-bottom:10px}
+.dact{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;background:var(--bg-sunken);border:1px solid var(--border);text-decoration:none;font-size:1rem;line-height:1}
+.dact:hover{background:var(--bg-elevated);border-color:var(--accent)}
 .contact-badge{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;padding:4px 9px;border-radius:20px}
 .contact-badge.on{background:rgba(31,169,113,.14);color:var(--green)} .contact-badge.warn{background:rgba(232,163,23,.16);color:var(--amber)} .contact-badge.off{background:rgba(229,72,77,.12);color:var(--red)}
 .contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px}
@@ -246,6 +248,7 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
   <div class="tabs" id="tabs">
     <button class="tab active" data-t="resumen">Resumen</button>
     <button class="tab" data-t="explorar">Explorar por país</button>
+    <button class="tab" data-t="dormidos">😴 Dormidos</button>
     <button class="tab" data-t="vendedores" id="tab-vendedores">Vendedores</button>
     <button class="tab" data-t="productos">Productos</button>
     <button class="tab" data-t="plazas" id="tab-plazas">Plazas</button>
@@ -296,6 +299,23 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
         <div><div class="muted" style="font-size:.72rem;margin-bottom:8px">PAÍSES QUE TRABAJAMOS (con ventas)</div><div class="chips" id="covOn"></div></div>
         <div><div class="muted" style="font-size:.72rem;margin-bottom:8px">PAÍSES SIN VENTAS (oportunidad)</div><div class="chips" id="covOff"></div></div>
       </div>
+    </div>
+  </section>
+
+  <!-- DORMIDOS -->
+  <section class="panel" id="p-dormidos">
+    <div class="card">
+      <h3>Clientes dormidos <span class="sub">compraban antes y dejaron de comprar · recupéralos</span>
+        <span class="seg" id="segDorm" style="float:right">
+          <button data-d="180" onclick="setDormDias(180)">+6 meses</button>
+          <button class="active" data-d="365" onclick="setDormDias(365)">+1 año</button>
+          <button data-d="730" onclick="setDormDias(730)">+2 años</button>
+        </span>
+      </h3>
+      <p class="muted" style="font-size:.8rem;margin:-4px 0 12px">Ordenados por <b>cuánto facturaban al año</b> cuando estaban activos: los de arriba son los de mayor valor a rescatar. Toca 📞 / 💬 / ✉️ para contactarlos al instante, o el nombre para ver qué pedían.</p>
+      <div id="dormResumen"></div>
+      <input class="search" id="dormSearch" placeholder="Buscar por nombre, país o vendedor…" oninput="renderDormidos()">
+      <div id="tblDormidos"><div class="empty">Cargando…</div></div>
     </div>
   </section>
 
@@ -400,7 +420,61 @@ document.querySelectorAll('#tabs .tab').forEach(b=>b.onclick=()=>{
   document.getElementById('p-'+b.dataset.t).classList.add('active');
   if(b.dataset.t==='plazas') loadPlazas();
   if(b.dataset.t==='explorar') renderMap();
+  if(b.dataset.t==='dormidos') loadDormidos();
 });
+
+/* ── Dormidos (reactivación) ── */
+let DORM=null, DORM_DIAS=365, DORM_LOADING=false;
+function setDormDias(d){ DORM_DIAS=d;
+  document.querySelectorAll('#segDorm button').forEach(x=>x.classList.toggle('active', Number(x.dataset.d)===d));
+  loadDormidos(true);
+}
+async function loadDormidos(force){
+  if(DORM_LOADING) return;
+  if(DORM && DORM._dias===DORM_DIAS && !force){ renderDormidos(); return; }
+  DORM_LOADING=true;
+  document.getElementById('tblDormidos').innerHTML='<div class="empty">Buscando clientes dormidos…</div>';
+  document.getElementById('dormResumen').innerHTML='';
+  let j; try{ j=await fetchData({dormidos:true, dias:DORM_DIAS, vendedor:document.getElementById('fVendedor').value||null}); }
+  catch(e){ DORM_LOADING=false; document.getElementById('tblDormidos').innerHTML='<div class="empty">No se pudo cargar. Reintenta.</div>'; return; }
+  DORM_LOADING=false;
+  if(!j.ok){ document.getElementById('tblDormidos').innerHTML='<div class="empty">'+esc(j.error||'Error')+'</div>'; return; }
+  DORM=j.dormidos||[]; DORM._dias=DORM_DIAS; renderDormidos();
+}
+function tiempoSin(dias){ return dias>=365 ? (dias/365).toFixed(dias>=730?0:1)+(dias>=730?' años':' año') : Math.round(dias/30)+' meses'; }
+function renderDormidos(){
+  const cont=document.getElementById('tblDormidos'); if(!cont) return;
+  const lista=Array.isArray(DORM)?DORM:[];
+  const q=(document.getElementById('dormSearch').value||'').trim().toLowerCase();
+  const rows=q? lista.filter(x=>((x.name||'')+(x.pais||'')+(x.vendedor||'')).toLowerCase().includes(q)) : lista;
+  const totRun=lista.reduce((s,x)=>s+(Number(x.ult_ano)||0),0);
+  document.getElementById('dormResumen').innerHTML=
+    `<div class="kpis" style="margin-bottom:14px">
+      <div class="kpi"><div class="lbl">Clientes dormidos</div><div class="val">${lista.length.toLocaleString()}</div></div>
+      <div class="kpi cta"><div class="lbl">Venta dormida / año</div><div class="val">${fmtUSD(totRun)}</div></div>
+      <div class="kpi"><div class="lbl">Umbral</div><div class="val" style="font-size:1.05rem">sin comprar ${DORM_DIAS>=730?'+2 años':(DORM_DIAS>=365?'+1 año':'+6 meses')}</div></div>
+    </div>`;
+  if(!rows.length){ cont.innerHTML='<div class="empty">'+(lista.length?'Ningún cliente coincide con la búsqueda.':'No hay clientes dormidos en este umbral. 🎉')+'</div>'; return; }
+  const onlyTel=t=>(t||'').replace(/[^\d+]/g,'');
+  let h='<div class="tbl-scroll"><table><thead><tr><th>Cliente</th><th class="num">Valía/año</th><th>Sin comprar</th><th>Qué pedía</th><th>Contacto</th></tr></thead><tbody>';
+  rows.forEach(x=>{
+    const tel=onlyTel(x.telefono), wa=tel.replace(/^\+/,'');
+    const acc=[];
+    if(tel) acc.push(`<a class="dact" title="Llamar" href="tel:${tel}" onclick="event.stopPropagation()">📞</a>`);
+    if(wa)  acc.push(`<a class="dact" title="WhatsApp" target="_blank" href="https://wa.me/${wa}" onclick="event.stopPropagation()">💬</a>`);
+    if(x.email) acc.push(`<a class="dact" title="Correo" href="mailto:${esc(x.email)}" onclick="event.stopPropagation()">✉️</a>`);
+    const col=x.dias>730?'var(--red)':'var(--amber)';
+    h+=`<tr style="cursor:pointer" onclick="verCliente('${esc(x.card_code)}')">
+      <td><b>${esc(x.name)}</b>${x.inactivo_sap?' <span class="contact-badge off" style="font-size:.62rem">inactivo SAP</span>':''}
+        <div class="muted" style="font-size:.74rem">${esc(x.pais||'')}${x.vendedor?' · '+esc(x.vendedor):''}</div></td>
+      <td class="num" style="font-weight:600;white-space:nowrap">${fmtUSD(x.ult_ano)}</td>
+      <td style="white-space:nowrap;color:${col};font-weight:600">${tiempoSin(x.dias)}<div class="muted" style="font-size:.72rem;font-weight:400">${fmtFecha(x.ultima_compra)}</div></td>
+      <td class="muted" style="font-size:.78rem">${esc(x.top_familia||'—')}</td>
+      <td style="white-space:nowrap">${acc.join(' ')||'<span class="muted" style="font-size:.74rem">sin datos</span>'}</td>
+    </tr>`;
+  });
+  cont.innerHTML=h+'</tbody></table></div>';
+}
 
 /* ── Carga ── */
 async function fetchData(extra){

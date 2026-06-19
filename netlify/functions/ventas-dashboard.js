@@ -63,6 +63,13 @@ exports.handler = async (event) => {
       return reply(200, { ok: true, clientes: data || [], scope });
     }
 
+    if (body.dormidos) {
+      const dias = Number(body.dias) > 0 ? Math.round(Number(body.dias)) : 180;
+      const { data, error } = await sb.rpc('ventas_dormidos', { p_dias: dias, p_vendedores });
+      if (error) return reply(500, { ok: false, error: error.message });
+      return reply(200, { ok: true, dormidos: data || [], scope });
+    }
+
     if (body.comparativo) {
       const p_pais = body.pais ? String(body.pais) : null;
       const p_card = body.cardCode ? String(body.cardCode) : null;

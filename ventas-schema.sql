@@ -416,3 +416,77 @@ grant execute on function ventas_resumen(date, date, integer[], text) to service
 grant execute on function ventas_cliente_detalle(text, date, date, integer[]) to service_role;
 grant execute on function ventas_plazas(date, date) to service_role;
 grant execute on function ventas_recomendaciones(text, integer[]) to service_role;
+-- ───────────────────────────────────────────────────────────────────────────
+-- RPC: clientes DORMIDOS (para reactivar).
+-- Mira TODO el histórico (no un período): por cliente saca su última compra de
+-- la vida, y devuelve los que llevan más de p_dias sin comprar.
+--   p_dias       : umbral de inactividad en días (default 180 = 6 meses)
+--   p_vendedores : null = todos (admin); o array de códigos SAP (alcance vendedor)
+-- Ordena por "run-rate del último año activo" (lo que valía ese cliente al año),
+-- así arriba salen los dormidos que más facturaban = mayor prioridad de rescate.
+-- ───────────────────────────────────────────────────────────────────────────
+drop function if exists ventas_dormidos(integer, integer[]);
+create or replace function ventas_dormidos(p_dias integer default 180,
+                                           p_vendedores integer[] default null)
+returns jsonb
+language sql stable
+as $$
+  with base as (
+    select * from ventas_lineas
+    where (p_vendedores is null or sales_person_code = any(p_vendedores))
+  ),
+  agg as (
+    select card_code,
+           coalesce(max(card_name), card_code)               as name,
+           coalesce(max(country_name), max(country_code))     as pais,
+           max(doc_date)                                      as ultima_compra,
+           count(distinct (doc_type||doc_entry))              as n_compras,
+           sum(line_total)                                    as total_hist
+    from base group by card_code
+  ),
+  dorm as (
+    select * from agg
+    where ultima_compra < current_date - p_dias and total_hist > 0
+  ),
+  -- run-rate: ventas en los 365 días que terminan en su última compra
+  ult as (
+    select b.card_code, sum(b.line_total) as ult_ano
+    from base b join dorm d on d.card_code = b.card_code
+    where b.doc_date > d.ultima_compra - 365
+    group by b.card_code
+  ),
+  -- vendedor de su última compra (a quién reasignar el rescate)
+  vend as (
+    select distinct on (b.card_code) b.card_code, b.sales_person_name as vendedor
+    from base b join dorm d on d.card_code = b.card_code
+    order by b.card_code, b.doc_date desc
+  ),
+  -- familia que más le compraba (por monto, histórico)
+  fam as (
+    select card_code, item_group_name from (
+      select b.card_code, b.item_group_name, sum(b.line_total) s,
+             row_number() over (partition by b.card_code order by sum(b.line_total) desc) rn
+      from base b join dorm d on d.card_code = b.card_code
+      where b.item_group_name is not null
+      group by b.card_code, b.item_group_name
+    ) z where rn = 1
+  )
+  select coalesce(jsonb_agg(x order by x.ult_ano desc nulls last), '[]'::jsonb) from (
+    select d.card_code, d.name, d.pais,
+           coalesce(v.vendedor,'')                  as vendedor,
+           d.ultima_compra,
+           (current_date - d.ultima_compra)         as dias,
+           d.n_compras, d.total_hist,
+           coalesce(u.ult_ano,0)                    as ult_ano,
+           coalesce(f.item_group_name,'')           as top_familia,
+           c.email,
+           coalesce(c.cellular, c.phone1, c.phone2) as telefono,
+           c.contact_person, c.city,
+           (c.valid is not null and c.valid ~* 'NO') as inactivo_sap
+    from dorm d
+    left join ult  u on u.card_code = d.card_code
+    left join vend v on v.card_code = d.card_code
+    left join fam  f on f.card_code = d.card_code
+    left join ventas_clientes c on c.card_code = d.card_code
+  ) x;
+$$;
