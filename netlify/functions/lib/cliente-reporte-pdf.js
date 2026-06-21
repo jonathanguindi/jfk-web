@@ -34,6 +34,8 @@ function buildClienteReportePDF(empresa, data, vendedorNombre, imgs, fecha) {
         return gap > 240 && ((p.veces || 0) >= 2 || (p.total || 0) >= 1000);
       }).sort((a, b) => b.total - a.total).slice(0, 8);
       const total = Number(data.total) || 0;
+      const costo = Number(data.costo) || 0;
+      const cobCosto = Number(data.costo_cob) || 0;
       const compras = docs.length;
       const ultima = docs[0] && docs[0].doc_date;
       const primera = docs.length ? docs[docs.length - 1].doc_date : null;
@@ -74,6 +76,15 @@ function buildClienteReportePDF(empresa, data, vendedorNombre, imgs, fecha) {
         ensure(22);
         doc.fillColor(atras ? NAR : GRIS).font(atras ? 'Helvetica-Bold' : 'Helvetica').fontSize(9.5);
         T(`Ritmo: compra ~cada ${cad} días · lleva ${sinPedir} días sin pedir${atras ? '  ⚠ ATRASADO' : ''}`, left, doc.y);
+        doc.y += 18;
+      }
+
+      // ── Margen estimado (cuando hay costo cargado) ──
+      if (costo > 0 && total > 0) {
+        const mpct = (total - costo) / total * 100;
+        ensure(20);
+        doc.fillColor(GRIS).font('Helvetica').fontSize(9.5);
+        T(`Margen estimado: ~${mpct.toFixed(0)}%  ·  sobre ${cobCosto}% de las ventas (el costo se completa con el sync)`, left, doc.y);
         doc.y += 18;
       }
 
