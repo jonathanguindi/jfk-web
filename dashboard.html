@@ -252,6 +252,7 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
 
   <div class="tabs" id="tabs">
     <button class="tab active" data-t="resumen">Resumen</button>
+    <button class="tab" data-t="pedidos">📦 Por despachar</button>
     <button class="tab" data-t="explorar">Explorar por país</button>
     <button class="tab" data-t="dormidos">😴 Dormidos</button>
     <button class="tab" data-t="huerfanos" id="tab-huerfanos" style="display:none">🧹 Huérfanos</button>
@@ -322,6 +323,16 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
       <div id="dormResumen"></div>
       <input class="search" id="dormSearch" placeholder="Buscar por nombre, país o vendedor…" oninput="renderDormidos()">
       <div id="tblDormidos"><div class="empty">Cargando…</div></div>
+    </div>
+  </section>
+
+  <!-- POR DESPACHAR -->
+  <section class="panel" id="p-pedidos">
+    <div class="card">
+      <h3>Pedidos por despachar <span class="sub">órdenes abiertas en SAP · aún no facturadas/entregadas</span></h3>
+      <p class="muted" style="font-size:.8rem;margin:-6px 0 12px">Tus pedidos que ya entraron a SAP pero siguen pendientes de despacho. Dale seguimiento a los más atrasados.</p>
+      <div id="pedResumen"></div>
+      <div id="tblPedidos"><div class="empty">Cargando…</div></div>
     </div>
   </section>
 
@@ -442,6 +453,7 @@ document.querySelectorAll('#tabs .tab').forEach(b=>b.onclick=()=>{
   if(b.dataset.t==='explorar') renderMap();
   if(b.dataset.t==='dormidos') loadDormidos();
   if(b.dataset.t==='huerfanos') loadHuerfanos();
+  if(b.dataset.t==='pedidos') loadPedidos();
 });
 
 /* ── Dormidos (reactivación) ── */
@@ -451,6 +463,30 @@ async function prosApi(action,extra){ const r=await fetch(PROS_FN,{method:'POST'
 function setDormDias(d){ DORM_DIAS=d;
   document.querySelectorAll('#segDorm button').forEach(x=>x.classList.toggle('active', Number(x.dataset.d)===d));
   loadDormidos(true);
+}
+/* ── Pedidos por despachar (órdenes abiertas en SAP) ── */
+let PED=null, PED_LOADING=false;
+async function loadPedidos(force){
+  if(PED_LOADING) return; if(PED && !force){ renderPedidos(); return; }
+  PED_LOADING=true;
+  document.getElementById('tblPedidos').innerHTML='<div class="empty">Consultando SAP…</div>';
+  document.getElementById('pedResumen').innerHTML='';
+  let j; try{ j=await (await fetch('/.netlify/functions/pedidos-pendientes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL})})).json(); }
+  catch(e){ PED_LOADING=false; document.getElementById('tblPedidos').innerHTML='<div class="empty">No se pudo consultar SAP. Reintenta.</div>'; return; }
+  PED_LOADING=false;
+  if(!j.ok){ document.getElementById('tblPedidos').innerHTML='<div class="empty">'+esc(j.error||'Error')+'</div>'; return; }
+  PED=j; renderPedidos();
+}
+function renderPedidos(){
+  const cont=document.getElementById('tblPedidos'); if(!cont) return;
+  const ped=(PED&&PED.pedidos)||[];
+  document.getElementById('pedResumen').innerHTML=`<div class="kpis" style="margin-bottom:14px"><div class="kpi"><div class="lbl">Pedidos por despachar</div><div class="val">${ped.length}</div></div><div class="kpi cta"><div class="lbl">Monto total</div><div class="val">${fmtUSD((PED&&PED.total)||0)}</div></div></div>`;
+  if(!ped.length){ cont.innerHTML='<div class="empty">No hay pedidos pendientes de despacho. 🎉</div>'; return; }
+  ped.sort((a,b)=>(b.dias||0)-(a.dias||0));
+  let h='<div class="tbl-scroll"><table><thead><tr><th>#Pedido</th><th>Cliente</th><th class="num">Monto</th><th>Fecha</th><th class="num">Días</th></tr></thead><tbody>';
+  ped.forEach(p=>{ const col=p.dias>15?'var(--red)':(p.dias>7?'var(--amber)':'var(--text-muted)');
+    h+=`<tr><td class="nowrap">#${esc(p.docNum)}</td><td>${esc(p.cliente)}</td><td class="num">${fmtUSD(p.total)}</td><td class="muted nowrap">${esc(p.fecha)}</td><td class="num" style="color:${col};font-weight:600">${p.dias!=null?p.dias+'d':''}</td></tr>`; });
+  cont.innerHTML=h+'</tbody></table></div>';
 }
 /* ── Clientes huérfanos (reasignar carteras de vendedores que se fueron) ── */
 let HUERF=null, HUERF_VENDS=null, HUERF_LOADING=false, HUERF_BY={}, HUERF_ASG={};
