@@ -80,7 +80,9 @@ a{color:var(--accent);text-decoration:none}.wrap{max-width:1240px;margin:0 auto;
 .pc-card{box-shadow:var(--shadow-sm);transition:transform .15s,box-shadow .15s,border-color .15s}.pc-card:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:var(--accent)}
 .filters input:focus,.filters select:focus,.pc-card input:focus,.pc-card textarea:focus,.modalbox input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
 .themebtn{width:38px;height:38px;padding:0;font-size:16px;display:inline-flex;align-items:center;justify-content:center}
-@media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}.brand{font-size:23px}.wrap{padding:16px 12px 80px}}
+.navcur{background:var(--accent)!important;color:#fff!important;border-color:transparent!important;cursor:default}
+@media(max-width:760px){.topnav{width:100%;justify-content:flex-start!important}.topnav .btn:not(.themebtn){flex:1 1 auto}}
+@media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}.brand{font-size:23px}.wrap{padding:16px 12px 80px}.tablewrap td:first-child,.tablewrap th:first-child{position:sticky;left:0;background:var(--panel2);z-index:1}}
 </style></head>
 <body>
 <script>try{var _p=localStorage.getItem('jfk-theme-pref')||'auto';document.documentElement.dataset.theme=(_p==='auto'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):_p);}catch(e){}</script>
@@ -88,10 +90,12 @@ a{color:var(--accent);text-decoration:none}.wrap{max-width:1240px;margin:0 auto;
   <div class="top">
     <div class="brandwrap"><span class="logobox"><img src="jfk-logo.png" class="logo" alt="JFK"><sup class="reg">&reg;</sup></span><div class="brandtag"><b>Expansión</b><small>Clientes potenciales · Oportunidad por país</small></div></div>
     <div><div class="who" id="who"></div>
-      <div style="margin-top:8px;display:flex;gap:8px;justify-content:flex-end">
+      <div class="topnav" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
         <button class="btn themebtn" id="themeBtn" onclick="toggleTheme()" title="Tema claro / oscuro">🌓</button>
-        <button class="btn" onclick="location.href='dashboard.html'">📊 Dashboard</button>
-        <button class="btn" onclick="location.href='vendedores.html'">← Portal</button>
+        <button class="btn" onclick="location.href='vendedores.html'">🏠 Inicio</button>
+        <button class="btn" onclick="location.href='dashboard.html'">📊 Ventas</button>
+        <button class="btn navcur">🧭 Expansión</button>
+        <button class="btn" onclick="location.href='expansion.html#agenda'">📅 Agenda</button>
       </div></div>
   </div>
   <div id="app"><div class="empty">Cargando…</div></div>

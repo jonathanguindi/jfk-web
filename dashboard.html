@@ -214,8 +214,23 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
   .filters>.btn-cta{width:100%}
   .kpi .val{font-size:1.4rem}
   .panelGrid{grid-template-columns:1fr!important}
+  /* Tablas de ranking -> tarjetas apiladas en celular */
+  .tbl-scroll.cards table,.tbl-scroll.cards tbody,.tbl-scroll.cards tr,.tbl-scroll.cards td{display:block;width:auto}
+  .tbl-scroll.cards thead{position:absolute;left:-9999px}
+  .tbl-scroll.cards tr{border:1px solid var(--border);border-radius:12px;margin-bottom:10px;padding:8px 12px;background:var(--bg-elevated)}
+  .tbl-scroll.cards td{display:flex;justify-content:space-between;gap:14px;padding:5px 0;text-align:right;border:none}
+  .tbl-scroll.cards td::before{content:attr(data-label);color:var(--text-muted);font-weight:600;text-align:left;white-space:nowrap}
+  .tbl-scroll.cards td.rank{display:none}
+  .tbl-scroll.cards td.cardtitle{display:block;text-align:left;font-weight:700;border-bottom:1px solid var(--border-soft);margin-bottom:4px;padding-bottom:6px}
+  .tbl-scroll.cards td.cardtitle::before{display:none}
+  .tbl-scroll.cards td:empty{display:none}
+  /* Resto de tablas: 1ª columna fija al desplazar */
+  .tbl-scroll:not(.cards) table td:first-child,.tbl-scroll:not(.cards) table th:first-child{position:sticky;left:0;background:var(--bg-elevated);z-index:1}
 }
 .prio[role="button"]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:10px}
+.topnav{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.topnav .navcur{background:var(--electric)!important;color:#fff!important;border-color:transparent!important;cursor:default}
+@media(max-width:760px){.topnav{width:100%;justify-content:space-between}.topnav .btn{flex:1 1 auto}}
 </style>
 </head>
 <body>
@@ -226,8 +241,12 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
   <span id="syncBadge" class="synced" style="color:#9aa">—</span>
   <button class="btn btn-ghost btn-sm" onclick="toggleTheme()">◐</button>
   <button class="btn btn-ghost btn-sm" onclick="sincronizar()" id="syncBtn">Sincronizar ahora</button>
-  <button class="btn btn-ghost btn-sm" onclick="location.href='expansion.html'">🧭 Expansión</button>
-  <button class="btn btn-ghost btn-sm" onclick="location.href='vendedores.html'">← Portal</button>
+  <nav class="topnav">
+    <button class="btn btn-ghost btn-sm" onclick="location.href='vendedores.html'">🏠 Inicio</button>
+    <button class="btn btn-ghost btn-sm navcur">📊 Ventas</button>
+    <button class="btn btn-ghost btn-sm" onclick="location.href='expansion.html'">🧭 Expansión</button>
+    <button class="btn btn-ghost btn-sm" onclick="location.href='expansion.html#agenda'">📅 Agenda</button>
+  </nav>
 </div></div>
 
 <div class="wrap">
@@ -842,15 +861,15 @@ function renderKPIs(){
 function tablaRanking(rows, opts){
   // opts: cols=[{key,label,fmt,bar}], max
   const max=Math.max(1,...rows.map(r=>Number(r[opts.barKey])||0));
-  let h='<div class="tbl-scroll"><table><thead><tr><th></th>'+opts.cols.map(c=>`<th class="${c.num?'num':''}">${c.label}</th>`).join('')+'<th class="num">%</th></tr></thead><tbody>';
+  let h='<div class="tbl-scroll cards"><table><thead><tr><th></th>'+opts.cols.map(c=>`<th class="${c.num?'num':''}">${c.label}</th>`).join('')+'<th class="num">%</th></tr></thead><tbody>';
   rows.forEach((r,i)=>{
     const pct=Number(r.pct)||0;
-    h+=`<tr><td class="rank">${i+1}</td>`+opts.cols.map(c=>{
+    h+=`<tr><td class="rank" data-label="#">${i+1}</td>`+opts.cols.map(c=>{
       let v=c.fmt?c.fmt(r[c.key],r):esc(r[c.key]);
       if(c.bar){ const w=((Number(r[opts.barKey])||0)/max*100).toFixed(1);
-        return `<td><div style="margin-bottom:3px">${v}</div><div class="bar-wrap"><div class="bar ${c.cta?'cta':''}" style="width:${w}%"></div></div></td>`; }
-      return `<td class="${c.num?'num':''}">${v}</td>`;
-    }).join('')+`<td class="num">${pct}%</td></tr>`;
+        return `<td class="cardtitle" data-label="${esc(c.label)}"><div style="margin-bottom:3px">${v}</div><div class="bar-wrap"><div class="bar ${c.cta?'cta':''}" style="width:${w}%"></div></div></td>`; }
+      return `<td class="${c.num?'num':''}" data-label="${esc(c.label)}">${v}</td>`;
+    }).join('')+`<td class="num" data-label="%">${pct}%</td></tr>`;
   });
   return h+'</tbody></table></div>';
 }
