@@ -133,6 +133,32 @@ exports.handler = async (event) => {
       return reply(200,{ok:true, reactivados:(data||[])});
     }
 
+    // Clientes HUÉRFANOS: con ventas recientes cuyo vendedor SAP ya no tiene correo activo.
+    if(action==='huerfanos'){
+      if(!esAdmin) return reply(403,{ok:false,error:'Solo admin'});
+      const hoy = now().slice(0,10);
+      const d12 = new Date(Date.now()-365*86400000).toISOString().slice(0,10);
+      const r12 = await sb.rpc('ventas_resumen',{desde:d12, hasta:hoy, p_vendedores:null, p_pais:null});
+      const pv = (((r12.data||{}).por_vendedor)||[]).filter(v=>v.code!=null && (v.total||0)>0);
+      const { data:cv } = await sb.from('cobranza_vendedores').select('sap_code,email,activo');
+      const activos = new Set((cv||[]).filter(x=>x.activo!==false && (x.email||'').trim()).map(x=>x.sap_code));
+      const NOISE = /sin\s*agente|trafico|shacalo|mostrador|varios|general|consumidor|^n\/?a$|^\s*-/i;
+      const orf = pv.filter(v=>!activos.has(v.code) && !NOISE.test(v.name||''));
+      const codes = orf.map(v=>v.code);
+      const exNombre = {}; orf.forEach(v=>{ exNombre[v.code]=v.name; });
+      let clientes=[];
+      if(codes.length){
+        const d24 = new Date(Date.now()-730*86400000).toISOString().slice(0,10);
+        const rc = await sb.rpc('ventas_resumen',{desde:d24, hasta:hoy, p_vendedores:codes, p_pais:null});
+        clientes = (((rc.data||{}).por_cliente)||[]).map(c=>({card_code:c.card_code, name:c.name, pais:c.pais, ex_vendedor:c.vendedor, total:c.total, ultima:c.ultima_compra}));
+      }
+      const { data:ya } = await sb.from('prospectos').select('card_code,asignado_nombre').not('card_code','is',null);
+      const yaMap={}; (ya||[]).forEach(x=>{ if(x.card_code) yaMap[x.card_code]=x.asignado_nombre; });
+      clientes.forEach(c=>{ c.ya = yaMap[c.card_code]||null; });
+      const { data:vend } = await sb.from('sellers').select('name,email,role').order('name');
+      return reply(200,{ok:true, clientes, vendedores:(vend||[]), exVendedores:orf.map(v=>({name:v.name,clientes:v.clientes,total:v.total})) });
+    }
+
     // Mete un cliente DORMIDO al CRM como tarea de reactivación, asignado a un vendedor.
     if(action==='reactivar'){
       if(!esAdmin) return reply(403,{ok:false,error:'Solo admin'});

@@ -254,6 +254,7 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
     <button class="tab active" data-t="resumen">Resumen</button>
     <button class="tab" data-t="explorar">Explorar por país</button>
     <button class="tab" data-t="dormidos">😴 Dormidos</button>
+    <button class="tab" data-t="huerfanos" id="tab-huerfanos" style="display:none">🧹 Huérfanos</button>
     <button class="tab" data-t="vendedores" id="tab-vendedores">Vendedores</button>
     <button class="tab" data-t="productos">Productos</button>
     <button class="tab" data-t="plazas" id="tab-plazas">Plazas</button>
@@ -324,6 +325,17 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
     </div>
   </section>
 
+  <!-- HUÉRFANOS -->
+  <section class="panel" id="p-huerfanos">
+    <div class="card">
+      <h3>Clientes huérfanos <span class="sub">compran pero su vendedor ya no está · reasígnalos antes de que se enfríen</span></h3>
+      <p class="muted" style="font-size:.8rem;margin:-6px 0 12px">Clientes con compras recientes cuyo vendedor SAP no tiene correo activo. Elige un vendedor y dale <b>Asignar</b>: entra a su cartera y le llega correo + reporte del cliente.</p>
+      <div id="huerfResumen"></div>
+      <input class="search" id="huerfSearch" placeholder="Buscar cliente, país o ex-vendedor…" oninput="renderHuerfanos()">
+      <div id="tblHuerfanos"><div class="empty">Cargando…</div></div>
+    </div>
+  </section>
+
   <!-- PLAZAS -->
   <section class="panel" id="p-plazas">
     <div class="card">
@@ -381,7 +393,7 @@ let mapInstance=null;
 
 // Adapta la interfaz según el rol (oculta lo de admin a los vendedores).
 function aplicarRolUI(){
-  const adminEls=['fieldVendedor','tab-vendedores','tab-plazas','syncBtn','segByVend','syncBadge'];
+  const adminEls=['fieldVendedor','tab-vendedores','tab-plazas','tab-huerfanos','syncBtn','segByVend','syncBadge'];
   adminEls.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=ES_ADMIN?'':'none'; });
   const sub=document.getElementById('logoSub');
   if(sub) sub.textContent=ES_ADMIN?'Dashboard de ventas':'Mis ventas';
@@ -429,6 +441,7 @@ document.querySelectorAll('#tabs .tab').forEach(b=>b.onclick=()=>{
   if(b.dataset.t==='plazas') loadPlazas();
   if(b.dataset.t==='explorar') renderMap();
   if(b.dataset.t==='dormidos') loadDormidos();
+  if(b.dataset.t==='huerfanos') loadHuerfanos();
 });
 
 /* ── Dormidos (reactivación) ── */
@@ -438,6 +451,50 @@ async function prosApi(action,extra){ const r=await fetch(PROS_FN,{method:'POST'
 function setDormDias(d){ DORM_DIAS=d;
   document.querySelectorAll('#segDorm button').forEach(x=>x.classList.toggle('active', Number(x.dataset.d)===d));
   loadDormidos(true);
+}
+/* ── Clientes huérfanos (reasignar carteras de vendedores que se fueron) ── */
+let HUERF=null, HUERF_VENDS=null, HUERF_LOADING=false, HUERF_BY={}, HUERF_ASG={};
+async function loadHuerfanos(force){
+  if(HUERF_LOADING) return; if(HUERF && !force){ renderHuerfanos(); return; }
+  HUERF_LOADING=true;
+  document.getElementById('tblHuerfanos').innerHTML='<div class="empty">Buscando clientes huérfanos…</div>';
+  document.getElementById('huerfResumen').innerHTML='';
+  let j; try{ j=await prosApi('huerfanos'); }catch(e){ HUERF_LOADING=false; document.getElementById('tblHuerfanos').innerHTML='<div class="empty">No se pudo cargar. Reintenta.</div>'; return; }
+  HUERF_LOADING=false;
+  if(!j.ok){ document.getElementById('tblHuerfanos').innerHTML='<div class="empty">'+esc(j.error||'Error')+'</div>'; return; }
+  HUERF=j.clientes||[]; HUERF_VENDS=j.vendedores||[]; renderHuerfanos();
+}
+async function assignHuerfano(i,cc){
+  const sel=document.getElementById('hv-'+i); if(!sel||!sel.value){ bannerMsg('Elige un vendedor primero.'); return; }
+  const cli=HUERF_BY[cc]; if(!cli) return;
+  const idx=sel.value.indexOf('|'); const vemail=sel.value.slice(0,idx), vname=sel.value.slice(idx+1);
+  const btn=document.getElementById('hb-'+i); if(btn){ btn.disabled=true; btn.textContent='…'; }
+  const r=await prosApi('reactivar',{vendedor_email:vemail, vendedor_nombre:vname, cliente:{card_code:cli.card_code, name:cli.name, pais:cli.pais, valor_anual:cli.total, ultima_compra:cli.ultima}});
+  if(r.ok){ HUERF_ASG[cc]=vname; bannerMsg((r.correo&&r.correo.sent===false)?('Asignado ✓ — el correo no salió: '+esc(r.correo.error||'')):''); renderHuerfanos(); }
+  else { bannerMsg('No se pudo asignar: '+esc(r.error||'')); if(btn){ btn.disabled=false; btn.textContent='Asignar'; } }
+}
+function renderHuerfanos(){
+  const cont=document.getElementById('tblHuerfanos'); if(!cont) return;
+  const lista=Array.isArray(HUERF)?HUERF:[];
+  HUERF_BY={}; lista.forEach(c=>{ if(c.card_code) HUERF_BY[c.card_code]=c; });
+  const q=(document.getElementById('huerfSearch').value||'').trim().toLowerCase();
+  const rows=q?lista.filter(c=>((c.name||'')+(c.pais||'')+(c.ex_vendedor||'')).toLowerCase().includes(q)):lista;
+  const tot=lista.reduce((s,c)=>s+(Number(c.total)||0),0);
+  const asg=Object.keys(HUERF_ASG).length;
+  document.getElementById('huerfResumen').innerHTML=`<div class="kpis" style="margin-bottom:14px">
+    <div class="kpi"><div class="lbl">Clientes huérfanos</div><div class="val">${lista.length.toLocaleString()}</div></div>
+    <div class="kpi cta"><div class="lbl">Facturación en juego</div><div class="val">${fmtUSD(tot)}</div></div>
+    <div class="kpi"><div class="lbl">Reasignados</div><div class="val">${asg}</div></div></div>`;
+  if(!rows.length){ cont.innerHTML='<div class="empty">'+(lista.length?'Nada coincide con la búsqueda.':'No hay clientes huérfanos. 🎉')+'</div>'; return; }
+  const vopts='<option value="">— vendedor —</option>'+((HUERF_VENDS||[]).map(v=>`<option value="${esc(v.email)}|${esc(v.name)}">${esc(v.name)}</option>`).join(''));
+  let h='<div class="tbl-scroll"><table><thead><tr><th>Cliente</th><th>País</th><th>Ex-vendedor</th><th class="num">Facturó</th><th>Última</th><th>Asignar a</th></tr></thead><tbody>';
+  rows.forEach((c,i)=>{
+    const done=HUERF_ASG[c.card_code]||c.ya;
+    const acc=done?`<span class="contact-badge on">✓ ${esc(done)}</span>`
+      :`<span onclick="event.stopPropagation()"><select id="hv-${i}" class="search" style="width:120px;margin:0;padding:5px 8px;font-size:.76rem;display:inline-block">${vopts}</select> <button class="btn btn-sm btn-cta" id="hb-${i}" onclick="assignHuerfano(${i},'${esc(c.card_code)}')">Asignar</button></span>`;
+    h+=`<tr><td><b>${esc(c.name)}</b></td><td>${esc(c.pais||'')}</td><td class="muted">${esc(c.ex_vendedor||'')}</td><td class="num">${fmtUSD(c.total)}</td><td class="muted nowrap">${(c.ultima||'').slice(0,10)}</td><td style="white-space:nowrap">${acc}</td></tr>`;
+  });
+  cont.innerHTML=h+'</tbody></table></div>';
 }
 async function loadDormidos(force){
   if(DORM_LOADING) return;
