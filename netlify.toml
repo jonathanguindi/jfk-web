@@ -25,3 +25,8 @@
 # 12:00 UTC = 7:00 AM Panamá. Manda email de estado al admin (alerta si algo falla).
 [functions."salud-diaria"]
   schedule = "0 12 * * *"
+
+# Agenda del día: manda a cada vendedor su lista de visitas de hoy por correo.
+# 11:30 UTC = 6:30 AM Panamá (antes de arrancar el día).
+[functions."agenda-diaria"]
+  schedule = "30 11 * * *"
