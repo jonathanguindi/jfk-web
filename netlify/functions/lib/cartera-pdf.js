@@ -7,6 +7,20 @@ const AZUL = '#009FE3', NAR = '#FF6B35';
 const TXT = '#14181F', GRIS = '#8A93A0', VAL = '#333A45', CARD = '#F7F9FC', CARDBD = '#E6EAF0';
 const ESTLBL = { nuevo: 'NUEVO', asignado: 'ASIGNADO', contactando: 'CONTACTANDO', contactado: 'CONTACTADO', cliente: 'CLIENTE', descartado: 'DESCARTADO' };
 
+// Ajuste de líneas manual (sin auto-envoltura de pdfkit -> nunca crea páginas en blanco).
+function wrapLines(s, max, maxLines) {
+  const words = String(s == null ? '' : s).split(/\s+/).filter(Boolean);
+  const lines = []; let cur = '';
+  for (const w of words) {
+    if ((cur + ' ' + w).trim().length <= max) cur = (cur + ' ' + w).trim();
+    else { if (cur) lines.push(cur); cur = w.length > max ? w.slice(0, max - 1) + '…' : w; }
+  }
+  if (cur) lines.push(cur);
+  if (!lines.length) lines.push('');
+  if (maxLines && lines.length > maxLines) { lines.length = maxLines; lines[maxLines - 1] = lines[maxLines - 1].slice(0, max - 1) + '…'; }
+  return lines;
+}
+
 function buildCarteraPDF(empresa, vendedorNombre, grupos, fecha, totalClientes) {
   return new Promise((resolve, reject) => {
     try {
@@ -47,8 +61,10 @@ function buildCarteraPDF(empresa, vendedorNombre, grupos, fecha, totalClientes) 
           if (c.tipo) rows.push(['Tipo', c.tipo]);
           if (c.notas) rows.push(['Notas', c.notas]);
 
+          // pre-calcular líneas envueltas (máx 3 por campo)
+          const wrapped = rows.map(([k, v]) => [k, wrapLines(v, 80, 3)]);
           let bodyH = 0;
-          rows.forEach(([, v]) => { bodyH += Math.max(13, Math.ceil(String(v).length / 72) * 12); });
+          wrapped.forEach(([, lines]) => { bodyH += lines.length * 12; });
           const h = 28 + bodyH + 8;
           ensure(h);
           const y0 = doc.y;
@@ -60,11 +76,11 @@ function buildCarteraPDF(empresa, vendedorNombre, grupos, fecha, totalClientes) 
           if (est) { doc.fillColor(NAR).font('Helvetica-Bold').fontSize(8); T(est, right - 122, y0 + 10, { width: 110, align: 'right' }); }
 
           let yy = y0 + 27;
-          rows.forEach(([k, v]) => {
+          wrapped.forEach(([k, lines]) => {
             doc.fillColor(GRIS).font('Helvetica-Bold').fontSize(8.5); T(k, left + 12, yy, { width: 62 });
             doc.fillColor(VAL).font('Helvetica').fontSize(9.5);
-            doc.text(String(v), left + 78, yy, { width: W - 92 });   // este SÍ envuelve
-            yy += Math.max(13, Math.ceil(String(v).length / 72) * 12);
+            lines.forEach((ln, idx) => { T(ln, left + 78, yy + idx * 12, { width: W - 92 }); });
+            yy += lines.length * 12;
           });
           doc.y = y0 + h;
         });
