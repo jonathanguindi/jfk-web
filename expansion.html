@@ -117,6 +117,18 @@ function ventasDe(k){ const n=normPais(k); if(LIVE_V12){ const v=LIVE_V12[n]; if
 function fuenteVentas(){ return LIVE_V12 ? `<span class="up">● en vivo</span> · actualizado ${esc(V12_FECHA||"hoy")}` : `snapshot ${esc("Junio 2026")}`; }
 function toast(m){const t=document.getElementById("toast");t.textContent=m;t.style.display="block";setTimeout(()=>t.style.display="none",2200);}
 async function api(action,extra){const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({action,email:SES&&SES.email,nombre:SES&&SES.name},extra||{}))});return r.json();}
+function b64toBlob(b64,type){const bin=atob(b64);const arr=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);return new Blob([arr],{type});}
+async function carteraPDF(vEmail,vNombre,modo){
+  toast(modo==="email"?"Enviando cartera…":"Generando PDF…");
+  try{
+    const r=await fetch("/.netlify/functions/cartera-pdf",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:SES&&SES.email,vendedor_email:vEmail||undefined,vendedor_nombre:vNombre||undefined,modo})});
+    const j=await r.json();
+    if(!j.ok){toast("Error: "+(j.error||""));return;}
+    if(modo==="email"){toast("Cartera enviada a "+(j.to||"")+" ✓ (con copia a ti)");return;}
+    const u=URL.createObjectURL(b64toBlob(j.pdf,"application/pdf"));const a=document.createElement("a");a.href=u;a.download=j.filename||"cartera.pdf";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);
+    toast("PDF listo ("+(j.clientes||0)+" clientes) ✓");
+  }catch(e){toast("No se pudo generar el PDF");}
+}
 
 if(!SES||!SES.email){
   document.getElementById("app").innerHTML='<div class="empty">Inicia sesión en el portal para ver Expansión.<br><br><a href="vendedores.html">Ir al portal →</a></div>';
@@ -247,7 +259,10 @@ function renderPros(){
     <span class="chip ${fMine?"on":""}" id="cmine">⭐ Asignados a mí</span>
     <button class="btn p" id="addBtn">+ Agregar</button>
   </div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${chips}</div>
-  <div class="count">${list.length} prospecto(s)${fPais?" en "+esc(fPais):""}</div>`;
+  <div class="count">${list.length} prospecto(s)${fPais?" en "+esc(fPais):""}</div>
+  ${ST.esAdmin
+    ? `<div class="filters" style="margin:2px 0 14px"><span class="muted" style="font-size:12px;align-self:center">📄 Cartera de un vendedor:</span><select id="cartVend">${vendOptions()}</select><button class="btn" id="cartDl">Descargar PDF</button><button class="btn p" id="cartMail">✉️ Enviar al vendedor</button></div>`
+    : `<div class="filters" style="margin:2px 0 14px"><button class="btn p" id="cartDlSelf">📄 Descargar mi cartera (PDF)</button></div>`}`;
   const orderedPaises=Object.keys(grupos).sort();
   if(!orderedPaises.length) return h+'<div class="empty">Sin prospectos con estos filtros.</div>';
   h+=orderedPaises.map(pais=>{
@@ -301,6 +316,9 @@ function bind(){
   const cm=document.getElementById("cmine");if(cm)cm.onclick=()=>{fMine=!fMine;render();};
   const cg=document.getElementById("cgrande");if(cg)cg.onclick=()=>{fGrande=!fGrande;render();};
   const ab=document.getElementById("addBtn");if(ab)ab.onclick=openAdd;
+  const cdl=document.getElementById("cartDl");if(cdl)cdl.onclick=()=>{const v=(document.getElementById("cartVend")||{}).value||"";if(!v){toast("Elige un vendedor");return;}const i=v.indexOf("|");carteraPDF(v.slice(0,i),v.slice(i+1),"download");};
+  const cml=document.getElementById("cartMail");if(cml)cml.onclick=()=>{const v=(document.getElementById("cartVend")||{}).value||"";if(!v){toast("Elige un vendedor");return;}const i=v.indexOf("|");carteraPDF(v.slice(0,i),v.slice(i+1),"email");};
+  const cself=document.getElementById("cartDlSelf");if(cself)cself.onclick=()=>carteraPDF("","","download");
   document.querySelectorAll(".selest").forEach(s=>s.onchange=async()=>{const r=await api("update",{id:s.dataset.id,fields:{estado:s.value}});if(r.ok){toast("Estado actualizado");const p=ST.pros.find(x=>x.id===s.dataset.id);if(p)p.estado=s.value;const c=s.closest('.pc-card');if(c){const b=c.querySelector('.est');if(b){b.className='est e-'+s.value;b.textContent=(ESTL[s.value]||s.value);}}}else toast("Error");});
   document.querySelectorAll(".selasg").forEach(s=>s.onchange=async()=>{const[em,nm]=(s.value||"|").split("|");const r=await api("assign",{id:s.dataset.id,vendedor_email:em,vendedor_nombre:nm});if(r.ok){toast(em?("✓ Asignado a "+nm+" (aviso enviado)"):"Asignación quitada");const p=ST.pros.find(x=>x.id===s.dataset.id);if(p){p.asignado_email=em;p.asignado_nombre=nm;if(em&&p.estado==='nuevo')p.estado='asignado';}const c=s.closest('.pc-card');if(c){let a=c.querySelector('.asg');if(em){if(!a){a=document.createElement('div');a.className='asg';c.insertBefore(a,c.querySelector('.row'));}a.textContent='⭐ Asignado a '+nm;const b=c.querySelector('.est');if(b&&(b.textContent||'').toLowerCase().includes('nuevo')){b.className='est e-asignado';b.textContent='Asignado';}}else if(a){a.remove();}}}else toast("Error");});
   document.querySelectorAll(".selpais").forEach(s=>s.onchange=async()=>{const[em,nm]=(s.value||"|").split("|");const r=await api("assignPais",{pais:s.dataset.pais,vendedor_email:em,vendedor_nombre:nm});if(r.ok){toast("País "+s.dataset.pais+" → "+(nm||"sin encargado"));ST.paisVend=ST.paisVend||[];const e=ST.paisVend.find(x=>x.pais===s.dataset.pais);if(e){e.vendedor_email=em;e.vendedor_nombre=nm;}else ST.paisVend.push({pais:s.dataset.pais,vendedor_email:em,vendedor_nombre:nm});}else toast("Error");});
