@@ -18,6 +18,7 @@ a{color:var(--accent);text-decoration:none}.wrap{max-width:1240px;margin:0 auto;
 .brand{font-family:var(--serif);font-size:28px;font-weight:700}.brand small{display:block;font-family:var(--sans);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-top:3px}
 .brandwrap{display:flex;align-items:center;gap:14px}
 .logo{height:40px;width:auto;display:block}html[data-theme="light"] .logo{filter:invert(1)}
+.logobox{display:inline-flex;align-items:flex-start}.reg{color:var(--accent);font-size:13px;font-weight:700;line-height:1;margin:3px 0 0 2px}
 .brandtag b{font-family:var(--serif);font-size:22px;font-weight:700;display:block;line-height:1.05;letter-spacing:-.01em}
 .brandtag small{display:block;font-family:var(--sans);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-top:4px}
 .who{font-size:12px;color:var(--soft);text-align:right}.who b{color:var(--text)}
@@ -84,7 +85,7 @@ a{color:var(--accent);text-decoration:none}.wrap{max-width:1240px;margin:0 auto;
 <script>try{document.documentElement.dataset.theme=localStorage.getItem('exp-theme')||'dark';}catch(e){}</script>
 <div class="wrap">
   <div class="top">
-    <div class="brandwrap"><img src="jfk-logo.png" class="logo" alt="JFK"><div class="brandtag"><b>Expansión</b><small>Clientes potenciales · Oportunidad por país</small></div></div>
+    <div class="brandwrap"><span class="logobox"><img src="jfk-logo.png" class="logo" alt="JFK"><sup class="reg">&reg;</sup></span><div class="brandtag"><b>Expansión</b><small>Clientes potenciales · Oportunidad por país</small></div></div>
     <div><div class="who" id="who"></div>
       <div style="margin-top:8px;display:flex;gap:8px;justify-content:flex-end">
         <button class="btn themebtn" id="themeBtn" onclick="toggleTheme()" title="Tema claro / oscuro">🌓</button>
