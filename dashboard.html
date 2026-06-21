@@ -773,7 +773,7 @@ function renderFamiliaResumen(){
     ]}) : '<div class="empty">Sin datos.</div>';
 }
 
-const margenPct=r=>{ const c=Number(r.costo); if(!(c||c===0)||!(Number(r.total)>0)) return '—'; return Math.round((Number(r.total)-c)/Number(r.total)*100)+'%'; };
+const margenPct=r=>{ if(r.costo==null || !(Number(r.total)>0)) return '—'; return Math.round((Number(r.total)-Number(r.costo))/Number(r.total)*100)+'%'; };
 const hayCosto=()=> (Number((DATA&&DATA.kpis&&DATA.kpis.costo_cob))||0) > 0;
 function renderVendedores(){
   const v=DATA.por_vendedor||[];
