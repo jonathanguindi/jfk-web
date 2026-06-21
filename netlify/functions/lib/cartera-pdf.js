@@ -29,7 +29,7 @@ function buildCarteraPDF(empresa, vendedorNombre, grupos, fecha, totalClientes) 
       doc.on('data', c => chunks.push(c));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
 
-      const left = 40, right = 572, W = 532, bottom = 742;
+      const left = 40, right = 572, W = 532, bottom = 706;
       const ensure = h => { if (doc.y + h > bottom) doc.addPage(); };
       const T = (s, x, y, o) => doc.text(s == null ? '' : String(s), x, y, Object.assign({ lineBreak: false }, o || {}));
 
@@ -92,9 +92,9 @@ function buildCarteraPDF(empresa, vendedorNombre, grupos, fecha, totalClientes) 
       for (let i = 0; i < range.count; i++) {
         doc.switchToPage(i);
         doc.fillColor('#AAB1BC').font('Helvetica').fontSize(8);
-        T(`${empresa.nombreCorto || ''} · Cartera de clientes · ${fecha}`, left, 760, { width: W, align: 'left' });
+        T(`${empresa.nombreCorto || ''} · Cartera de clientes · ${fecha}`, left, 736, { width: W, align: 'left' });
         doc.fillColor(NAR).font('Helvetica').fontSize(8);
-        T(`Página ${i + 1} de ${range.count}`, left, 760, { width: W, align: 'right' });
+        T(`Página ${i + 1} de ${range.count}`, left, 736, { width: W, align: 'right' });
       }
       doc.end();
     } catch (e) { reject(e); }
