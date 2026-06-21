@@ -64,6 +64,14 @@ async function correr() {
     add('Clientes con vendedor activo', nCli === 0, nCli === 0 ? 'OK — todos los vendedores con ventas tienen correo activo' : `⚠️ ${nCli} clientes en ${huerf.length} vendedor(es) SIN correo activo: ${det} — reasignar antes de que se enfríen`);
   } catch (e) { add('Clientes con vendedor activo', false, e.message); }
 
+  // 6.5) Cobertura de costo (para margen)
+  try {
+    const { count: tot } = await sb.from('ventas_lineas').select('*', { count: 'exact', head: true });
+    const { count: conC } = await sb.from('ventas_lineas').select('*', { count: 'exact', head: true }).not('line_cost', 'is', null);
+    const pct = tot ? Math.round((conC || 0) / tot * 100) : 0;
+    add('Costo para margen', true, `${pct}% de líneas con costo (${(conC || 0).toLocaleString()}/${(tot || 0).toLocaleString()})${pct < 90 ? ' — se llena con el sync' : ''}`);
+  } catch (e) { add('Costo para margen', true, 'columna line_cost pendiente: ' + e.message); }
+
   // 7) Correo (Resend)
   add('Correo (Resend)', !!process.env.RESEND_API_KEY, process.env.RESEND_API_KEY ? 'configurado' : 'falta RESEND_API_KEY');
 
