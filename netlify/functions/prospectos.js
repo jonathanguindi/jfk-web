@@ -168,8 +168,9 @@ exports.handler = async (event) => {
           return reply(200,{ok:false,error:err.message});
         }
       }
+      const valorFmt = (d.valor_anual!=null && d.valor_anual!=='') ? '$'+Math.round(Number(d.valor_anual)).toLocaleString('en-US')+'/año' : null;
       const correo = await emailVendor(empresa, vEmail, vNombre,
-        { empresa:nombreCli, pais:d.pais, ciudad:d.city, que_vende:d.top_familia, contacto, valor_anual:d.valor_anual, ultima_compra:d.ultima_compra }, 'reactivar');
+        { empresa:nombreCli, pais:d.pais, ciudad:d.city, que_vende:d.top_familia, contacto, valor_anual:valorFmt, ultima_compra:d.ultima_compra }, 'reactivar');
       return reply(200,{ok:true, correo});
     }
 
