@@ -25,6 +25,14 @@ function buildClienteReportePDF(empresa, data, vendedorNombre, imgs, fecha) {
       const allP = data.productos || [];
       const TOPN = 16;
       const prods = allP.slice(0, TOPN);
+      // "Dejó de comprar": productos que compraba (>=2 veces o >=$1000) y soltó
+      // mientras seguía comprando otros (>240 días vs su última compra). = lista de recuperación.
+      const cUlt = allP.reduce((mx, p) => { const t = p.ultima_compra ? +new Date(p.ultima_compra) : 0; return t > mx ? t : mx; }, 0);
+      const dropped = allP.filter(p => {
+        if (!p.ultima_compra || !cUlt) return false;
+        const gap = (cUlt - new Date(p.ultima_compra)) / 86400000;
+        return gap > 240 && ((p.veces || 0) >= 2 || (p.total || 0) >= 1000);
+      }).sort((a, b) => b.total - a.total).slice(0, 8);
       const total = Number(data.total) || 0;
       const compras = docs.length;
       const ultima = docs[0] && docs[0].doc_date;
@@ -57,6 +65,25 @@ function buildClienteReportePDF(empresa, data, vendedorNombre, imgs, fecha) {
       });
       doc.y = ky + 66;
 
+      // ── 📞 Para tu llamada: lo que dejó de comprar (recuperar) ──
+      if (dropped.length) {
+        ensure(36 + dropped.length * 15);
+        doc.fillColor(NAR).font('Helvetica-Bold').fontSize(13); T('Para tu llamada — dejó de comprar (recuperar)', left, doc.y);
+        doc.y += 18;
+        const y0 = doc.y, h = 10 + dropped.length * 15 + 6;
+        doc.fillColor(CARD); doc.roundedRect(left, y0, W, h, 8).fill();
+        doc.lineWidth(1).strokeColor(CARDBD); doc.roundedRect(left, y0, W, h, 8).stroke();
+        doc.rect(left, y0, 3, h).fill(NAR);
+        let yy = y0 + 9;
+        dropped.forEach(p => {
+          doc.fillColor(TXT).font('Helvetica-Bold').fontSize(9.5); T((p.descripcion || p.code || ''), left + 14, yy, { width: W - 210 });
+          doc.fillColor(GRIS).font('Helvetica').fontSize(8.5); T('no compra desde ' + fmtFecha(p.ultima_compra), right - 188, yy, { width: 104, align: 'right' });
+          doc.fillColor(AZUL).font('Helvetica-Bold').fontSize(9); T(fmtUSD(p.total), right - 80, yy, { width: 72, align: 'right' });
+          yy += 15;
+        });
+        doc.y = y0 + h + 16;
+      }
+
       // ── Productos que compra (con imagen) ──
       ensure(28);
       doc.fillColor(TXT).font('Helvetica-Bold').fontSize(13); T('Lo que le hemos vendido', left, doc.y);
@@ -79,7 +106,8 @@ function buildClienteReportePDF(empresa, data, vendedorNombre, imgs, fecha) {
         // textos
         const tx = ix + isz + 12;
         doc.fillColor(TXT).font('Helvetica-Bold').fontSize(10); T(p.descripcion || p.code || '', tx, y0 + 9, { width: W - (tx - left) - 110 });
-        doc.fillColor(GRIS).font('Helvetica').fontSize(8); T(`Cód: ${p.code || ''}   ·   ${Number(p.qty) || 0} und   ·   ${p.veces || 0} compra(s)`, tx, y0 + 26, { width: W - (tx - left) - 110 });
+        const pu = (Number(p.qty) > 0) ? (Number(p.total) / Number(p.qty)) : 0;
+        doc.fillColor(GRIS).font('Helvetica').fontSize(8); T(`Cód: ${p.code || ''}   ·   ${Number(p.qty) || 0} und${pu ? '   ·   ' + fmtUSD(pu) + ' c/u' : ''}   ·   ${p.veces || 0} compra(s)`, tx, y0 + 26, { width: W - (tx - left) - 110 });
         doc.fillColor(AZUL).font('Helvetica-Bold').fontSize(12); T(fmtUSD(p.total), right - 100, y0 + 18, { width: 92, align: 'right' });
         doc.y = y0 + rowH + 4;
       });

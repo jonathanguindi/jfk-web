@@ -49,7 +49,21 @@ async function correr() {
     add('CRM Expansión', !error, error ? error.message : `${count || 0} prospectos`);
   } catch (e) { add('CRM Expansión', false, e.message); }
 
-  // 6) Correo (Resend)
+  // 6) Clientes huérfanos: vendedores con ventas recientes (12m) sin correo activo
+  try {
+    const hasta = new Date().toISOString().slice(0, 10);
+    const desde = new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10);
+    const { data: res } = await sb.rpc('ventas_resumen', { desde, hasta, p_vendedores: null, p_pais: null });
+    const pv = ((res && res.por_vendedor) || []).filter(v => v.code != null && (v.total || 0) > 0);
+    const { data: cv } = await sb.from('cobranza_vendedores').select('sap_code,email,activo');
+    const activos = new Set((cv || []).filter(r => r.activo !== false && (r.email || '').trim()).map(r => r.sap_code));
+    const huerf = pv.filter(v => !activos.has(v.code)).sort((a, b) => (b.total || 0) - (a.total || 0));
+    const nCli = huerf.reduce((s, v) => s + (v.clientes || 0), 0);
+    const det = huerf.slice(0, 4).map(v => `${v.name || 'cód ' + v.code} (${v.clientes || 0} cli)`).join(', ');
+    add('Clientes con vendedor activo', nCli === 0, nCli === 0 ? 'OK — todos los vendedores con ventas tienen correo activo' : `⚠️ ${nCli} clientes en ${huerf.length} vendedor(es) SIN correo activo: ${det} — reasignar antes de que se enfríen`);
+  } catch (e) { add('Clientes con vendedor activo', false, e.message); }
+
+  // 7) Correo (Resend)
   add('Correo (Resend)', !!process.env.RESEND_API_KEY, process.env.RESEND_API_KEY ? 'configurado' : 'falta RESEND_API_KEY');
 
   return { empresa, checks };
