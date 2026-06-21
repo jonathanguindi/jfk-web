@@ -4,6 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>JFK · Dashboard de ventas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script>
   (function(){ var pref = localStorage.getItem('jfk-theme-pref') || 'auto';
     if (pref === 'dark' || (pref === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches))
@@ -17,10 +19,10 @@
   --ink-900:#0E1016; --ink-800:#1A1D22; --ink-700:#34363B; --ink-600:#54565B;
   --ink-500:#6E7178; --ink-400:#98999B; --ink-300:#C4C6CA; --ink-200:#D4D6DA;
   --ink-100:#E5E7EA; --ink-50:#F4F5F7;
-  --punch:#FF6B35; --punch-hover:#E55A28; --electric:#009FE3; --cream:#FCFBF8;
+  --punch:#009FE3; --punch-hover:#0085C0; --electric:#009FE3; --cream:#FCFBF8;
   --green:#1FA971; --amber:#E8A317; --red:#E5484D;
-  --font-sans:'Soin Sans','Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
-  --font-serif:'Lyon Display','Fraunces',Georgia,serif;
+  --font-sans:'Inter','SF Pro Text',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  --font-serif:'Inter','SF Pro Display',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
   --font-mono:'New Grotesk Square','JetBrains Mono','Courier New',monospace;
   /* Corporativo: gris frío claro de fondo (sin crema), tarjetas blancas, bordes crisp. */
   --bg:#EEF1F5; --bg-elevated:#FFFFFF; --bg-sunken:#F3F5F8;
@@ -44,8 +46,11 @@ a{color:inherit}
 :where(button,select,input,summary,a,.tab,.preset,.seg button):focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
 .num,td.num,th.num,.kpi .val{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
 .topbar .inner{max-width:1200px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.logo{font-family:var(--font-serif);font-size:1.25rem;font-weight:600;letter-spacing:-.01em}
-.logo small{font-family:var(--font-mono);font-size:.62rem;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--electric);display:block;margin-top:-2px}
+.logo{font-family:var(--font-serif);font-size:1.25rem;font-weight:700;letter-spacing:-.01em}
+.logo .logobox{display:inline-flex;align-items:flex-start}
+.logo img{height:24px;width:auto;display:block}
+.logo .reg{color:var(--electric);font-size:9px;font-weight:700;line-height:1;margin:1px 0 0 1px}
+.logo small{font-family:var(--font-mono);font-size:.62rem;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--electric);display:block;margin-top:2px}
 .spacer{flex:1}
 .btn{font-family:var(--font-sans);font-weight:600;font-size:.82rem;border:none;border-radius:8px;padding:9px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:.15s}
 .btn-cta{background:var(--cta);color:#fff} .btn-cta:hover{background:var(--cta-hover)}
@@ -213,7 +218,7 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
 </head>
 <body>
 <div class="topbar"><div class="inner">
-  <div class="logo">JFK <small id="logoSub">Dashboard de ventas</small></div>
+  <div class="logo"><span class="logobox"><img src="jfk-logo.png" alt="JFK"><sup class="reg">&reg;</sup></span><small id="logoSub">Dashboard de ventas</small></div>
   <span id="whoAmI" style="font-size:.8rem;color:#cdd6e0;font-weight:600"></span>
   <div class="spacer"></div>
   <span id="syncBadge" class="synced" style="color:#9aa">—</span>
