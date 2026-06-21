@@ -1131,7 +1131,8 @@ async function verCliente(card){
 
   m.innerHTML=`<button class="x" onclick="cerrarModal()">✕</button>
     <h3 style="font-family:var(--font-serif);margin:0 0 2px">${esc(d.card_name||card)}</h3>
-    <div class="muted" style="font-size:.8rem;margin-bottom:14px">${esc(d.pais||'')} · ${esc(d.vendedor||'sin vendedor')} · ${esc(card)} · Total ${fmtUSD(d.total)} · ${esc((d.periodo&&d.periodo.desde)||document.getElementById('desde').value)} → ${esc(hastaRef)}</div>
+    <div class="muted" style="font-size:.8rem;margin-bottom:10px">${esc(d.pais||'')} · ${esc(d.vendedor||'sin vendedor')} · ${esc(card)} · Total ${fmtUSD(d.total)} · ${esc((d.periodo&&d.periodo.desde)||document.getElementById('desde').value)} → ${esc(hastaRef)}</div>
+    <div style="margin-bottom:14px"><button class="btn" style="background:var(--bg-sunken);color:var(--text)" onclick="reporteCliente('${esc(card)}',this)">📄 Reporte de compras (PDF)</button></div>
     ${contactoHtml(d.contacto)}
     <div id="cliAccion" class="accion"><div class="muted" style="font-size:.82rem">Analizando qué hacer…</div></div>
     <div style="margin-bottom:14px"><span class="seg">
