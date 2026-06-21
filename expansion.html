@@ -2,8 +2,8 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Expansión · JFK</title>
 <style>
-:root{--bg:#0B1017;--glow:#16263d;--panel:#121C2B;--panel2:#0E1726;--line:#22324C;--line2:#1A2840;--text:#EAF0F8;--text2:#C4D0E0;--muted:#90A0B6;--soft:#647693;
---accent:#FF7A45;--accent2:#1FC79A;--warn:#F6B83E;--down:#FF6B6B;--grn:#2BD68A;--on-accent:#08141f;
+:root{--bg:#0E1016;--glow:#11212e;--panel:#161A22;--panel2:#12151C;--line:#272D38;--line2:#1D222C;--text:#EAF0F8;--text2:#C4D0E0;--muted:#8E99AB;--soft:#69748A;
+--accent:#009FE3;--accent2:#1FC79A;--warn:#F6B83E;--down:#FF6B6B;--grn:#2BD68A;--on-accent:#08141f;
 --chip-bg:#16263E;--chip-bd:#27425f;--chip-tx:#B7C5D8;--track-bg:#0C1422;--badge-bg:#18283f;
 --shadow:0 10px 34px rgba(0,0,0,.34);--shadow-sm:0 2px 10px rgba(0,0,0,.22);--r:16px;
 --serif:"Iowan Old Style","Palatino Linotype",Georgia,serif;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;--mono:ui-monospace,Menlo,monospace;}
@@ -14,6 +14,10 @@ a{color:var(--accent);text-decoration:none}.wrap{max-width:1240px;margin:0 auto;
 .top{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid var(--line);position:relative}
 .top::after{content:"";position:absolute;left:0;bottom:-1px;height:2px;width:150px;background:linear-gradient(90deg,var(--accent),var(--accent))}
 .brand{font-family:var(--serif);font-size:28px;font-weight:700}.brand small{display:block;font-family:var(--sans);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-top:3px}
+.brandwrap{display:flex;align-items:center;gap:14px}
+.logo{height:40px;width:auto;display:block}html[data-theme="light"] .logo{filter:invert(1)}
+.brandtag b{font-family:var(--serif);font-size:23px;font-weight:700;display:block;line-height:1}
+.brandtag small{display:block;font-family:var(--sans);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-top:4px}
 .who{font-size:12px;color:var(--soft);text-align:right}.who b{color:var(--text)}
 .btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer}
 .btn.p{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
@@ -77,7 +81,7 @@ a{color:var(--accent);text-decoration:none}.wrap{max-width:1240px;margin:0 auto;
 <script>try{document.documentElement.dataset.theme=localStorage.getItem('exp-theme')||'dark';}catch(e){}</script>
 <div class="wrap">
   <div class="top">
-    <div><div class="brand">Expansión · JFK<small>Clientes potenciales · Oportunidad por país</small></div></div>
+    <div class="brandwrap"><img src="jfk-logo.png" class="logo" alt="JFK"><div class="brandtag"><b>Expansión</b><small>Clientes potenciales · Oportunidad por país</small></div></div>
     <div><div class="who" id="who"></div>
       <div style="margin-top:8px;display:flex;gap:8px;justify-content:flex-end">
         <button class="btn themebtn" id="themeBtn" onclick="toggleTheme()" title="Tema claro / oscuro">🌓</button>
