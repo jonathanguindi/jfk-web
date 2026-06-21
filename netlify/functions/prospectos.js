@@ -203,6 +203,18 @@ exports.handler = async (event) => {
       return reply(200,{ok:true, correo});
     }
 
+    // Agenda: el vendedor pone (o quita) la fecha en que va a visitar/contactar al cliente.
+    if(action==='agendar'){
+      const row = await getRow(b.id); if(!row) return reply(404,{ok:false,error:'No existe'});
+      if(!(await puedeEditar(row))) return reply(403,{ok:false,error:'Sin permiso'});
+      const f = /^\d{4}-\d{2}-\d{2}$/.test(b.fecha||'') ? b.fecha : null;
+      const entry = {fecha:now(), quien:email, accion:'📅 Visita '+(f?('agendada para '+f):'quitada')};
+      const upd = { fecha_visita:f, updated_at:now(), historial:[...(row.historial||[]), entry] };
+      const { error } = await sb.from('prospectos').update(upd).eq('id',b.id);
+      if(error) return reply(200,{ok:false,error:error.message});
+      return reply(200,{ok:true});
+    }
+
     // Registro de gestión: el vendedor anota qué pasó con el cliente (llamó, cotizó, cerró...).
     if(action==='gestion'){
       const row = await getRow(b.id); if(!row) return reply(404,{ok:false,error:'No existe'});

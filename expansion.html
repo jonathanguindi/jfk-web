@@ -43,6 +43,7 @@ a{color:var(--accent);text-decoration:none}.wrap{max-width:1240px;margin:0 auto;
 .chips2{display:flex;gap:4px;flex-wrap:wrap}.chips2 .c{background:var(--chip-bg);border:1px solid var(--chip-bd);color:var(--chip-tx);font-size:10px;padding:2px 6px;border-radius:5px}
 /* country accordion */
 .paisgrp{border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden;background:var(--panel2)}
+.agrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line2)}.agrow:last-child{border-bottom:none}
 .paishd{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 15px;cursor:pointer;background:var(--panel)}
 .paishd h3{margin:0;font-size:15px;font-family:var(--serif)} .paishd .pc{font-size:12px;color:var(--muted)}
 .paisbody{display:none;padding:12px;gap:10px;grid-template-columns:repeat(auto-fill,minmax(310px,1fr))}
@@ -187,12 +188,14 @@ function render(){
     ["Proyección 12m", fmtK(proyTot), "oportunidad"]
   ];
   let html=`<div class="kpis">${kpis.map(k=>`<div class="kpi"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="s">${k[2]}</div></div>`).join("")}</div>
-  <div class="tabs"><div class="t on" data-tab="pros">🎯 Clientes potenciales</div><div class="t" data-tab="opp">📈 Oportunidad por país</div>${ST.esAdmin?'<div class="t" data-tab="meta">📊 Meta por país</div><div class="t" data-tab="analisis">🧠 Análisis</div>':''}</div>
+  <div class="tabs"><div class="t on" data-tab="pros">🎯 Clientes potenciales</div><div class="t" data-tab="agenda">📅 Mi Agenda</div><div class="t" data-tab="opp">📈 Oportunidad por país</div>${ST.esAdmin?'<div class="t" data-tab="meta">📊 Meta por país</div><div class="t" data-tab="analisis">🧠 Análisis</div>':''}</div>
   <div class="panel on" id="p-pros">${renderPros()}</div>
+  <div class="panel" id="p-agenda"><div id="agendaBox"></div></div>
   <div class="panel" id="p-opp">${renderOpp(oppP)}</div>
   ${ST.esAdmin?`<div class="panel" id="p-meta">${metaPanelHTML()}</div><div class="panel" id="p-analisis"><div id="analisisBox"></div></div>`:''}`;
   document.getElementById("app").innerHTML=html;
   bind();
+  renderAgenda();
   if(ST.esAdmin){ renderMeta(); renderAnalisis(); }
 }
 function metaPanelHTML(){return `
@@ -311,7 +314,7 @@ function card(p){
     <div class="desc">${esc(p.que_vende||"")}</div>
     <div class="row">${p.tipo?`<span class="tag">${esc(p.tipo)}</span>`:""}${web}${p.contacto?`<span class="mini">☎ ${esc(p.contacto)}</span>`:""}</div>
     ${p.asignado_nombre?`<div class="asg">⭐ Asignado a ${esc(p.asignado_nombre)}</div>`:""}
-    <div class="row">${estSel}${adminAsg}${canEdit?`<button class="btn" style="padding:6px 10px" onclick="openMail('${p.id}')">✉️ Correo</button>`:""}${canEdit?`<button class="btn" style="padding:6px 10px" onclick="toggleGestion('${p.id}')">📝 Gestión</button>`:""}${canEdit?`<button class="btn" style="padding:6px 10px" onclick="toggleEdit('${p.id}')">✎ datos</button>`:""}${p.card_code?`<button class="btn" style="padding:6px 10px" onclick="repCliente('${esc(p.card_code)}',this)">📄 Historial</button>`:""}${ST.esAdmin?`<button class="btn" style="padding:6px 10px;color:#ff6b6b" onclick="delPros('${p.id}','${esc((p.empresa||'').replace(/'/g,''))}')">🗑</button>`:""}</div>
+    <div class="row">${estSel}${adminAsg}${canEdit?`<label class="mini" title="Día que lo vas a visitar/contactar" style="display:inline-flex;align-items:center;gap:3px">📅<input type="date" value="${esc(p.fecha_visita||"")}" onchange="agendar('${p.id}',this.value)" style="padding:4px 6px;font-size:11px;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px"></label>`:""}${canEdit?`<button class="btn" style="padding:6px 10px" onclick="openMail('${p.id}')">✉️ Correo</button>`:""}${canEdit?`<button class="btn" style="padding:6px 10px" onclick="toggleGestion('${p.id}')">📝 Gestión</button>`:""}${canEdit?`<button class="btn" style="padding:6px 10px" onclick="toggleEdit('${p.id}')">✎ datos</button>`:""}${p.card_code?`<button class="btn" style="padding:6px 10px" onclick="repCliente('${esc(p.card_code)}',this)">📄 Historial</button>`:""}${ST.esAdmin?`<button class="btn" style="padding:6px 10px;color:#ff6b6b" onclick="delPros('${p.id}','${esc((p.empresa||'').replace(/'/g,''))}')">🗑</button>`:""}</div>
     ${canEdit?`<div class="edit" id="ed-${p.id}">
       <input id="c-${p.id}" placeholder="Contacto (persona/tel)" value="${esc(p.contacto||"")}">
       <input id="e-${p.id}" type="email" placeholder="Correo del cliente" value="${esc(p.email||"")}">
@@ -357,6 +360,31 @@ function bind(){
 function toggleEdit(id){document.getElementById("ed-"+id).classList.toggle("open");}
 function toggleGestion(id){document.getElementById("ge-"+id).classList.toggle("open");}
 async function saveGestion(id){const res=val("gr-"+id);if(!res){toast("Elige qué pasó");return;}const nota=val("gn-"+id);const r=await api("gestion",{id,resultado:res,nota});if(r.ok){toast("Gestión registrada ✓");const p=ST.pros.find(x=>x.id===id);if(p){p.estado=r.estado;(p.historial=p.historial||[]).push(r.entry);}render();}else toast("Error: "+(r.error||""));}
+function canEditP(p){return ST.esAdmin||(p.asignado_email&&p.asignado_email.toLowerCase()===SES.email.toLowerCase())||ST.paises.includes(p.pais);}
+async function agendar(id,fecha){const r=await api("agendar",{id,fecha:fecha||null});if(r.ok){const p=ST.pros.find(x=>x.id===id);if(p)p.fecha_visita=fecha||null;toast(fecha?"Visita agendada 📅":"Fecha quitada");renderAgenda();}else toast("Error: "+(r.error||""));}
+async function quickGestion(id){const r=await api("gestion",{id,resultado:"Contacté",nota:"desde agenda"});if(r.ok){const p=ST.pros.find(x=>x.id===id);if(p){p.estado=r.estado;(p.historial=p.historial||[]).push(r.entry);}toast("Marcado contactado ✓");renderAgenda();}else toast("Error: "+(r.error||""));}
+function renderAgenda(){
+  const box=document.getElementById("agendaBox"); if(!box) return;
+  const mine=ST.pros.filter(canEditP);
+  const t=new Date(); const ts=t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0");
+  const dnum=f=>Math.round((new Date(f+"T00:00:00")-new Date(ts+"T00:00:00"))/864e5);
+  const conF=mine.filter(p=>p.fecha_visita);
+  const sinF=mine.filter(p=>!p.fecha_visita && ["nuevo","asignado","contactando"].includes(p.estado));
+  const rowH=p=>`<div class="agrow"><div style="min-width:0"><b>${esc(p.empresa)}</b><div class="muted" style="font-size:11.5px">${paisFlag(p.pais)} ${esc(p.ciudad||p.pais)} · <span class="est e-${p.estado}" style="font-size:9px;padding:1px 6px">${ESTL[p.estado]||p.estado}</span>${p.contacto?" · ☎ "+esc(p.contacto):""}</div></div>
+    <div style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="date" value="${esc(p.fecha_visita||"")}" onchange="agendar('${p.id}',this.value)" style="padding:4px 6px;font-size:11px;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px"><button class="btn p" style="padding:4px 9px;font-size:11px" onclick="quickGestion('${p.id}')">✓ visité</button></div></div>`;
+  const grp=(t2,L)=>L.length?`<div class="paisgrp open"><div class="paishd"><div><h3 style="display:inline">${t2}</h3> <span class="pc">${L.length}</span></div></div><div style="padding:4px 14px 8px">${L.map(rowH).join("")}</div></div>`:"";
+  const hoyN=conF.filter(p=>dnum(p.fecha_visita)===0).length, atrN=conF.filter(p=>dnum(p.fecha_visita)<0).length;
+  let h=`<div class="sec-h">📅 Mi Agenda <span class="muted" style="font-size:13px;font-weight:400">— pon a cada cliente el día que lo vas a visitar/contactar</span></div>
+  <div class="kpis" style="margin-bottom:14px"><div class="kpi"><div class="l">Hoy</div><div class="v">${hoyN}</div></div><div class="kpi"><div class="l">Atrasadas</div><div class="v">${atrN}</div></div><div class="kpi"><div class="l">Con fecha</div><div class="v">${conF.length}</div></div><div class="kpi"><div class="l">Por agendar</div><div class="v">${sinF.length}</div></div></div>`;
+  h+=grp("🔴 Atrasadas", conF.filter(p=>dnum(p.fecha_visita)<0).sort((a,b)=>a.fecha_visita<b.fecha_visita?-1:1));
+  h+=grp("📌 Hoy", conF.filter(p=>dnum(p.fecha_visita)===0));
+  h+=grp("Mañana", conF.filter(p=>dnum(p.fecha_visita)===1));
+  h+=grp("Esta semana", conF.filter(p=>{const n=dnum(p.fecha_visita);return n>1&&n<=7;}).sort((a,b)=>a.fecha_visita<b.fecha_visita?-1:1));
+  h+=grp("Más adelante", conF.filter(p=>dnum(p.fecha_visita)>7).sort((a,b)=>a.fecha_visita<b.fecha_visita?-1:1));
+  h+=grp("Por agendar (ponles fecha)", sinF.slice(0,50));
+  if(!conF.length&&!sinF.length) h+='<div class="empty">No tienes clientes a tu alcance todavía.</div>';
+  box.innerHTML=h;
+}
 async function delPros(id,nombre){if(!confirm("¿Eliminar \""+(nombre||"este prospecto")+"\" de la lista? No se puede deshacer."))return;const r=await api("eliminar",{id});if(r.ok){toast("Eliminado");ST.pros=ST.pros.filter(x=>x.id!==id);render();}else toast("Error: "+(r.error||""));}
 async function repCliente(cc,el){const prev=el?el.textContent:"";if(el)el.textContent="⏳";try{const r=await fetch("/.netlify/functions/cliente-reporte",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:SES&&SES.email,cardCode:cc,modo:"download"})});const j=await r.json();if(!j.ok){toast("No se pudo: "+(j.error||""));}else{const u=URL.createObjectURL(b64toBlob(j.pdf,"application/pdf"));const a=document.createElement("a");a.href=u;a.download=j.filename||"historial.pdf";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);}}catch(e){toast("Error al generar el reporte");}if(el)el.textContent=prev||"📄 Historial";}
 async function saveEdit(id){const f={contacto:val("c-"+id),email:val("e-"+id),web:val("w-"+id),ciudad:val("ci-"+id),direccion:val("d-"+id),notas:val("n-"+id)};const r=await api("update",{id,fields:f});if(r.ok){toast("Guardado");const p=ST.pros.find(x=>x.id===id);if(p)Object.assign(p,f);render();}else toast("Error: "+(r.error||""));}
