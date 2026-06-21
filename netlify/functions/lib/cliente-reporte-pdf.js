@@ -65,6 +65,18 @@ function buildClienteReportePDF(empresa, data, vendedorNombre, imgs, fecha) {
       });
       doc.y = ky + 66;
 
+      // ── Ritmo de compra (cadencia + atraso) ──
+      if (docs.length > 1 && primera && ultima) {
+        const span = (new Date(ultima) - new Date(primera)) / 86400000;
+        const cad = Math.max(1, Math.round(span / (docs.length - 1)));
+        const sinPedir = Math.round((Date.now() - new Date(ultima)) / 86400000);
+        const atras = sinPedir > cad * 1.5;
+        ensure(22);
+        doc.fillColor(atras ? NAR : GRIS).font(atras ? 'Helvetica-Bold' : 'Helvetica').fontSize(9.5);
+        T(`Ritmo: compra ~cada ${cad} días · lleva ${sinPedir} días sin pedir${atras ? '  ⚠ ATRASADO' : ''}`, left, doc.y);
+        doc.y += 18;
+      }
+
       // ── 📞 Para tu llamada: lo que dejó de comprar (recuperar) ──
       if (dropped.length) {
         ensure(36 + dropped.length * 15);

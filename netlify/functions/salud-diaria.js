@@ -57,7 +57,8 @@ async function correr() {
     const pv = ((res && res.por_vendedor) || []).filter(v => v.code != null && (v.total || 0) > 0);
     const { data: cv } = await sb.from('cobranza_vendedores').select('sap_code,email,activo');
     const activos = new Set((cv || []).filter(r => r.activo !== false && (r.email || '').trim()).map(r => r.sap_code));
-    const huerf = pv.filter(v => !activos.has(v.code)).sort((a, b) => (b.total || 0) - (a.total || 0));
+    const NOISE = /sin\s*agente|trafico|shacalo|mostrador|varios|general|consumidor|^n\/?a$|^\s*-|^\s*$/i;
+    const huerf = pv.filter(v => !activos.has(v.code) && !NOISE.test(v.name || '')).sort((a, b) => (b.total || 0) - (a.total || 0));
     const nCli = huerf.reduce((s, v) => s + (v.clientes || 0), 0);
     const det = huerf.slice(0, 4).map(v => `${v.name || 'cód ' + v.code} (${v.clientes || 0} cli)`).join(', ');
     add('Clientes con vendedor activo', nCli === 0, nCli === 0 ? 'OK — todos los vendedores con ventas tienen correo activo' : `⚠️ ${nCli} clientes en ${huerf.length} vendedor(es) SIN correo activo: ${det} — reasignar antes de que se enfríen`);

@@ -18,7 +18,8 @@ const RECURSOS = [
 function documentoAFilas(doc, docType, signo, mapas) {
   const fecha = (doc.DocDate || '').slice(0, 10);
   const spCode = doc.SalesPersonCode;
-  const countryCode = mapas.clientePais.get(doc.CardCode) || null;
+  const _cp = mapas.canonPais ? mapas.canonPais(mapas.clientePais.get(doc.CardCode) || null, mapas.paisNombre) : { code: mapas.clientePais.get(doc.CardCode) || null, name: null };
+  const countryCode = _cp.code;
   const filas = [];
   let lineNum = 0;
   for (const l of (doc.DocumentLines || [])) {
@@ -32,7 +33,7 @@ function documentoAFilas(doc, docType, signo, mapas) {
       card_code: doc.CardCode,
       card_name: doc.CardName || null,
       country_code: countryCode,
-      country_name: countryCode ? (mapas.paisNombre.get(countryCode) || countryCode) : null,
+      country_name: _cp.name || (countryCode ? (mapas.paisNombre.get(countryCode) || countryCode) : null),
       sales_person_code: (spCode != null && spCode > 0) ? spCode : null,
       sales_person_name: (spCode != null && spCode > 0) ? (mapas.vendedor.get(spCode) || null) : null,
       item_code: l.ItemCode || null,

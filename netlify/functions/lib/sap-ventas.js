@@ -6,6 +6,34 @@
 const https = require('https');
 const agent = new https.Agent({ rejectUnauthorized: false });
 
+// Mapa canónico de países: corrige nombres faltantes y unifica códigos duplicados
+// (AWI->AW, CZ->CW, GYN->GY, USA->US, GCI->KY). [codeSAP] = [codeCanon, nombre]
+const PAISES = {
+  AE:['AE','Emiratos Árabes'], AG:['AG','Antigua y Barbuda'], AR:['AR','Argentina'],
+  AW:['AW','Aruba'], AWI:['AW','Aruba'], BS:['BS','Bahamas'], BB:['BB','Barbados'],
+  BO:['BO','Bolivia'], BR:['BR','Brasil'], BZ:['BZ','Belice'], CL:['CL','Chile'],
+  CO:['CO','Colombia'], CR:['CR','Costa Rica'], CU:['CU','Cuba'], CW:['CW','Curazao'],
+  CZ:['CW','Curazao'], DM:['DM','Dominica'], EC:['EC','Ecuador'], GP:['GP','Guadalupe'],
+  GD:['GD','Granada'], GCI:['KY','Islas Caimán'], KY:['KY','Islas Caimán'], GT:['GT','Guatemala'],
+  GY:['GY','Guyana'], GYN:['GY','Guyana'], HN:['HN','Honduras'], HT:['HT','Haití'],
+  IL:['IL','Israel'], JM:['JM','Jamaica'], MX:['MX','México'], NG:['NG','Nigeria'],
+  NI:['NI','Nicaragua'], PA:['PA','Panamá'], PE:['PE','Perú'], PR:['PR','Puerto Rico'],
+  PY:['PY','Paraguay'], DO:['DO','República Dominicana'], RUS:['RU','Rusia'], RU:['RU','Rusia'],
+  MF:['MF','Saint Martin'], LC:['LC','Santa Lucía'], SX:['SX','Sint Maarten'], SR:['SR','Surinam'],
+  SV:['SV','El Salvador'], TT:['TT','Trinidad y Tobago'], TC:['TC','Turcas y Caicos'],
+  US:['US','Estados Unidos'], USA:['US','Estados Unidos'], UY:['UY','Uruguay'],
+  VC:['VC','San Vicente y Granadinas'], VE:['VE','Venezuela'], VG:['VG','Islas Vírgenes Brit.'],
+  ZL:['ZL','Zona Libre']
+};
+// Devuelve {code, name} canónicos. Si no está en el mapa, usa el nombre de SAP o el código.
+function canonPais(rawCode, paisNombre) {
+  if (!rawCode) return { code: null, name: null };
+  const m = PAISES[rawCode];
+  if (m) return { code: m[0], name: m[1] };
+  const nm = (paisNombre && paisNombre.get(rawCode)) || rawCode;
+  return { code: rawCode, name: nm };
+}
+
 const SAP_URL  = process.env.SAP_SERVICE_LAYER_URL || '';
 const SAP_DB   = process.env.SAP_COMPANY_DB || '';
 const SAP_USER = process.env.SAP_USER || process.env.SAP_USERNAME || '';
@@ -89,7 +117,9 @@ async function cargarMapas(cookie) {
   bps.forEach(b => clientePais.set(b.CardCode, b.Country));
 
   // Filas de ficha de cliente para ventas_clientes (datos de contacto).
-  const clientes = bps.map(b => ({
+  const clientes = bps.map(b => {
+    const cp = canonPais(b.Country || null, paisNombre);
+    return ({
     card_code: b.CardCode,
     card_name: b.CardName || null,
     email: b.EmailAddress || null,
@@ -98,15 +128,16 @@ async function cargarMapas(cookie) {
     cellular: b.Cellular || null,
     address: b.Address || null,
     city: b.City || null,
-    country_code: b.Country || null,
-    country_name: b.Country ? (paisNombre.get(b.Country) || b.Country) : null,
+    country_code: cp.code,
+    country_name: cp.name,
     contact_person: b.ContactPerson || null,
     sales_person_code: (b.SalesPersonCode != null && b.SalesPersonCode > 0) ? b.SalesPersonCode : null,
     valid: b.Valid || null,
     balance: Number(b.CurrentAccountBalance) || 0,
-  }));
+  });
+  });
 
-  return { vendedor, grupoNombre, itemGrupo, paisNombre, clientePais, clientes };
+  return { vendedor, grupoNombre, itemGrupo, paisNombre, clientePais, clientes, canonPais };
 }
 
 // ── Una página de documentos (Invoices o CreditNotes) por DocEntry asc ────────
