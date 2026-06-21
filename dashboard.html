@@ -252,6 +252,7 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
 
   <div class="tabs" id="tabs">
     <button class="tab active" data-t="resumen">Resumen</button>
+    <button class="tab" data-t="anios">📅 Por año</button>
     <button class="tab" data-t="pedidos">📦 Por despachar</button>
     <button class="tab" data-t="explorar">Explorar por país</button>
     <button class="tab" data-t="dormidos">😴 Dormidos</button>
@@ -323,6 +324,15 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
       <div id="dormResumen"></div>
       <input class="search" id="dormSearch" placeholder="Buscar por nombre, país o vendedor…" oninput="renderDormidos()">
       <div id="tblDormidos"><div class="empty">Cargando…</div></div>
+    </div>
+  </section>
+
+  <!-- POR AÑO -->
+  <section class="panel" id="p-anios">
+    <div class="card">
+      <h3>Facturación por año <span class="sub">cada año calendario, mes por mes</span></h3>
+      <p class="muted" style="font-size:.8rem;margin:-6px 0 12px">Cuánto se facturó cada mes, año por año (2026, 2025…). El color marca los meses más fuertes.</p>
+      <div id="tblAnios"><div class="empty">Cargando…</div></div>
     </div>
   </section>
 
@@ -454,6 +464,7 @@ document.querySelectorAll('#tabs .tab').forEach(b=>b.onclick=()=>{
   if(b.dataset.t==='dormidos') loadDormidos();
   if(b.dataset.t==='huerfanos') loadHuerfanos();
   if(b.dataset.t==='pedidos') loadPedidos();
+  if(b.dataset.t==='anios') loadAnios();
 });
 
 /* ── Dormidos (reactivación) ── */
@@ -463,6 +474,41 @@ async function prosApi(action,extra){ const r=await fetch(PROS_FN,{method:'POST'
 function setDormDias(d){ DORM_DIAS=d;
   document.querySelectorAll('#segDorm button').forEach(x=>x.classList.toggle('active', Number(x.dataset.d)===d));
   loadDormidos(true);
+}
+/* ── Facturación por año (matriz año × mes) ── */
+let ANIOS=null, ANIOS_LOADING=false;
+async function loadAnios(force){
+  if(ANIOS_LOADING) return; if(ANIOS && !force){ renderAnios(); return; }
+  ANIOS_LOADING=true;
+  document.getElementById('tblAnios').innerHTML='<div class="empty">Cargando…</div>';
+  let j; try{ j=await fetchData({desde:'2018-01-01', hasta:(document.getElementById('hasta').value||new Date().toISOString().slice(0,10))}); }
+  catch(e){ ANIOS_LOADING=false; document.getElementById('tblAnios').innerHTML='<div class="empty">No se pudo cargar.</div>'; return; }
+  ANIOS_LOADING=false;
+  if(!j.ok){ document.getElementById('tblAnios').innerHTML='<div class="empty">'+esc(j.error||'Error')+'</div>'; return; }
+  ANIOS=(j.resumen&&j.resumen.tendencia)||[]; renderAnios();
+}
+function renderAnios(){
+  const cont=document.getElementById('tblAnios'); if(!cont) return;
+  const M={}; (ANIOS||[]).forEach(t=>{const a=(t.mes||'').split('-'); if(a.length<2)return; (M[a[0]]=M[a[0]]||Array(12).fill(0))[parseInt(a[1],10)-1]=Number(t.total)||0;});
+  const years=Object.keys(M).sort((a,b)=>b-a);
+  if(!years.length){ cont.innerHTML='<div class="empty">Sin datos.</div>'; return; }
+  const MES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const k=n=>n?('$'+(n>=1000?Math.round(n/1000)+'k':Math.round(n))):'';
+  const tot=y=>M[y].reduce((s,v)=>s+v,0);
+  const max=Math.max(1,...years.flatMap(y=>M[y]));
+  const curY=String(new Date().getFullYear());
+  let head='';
+  if(M[curY]){ const a=tot(curY), pY=String(+curY-1), prev=M[pY]?tot(pY):0, yoy=prev?Math.round((a-prev)/prev*100):null;
+    head=`<div class="kpis" style="margin-bottom:16px"><div class="kpi cta"><div class="lbl">Facturado ${curY}</div><div class="val">${fmtUSD(a)}</div></div>`+
+      (prev?`<div class="kpi"><div class="lbl">${pY}</div><div class="val">${fmtUSD(prev)}</div></div><div class="kpi"><div class="lbl">vs ${pY}</div><div class="val" style="color:${yoy>=0?'var(--green)':'var(--red)'}">${yoy>=0?'+':''}${yoy}%</div></div>`:'')+`</div>`;
+  }
+  let h=head+'<div class="tbl-scroll"><table><thead><tr><th>Año</th>'+MES.map(m=>`<th class="num">${m}</th>`).join('')+'<th class="num">Total</th></tr></thead><tbody>';
+  years.forEach(y=>{ const cur=y===curY;
+    h+=`<tr${cur?' style="font-weight:700"':''}><td${cur?' style="color:var(--accent)"':''}>${y}${cur?' •':''}</td>`+
+      M[y].map(v=>{const op=v?(0.10+0.55*v/max):0;return `<td class="num" style="background:rgba(0,159,227,${op.toFixed(2)})">${k(v)}</td>`;}).join('')+
+      `<td class="num"><b>${fmtUSD(tot(y))}</b></td></tr>`;
+  });
+  cont.innerHTML=h+'</tbody></table></div>';
 }
 /* ── Pedidos por despachar (órdenes abiertas en SAP) ── */
 let PED=null, PED_LOADING=false;

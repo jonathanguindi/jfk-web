@@ -72,6 +72,14 @@ async function correr() {
     add('Costo para margen', true, `${pct}% de líneas con costo (${(conC || 0).toLocaleString()}/${(tot || 0).toLocaleString()})${pct < 90 ? ' — se llena con el sync' : ''}`);
   } catch (e) { add('Costo para margen', true, 'columna line_cost pendiente: ' + e.message); }
 
+  // 6.6) Vista por año (facturación mensual del año en curso)
+  try {
+    const y = new Date().getFullYear();
+    const { data } = await sb.rpc('ventas_resumen', { desde: y + '-01-01', hasta: new Date().toISOString().slice(0, 10), p_vendedores: null, p_pais: null });
+    const t = ((data && data.tendencia) || []).filter(x => (x.mes || '').startsWith(String(y)));
+    add('Vista por año', t.length > 0, t.length > 0 ? `${y}: ${t.length} mes(es) con facturación` : 'sin datos del año en curso');
+  } catch (e) { add('Vista por año', false, e.message); }
+
   // 7) Correo (Resend)
   add('Correo (Resend)', !!process.env.RESEND_API_KEY, process.env.RESEND_API_KEY ? 'configurado' : 'falta RESEND_API_KEY');
 
