@@ -455,7 +455,9 @@ async function assignReact(i, cc){
   const [vemail,vname]=sel.value.split('|');
   const btn=document.getElementById('rb-'+i); if(btn){ btn.disabled=true; btn.textContent='…'; }
   const r=await prosApi('reactivar',{vendedor_email:vemail, vendedor_nombre:vname, cliente:cli});
-  if(r.ok){ DORM_REACT[cc]={card_code:cc, asignado_nombre:vname, estado:'asignado'}; bannerMsg(''); renderDormidos(); }
+  if(r.ok){ DORM_REACT[cc]={card_code:cc, asignado_nombre:vname, estado:'asignado'};
+    bannerMsg((r.correo&&r.correo.sent===false)?('Asignado ✓ — pero el correo NO se envió: '+esc(r.correo.error||'')):'');
+    renderDormidos(); }
   else { bannerMsg('No se pudo asignar: '+esc(r.error||'')); if(btn){ btn.disabled=false; btn.textContent='Asignar'; } }
 }
 function renderDormidos(){

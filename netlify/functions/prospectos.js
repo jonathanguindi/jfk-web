@@ -13,7 +13,9 @@ const now = ()=> new Date().toISOString();
 
 async function emailVendor(empresa, to, nombre, pros, modo){
   try{
-    if(!Resend || !process.env.RESEND_API_KEY || !to) return;
+    if(!Resend) return {sent:false, error:'Paquete resend no instalado'};
+    if(!process.env.RESEND_API_KEY) return {sent:false, error:'RESEND_API_KEY no configurado'};
+    if(!to) return {sent:false, error:'El vendedor no tiene correo'};
     const r = new Resend(process.env.RESEND_API_KEY);
     const eh = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     const esReact = modo==='reactivar';
@@ -42,8 +44,10 @@ async function emailVendor(empresa, to, nombre, pros, modo){
       <p style="color:#888;font-size:12px">${eh(empresa.nombreCorto)}</p></div>`;
     const subject = esReact ? `Cliente para reactivar: ${eh(pros.empresa)}` : `Nuevo cliente potencial para contactar: ${eh(pros.empresa)}`;
     const adminBcc = (process.env.VENTAS_ADMIN_EMAIL || empresa.admin || '').trim();
-    await r.emails.send({ from: empresa.from, to:[to], bcc: adminBcc?[adminBcc]:undefined, subject, html });
-  }catch(e){ /* no romper la asignación si falla el correo */ }
+    const { data, error } = await r.emails.send({ from: empresa.from, to:[to], bcc: adminBcc?[adminBcc]:undefined, subject, html });
+    if(error) return {sent:false, error:(error.message||JSON.stringify(error))};
+    return {sent:true, id:(data&&data.id)||null};
+  }catch(e){ return {sent:false, error:e.message}; }
 }
 
 exports.handler = async (event) => {
@@ -117,8 +121,8 @@ exports.handler = async (event) => {
         historial: log(row, `Asignado a ${b.vendedor_nombre||b.vendedor_email}`) };
       const { error } = await sb.from('prospectos').update(upd).eq('id',b.id);
       if(error) return reply(200,{ok:false,error:error.message});
-      await emailVendor(empresa, b.vendedor_email, b.vendedor_nombre, row);
-      return reply(200,{ok:true});
+      const correo = await emailVendor(empresa, b.vendedor_email, b.vendedor_nombre, row);
+      return reply(200,{ok:true, correo});
     }
 
     // Qué clientes dormidos ya están en el CRM (para no duplicar y mostrar a quién se asignaron).
@@ -163,9 +167,9 @@ exports.handler = async (event) => {
           return reply(200,{ok:false,error:err.message});
         }
       }
-      await emailVendor(empresa, vEmail, vNombre,
+      const correo = await emailVendor(empresa, vEmail, vNombre,
         { empresa:d.empresa, pais:d.pais, ciudad:d.city, que_vende:d.top_familia, contacto, valor_anual:d.valor_anual, ultima_compra:d.ultima_compra }, 'reactivar');
-      return reply(200,{ok:true});
+      return reply(200,{ok:true, correo});
     }
 
     if(action==='assignPais'){
