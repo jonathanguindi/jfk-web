@@ -215,6 +215,7 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
   .kpi .val{font-size:1.4rem}
   .panelGrid{grid-template-columns:1fr!important}
 }
+.prio[role="button"]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:10px}
 </style>
 </head>
 <body>
@@ -475,6 +476,8 @@ document.querySelectorAll('#tabs .tab').forEach(b=>b.onclick=()=>{
   if(b.dataset.t==='panel') loadPanel();
 });
 function goTab(t){ const b=document.querySelector('#tabs .tab[data-t="'+t+'"]'); if(b) b.click(); }
+// Accesibilidad: filas clicables (.prio con role=button) responden a Enter/Espacio.
+document.addEventListener('keydown',function(e){ const t=e.target; if((e.key==='Enter'||e.key===' ')&&t&&t.classList&&t.classList.contains('prio')&&t.getAttribute('role')==='button'){ e.preventDefault(); t.click(); }});
 
 /* ── Dormidos (reactivación) ── */
 let DORM=null, DORM_DIAS=365, DORM_LOADING=false, DORM_VENDS=null, DORM_REACT={}, DORM_BY_CC={};
@@ -505,6 +508,8 @@ function renderPanel(){
   const ped=(PANEL.ped&&PANEL.ped.pedidos)||[];
   const pedTot=(PANEL.ped&&PANEL.ped.total)||0;
   const pros=(PANEL.pros&&PANEL.pros.prospectos)||[];
+  const yearErr=PANEL.year===null, pedErr=PANEL.ped===null, prosErr=PANEL.pros===null;
+  const errBox='<div class="empty" style="padding:20px">No se pudo cargar.<br><a href="#" onclick="loadPanel(true);return false" style="font-size:.82rem">Reintentar</a></div>';
   const dDe=f=>Math.round((new Date(hoy+'T00:00:00')-new Date((f||'')+'T00:00:00'))/864e5);
   const agenda=pros.filter(p=>p.fecha_visita).map(p=>({...p,d:dDe(p.fecha_visita)}));
   const hoyV=agenda.filter(p=>p.d===0);
@@ -515,33 +520,33 @@ function renderPanel(){
   const kpi=(l,v,s,cls)=>`<div class="kpi${cls?' '+cls:''}"><div class="lbl">${l}</div><div class="val">${v}</div>${s?`<div class="sub" style="font-size:.72rem;color:var(--text-muted);margin-top:2px">${s}</div>`:''}</div>`;
   let h=`<div style="margin:4px 2px 14px"><h2 style="margin:0;font-size:1.25rem">${nombre?('Hola, '+esc(nombre)+' 👋'):'Tu panel'}</h2><p class="muted" style="margin:2px 0 0;font-size:.84rem">Todo lo tuyo de un vistazo · ${new Date().toLocaleDateString('es-PA',{weekday:'long',day:'2-digit',month:'long'})}</p></div>`;
   h+=`<div class="kpis" style="margin-bottom:18px">
-    ${kpi('Facturado '+y, fmtUSD(K.ventas_total||0), (K.clientes!=null?K.clientes+' clientes':''),'cta')}
-    ${kpi('📦 Por despachar', ped.length, ped.length?fmtUSD(pedTot):'al día 🎉')}
-    ${kpi('📅 Agenda hoy', hoyV.length, atras.length?(atras.length+' atrasada(s)'):'')}
-    ${kpi('📞 Por contactar', porContactar.length, 'prospectos')}
+    ${kpi('Facturado '+y, yearErr?'—':fmtUSD(K.ventas_total||0), yearErr?'no se pudo cargar':(K.clientes!=null?K.clientes+' clientes':''),'cta')}
+    ${kpi('📦 Por despachar', pedErr?'—':ped.length, pedErr?'no se pudo cargar':(ped.length?fmtUSD(pedTot):'al día 🎉'))}
+    ${kpi('📅 Agenda hoy', prosErr?'—':hoyV.length, prosErr?'no se pudo cargar':(atras.length?(atras.length+' atrasada(s)'):''))}
+    ${kpi('📞 Por contactar', prosErr?'—':porContactar.length, prosErr?'':'prospectos')}
   </div>`;
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start" class="panelGrid">';
   // Agenda de hoy
   const verExp='onclick="location.href=\'expansion.html\'"';
   let ag='';
   const agShow=[...hoyV, ...atras].slice(0,6);
-  if(agShow.length){ ag=agShow.map(p=>`<div class="prio" ${verExp} style="cursor:pointer"><div style="min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.empresa||p.name||'')}</b><span class="muted" style="font-size:.76rem">${esc(p.ciudad||p.pais||'')}${p.contacto?' · '+esc(p.contacto):''}</span></div><div style="text-align:right;white-space:nowrap"><span style="font-weight:600;font-size:.8rem;color:${p.d>0?'var(--red)':'var(--accent)'}">${p.d>0?('atrasada '+p.d+'d'):'hoy'}</span></div></div>`).join(''); }
+  if(agShow.length){ ag=agShow.map(p=>`<div class="prio" tabindex="0" role="button" ${verExp} style="cursor:pointer"><div style="min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.empresa||p.name||'')}</b><span class="muted" style="font-size:.76rem">${esc(p.ciudad||p.pais||'')}${p.contacto?' · '+esc(p.contacto):''}</span></div><div style="text-align:right;white-space:nowrap"><span style="font-weight:600;font-size:.8rem;color:${p.d>0?'var(--red)':'var(--accent)'}">${p.d>0?('atrasada '+p.d+'d'):'hoy'}</span></div></div>`).join(''); }
   else ag='<div class="empty" style="padding:20px">No tienes visitas para hoy.<br><span class="muted" style="font-size:.8rem">Programa en Expansión → 📅 Mi Agenda</span></div>';
-  h+=`<div class="card"><h3>📅 Tu agenda <span class="sub">visitas de hoy y atrasadas</span></h3>${ag}<p style="margin:12px 2px 0"><a href="expansion.html" style="font-size:.8rem">Abrir Mi Agenda →</a></p></div>`;
+  h+=`<div class="card"><h3>📅 Tu agenda <span class="sub">visitas de hoy y atrasadas</span></h3>${prosErr?errBox:ag}<p style="margin:12px 2px 0"><a href="expansion.html" style="font-size:.8rem">Abrir Mi Agenda →</a></p></div>`;
   // Pedidos por despachar
   let pd='';
   if(ped.length){ const top=ped.slice().sort((a,b)=>(b.dias||0)-(a.dias||0)).slice(0,6);
     pd=top.map(p=>{const col=p.dias>15?'var(--red)':(p.dias>7?'var(--amber)':'var(--text-muted)');return `<div class="prio"><div style="min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.cliente)}</b><span class="muted" style="font-size:.76rem">#${esc(p.docNum)} · ${esc(p.fecha)}</span></div><div style="text-align:right;white-space:nowrap"><div class="num" style="font-weight:600;font-size:.82rem">${fmtUSD(p.total)}</div><span style="color:${col};font-size:.74rem">${p.dias!=null?p.dias+'d':''}</span></div></div>`;}).join(''); }
   else pd='<div class="empty" style="padding:20px">Sin pedidos pendientes de despacho. 🎉</div>';
-  h+=`<div class="card"><h3>📦 Por despachar <span class="sub">órdenes abiertas en SAP</span></h3>${pd}<p style="margin:12px 2px 0"><a href="#" onclick="goTab('pedidos');return false" style="font-size:.8rem">Ver todos →</a></p></div>`;
+  h+=`<div class="card"><h3>📦 Por despachar <span class="sub">órdenes abiertas en SAP</span></h3>${pedErr?errBox:pd}<p style="margin:12px 2px 0"><a href="#" onclick="goTab('pedidos');return false" style="font-size:.8rem">Ver todos →</a></p></div>`;
   // Prioridades de reactivación
   const cli=(R.por_cliente||[]).map(x=>({...x,dias:x.ultima_compra?Math.round((new Date(hoy+'T00:00:00')-new Date(x.ultima_compra+'T00:00:00'))/864e5):9999})).filter(x=>x.dias>=60).sort((a,b)=>(b.total||0)-(a.total||0)).slice(0,6);
-  let pr= cli.length? cli.map(x=>{const txt=x.dias>365?(x.dias/365).toFixed(1)+' años':Math.round(x.dias/30)+' meses';return `<div class="prio" onclick="verCliente('${esc(x.card_code)}')"><div style="min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.name)}</b><span class="muted" style="font-size:.76rem">${esc(x.pais||'')}</span></div><div style="text-align:right;white-space:nowrap"><span style="color:var(--amber);font-weight:600;font-size:.78rem">${txt} sin comprar</span><div class="muted num" style="font-size:.76rem">${fmtUSD(x.total)}</div></div></div>`;}).join('') : '<div class="empty" style="padding:20px">Sin clientes pendientes de reactivar. 👍</div>';
-  h+=`<div class="card"><h3>📞 Reactivar <span class="sub">clientes que dejaron de comprar</span></h3>${pr}<p style="margin:12px 2px 0"><a href="#" onclick="goTab('dormidos');return false" style="font-size:.8rem">Ver dormidos →</a></p></div>`;
+  let pr= cli.length? cli.map(x=>{const txt=x.dias>365?(x.dias/365).toFixed(1)+' años':Math.round(x.dias/30)+' meses';return `<div class="prio" tabindex="0" role="button" onclick="verCliente('${esc(x.card_code)}')"><div style="min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.name)}</b><span class="muted" style="font-size:.76rem">${esc(x.pais||'')}</span></div><div style="text-align:right;white-space:nowrap"><span style="color:var(--amber);font-weight:600;font-size:.78rem">${txt} sin comprar</span><div class="muted num" style="font-size:.76rem">${fmtUSD(x.total)}</div></div></div>`;}).join('') : '<div class="empty" style="padding:20px">Sin clientes pendientes de reactivar. 👍</div>';
+  h+=`<div class="card"><h3>📞 Reactivar <span class="sub">clientes que dejaron de comprar</span></h3>${yearErr?errBox:pr}<p style="margin:12px 2px 0"><a href="#" onclick="goTab('dormidos');return false" style="font-size:.8rem">Ver dormidos →</a></p></div>`;
   // Productos top
   const prod=(R.por_producto||[]).slice().sort((a,b)=>(b.total||0)-(a.total||0)).slice(0,6);
   let pt= prod.length? prod.map((x,i)=>`<div class="prio"><div style="min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${i+1}. ${esc(x.descripcion||x.code||'')}</b><span class="muted" style="font-size:.76rem">${esc(x.familia||'')}</span></div><div style="text-align:right;white-space:nowrap"><div class="num" style="font-weight:600;font-size:.82rem">${fmtUSD(x.total)}</div><span class="muted" style="font-size:.74rem">${Math.round(Number(x.qty)||0).toLocaleString()} u</span></div></div>`).join('') : '<div class="empty" style="padding:20px">Sin datos.</div>';
-  h+=`<div class="card"><h3>🏆 Tus productos top <span class="sub">${y}</span></h3>${pt}<p style="margin:12px 2px 0"><a href="#" onclick="goTab('productos');return false" style="font-size:.8rem">Ver todos →</a></p></div>`;
+  h+=`<div class="card"><h3>🏆 Tus productos top <span class="sub">${y}</span></h3>${yearErr?errBox:pt}<p style="margin:12px 2px 0"><a href="#" onclick="goTab('productos');return false" style="font-size:.8rem">Ver todos →</a></p></div>`;
   h+='</div>';
   cont.innerHTML=h;
 }

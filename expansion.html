@@ -197,6 +197,7 @@ function render(){
   bind();
   renderAgenda();
   if(ST.esAdmin){ renderMeta(); renderAnalisis(); }
+  if(!window._aHashDone && location.hash==="#agenda"){ window._aHashDone=true; const at=document.querySelector('.t[data-tab="agenda"]'); if(at) at.click(); }
 }
 function metaPanelHTML(){return `
   <div class="sec-h">¿Cuánto deberías estar vendiendo? <span class="muted" style="font-size:13px;font-weight:400">— solo admin · ajusta los supuestos a tu realidad</span></div>
