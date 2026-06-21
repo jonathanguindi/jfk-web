@@ -42,6 +42,9 @@ function documentoAFilas(doc, docType, signo, mapas) {
       item_group_name: groupCode != null ? (mapas.grupoNombre.get(groupCode) || null) : null,
       quantity: Number(l.Quantity) || 0,
       line_total: (Number(l.LineTotal) || 0) * signo,
+      // Costo por línea desde SAP (StockPrice = costo del item al facturar; fallback GrossBuyPrice).
+      // null si SAP no lo expone -> el margen simplemente no se muestra para esa línea.
+      line_cost: (() => { const cu = Number(l.StockPrice) || Number(l.GrossBuyPrice) || 0; const q = Number(l.Quantity) || 0; return cu ? cu * q * signo : null; })(),
     });
     lineNum++;
   }
