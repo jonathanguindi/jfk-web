@@ -22,7 +22,9 @@ function buildClienteReportePDF(empresa, data, vendedorNombre, imgs, fecha) {
       const T = (s, x, y, o) => doc.text(s == null ? '' : String(s), x, y, Object.assign({ lineBreak: false }, o || {}));
 
       const docs = data.documentos || [];
-      const prods = data.productos || [];
+      const allP = data.productos || [];
+      const TOPN = 16;
+      const prods = allP.slice(0, TOPN);
       const total = Number(data.total) || 0;
       const compras = docs.length;
       const ultima = docs[0] && docs[0].doc_date;
@@ -58,7 +60,7 @@ function buildClienteReportePDF(empresa, data, vendedorNombre, imgs, fecha) {
       // ── Productos que compra (con imagen) ──
       ensure(28);
       doc.fillColor(TXT).font('Helvetica-Bold').fontSize(13); T('Lo que le hemos vendido', left, doc.y);
-      doc.fillColor(GRIS).font('Helvetica').fontSize(8.5); T(`${prods.length} producto(s) · ordenados por monto`, left, doc.y + 1, { width: W, align: 'right' });
+      doc.fillColor(GRIS).font('Helvetica').fontSize(8.5); T(`${allP.length} producto(s) · top ${prods.length} por monto`, left, doc.y + 1, { width: W, align: 'right' });
       doc.y += 22;
 
       const rowH = 54;
@@ -81,6 +83,7 @@ function buildClienteReportePDF(empresa, data, vendedorNombre, imgs, fecha) {
         doc.fillColor(AZUL).font('Helvetica-Bold').fontSize(12); T(fmtUSD(p.total), right - 100, y0 + 18, { width: 92, align: 'right' });
         doc.y = y0 + rowH + 4;
       });
+      if (allP.length > TOPN) { ensure(20); doc.fillColor(GRIS).font('Helvetica-Oblique').fontSize(9); T(`+ ${allP.length - TOPN} producto(s) más en el histórico (mostrando el top ${TOPN} por monto)`, left, doc.y + 4); doc.y += 18; }
       if (!prods.length) { doc.fillColor(GRIS).font('Helvetica').fontSize(10); T('Sin historial de compras registrado.', left, doc.y + 6); }
 
       // ── Pie ──
@@ -105,7 +108,7 @@ async function generarReporteCliente(empresa, sb, cardCode, vendedorNombre) {
   if (!data) throw new Error('Sin datos del cliente');
 
   const base = (empresa.supabaseUrl || process.env.SUPABASE_URL || '').replace(/\/$/, '');
-  const top = (data.productos || []).slice(0, 14);
+  const top = (data.productos || []).slice(0, 16);
   const imgs = {};
   await Promise.all(top.map(async p => {
     if (!p.code) return;
