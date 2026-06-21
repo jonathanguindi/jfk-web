@@ -34,6 +34,9 @@ create index if not exists idx_vl_country    on ventas_lineas (country_code);
 create index if not exists idx_vl_card       on ventas_lineas (card_code);
 create index if not exists idx_vl_item       on ventas_lineas (item_code);
 create index if not exists idx_vl_group      on ventas_lineas (item_group_code);
+-- Costo por línea (margen). Lo llena el sync (StockPrice de SAP).
+alter table ventas_lineas add column if not exists line_cost numeric;
+
 
 -- ───────────────────────────────────────────────────────────────────────────
 -- 1b) Ficha de cliente (datos de contacto desde BusinessPartners de SAP).
@@ -164,9 +167,7 @@ $$;
 drop function if exists ventas_cliente_detalle(text, date, date);
 create or replace function ventas_cliente_detalle(p_card text, desde date, hasta date,
                                                   p_vendedores integer[] default null)
-returns jsonb
-language sql stable
-as $$
+returns jsonb language sql stable as $$
   with f as (
     select * from ventas_lineas
     where card_code = p_card and doc_date >= desde and doc_date <= hasta
@@ -178,6 +179,8 @@ as $$
     'pais',      (select coalesce(max(country_name), max(country_code)) from f),
     'vendedor',  (select coalesce(max(sales_person_name),'') from f),
     'total',     (select coalesce(sum(line_total),0) from f),
+    'costo',     (select coalesce(sum(line_cost),0) from f),
+    'costo_cob', (select case when count(*)=0 then 0 else round(100.0*count(line_cost)/count(*)) end from f),
     'periodo',   jsonb_build_object('desde', desde, 'hasta', hasta),
     'contacto',  (select to_jsonb(c) from (
                     select card_name, email, phone1, phone2, cellular, address, city,
@@ -191,6 +194,7 @@ as $$
                coalesce(max(item_group_name),'') as familia,
                sum(quantity) as qty,
                sum(line_total) as total,
+               sum(line_cost) as costo,
                count(distinct (doc_type||doc_entry)) as veces,
                max(doc_date) as ultima_compra
         from f group by item_code order by total desc
@@ -209,8 +213,7 @@ as $$
                  'code', item_code, 'descripcion', item_description,
                  'familia', item_group_name, 'qty', quantity, 'total', line_total
                ) order by line_total desc) as lineas
-        from f
-        group by doc_type, doc_entry, doc_num, doc_date
+        from f group by doc_type, doc_entry, doc_num, doc_date
       ) docs
     ), '[]'::jsonb)
   );
