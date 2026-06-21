@@ -80,6 +80,32 @@ async function correr() {
     add('Vista por año', t.length > 0, t.length > 0 ? `${y}: ${t.length} mes(es) con facturación` : 'sin datos del año en curso');
   } catch (e) { add('Vista por año', false, e.message); }
 
+  // 6.7) Panel de CADA vendedor: que su vista scopeada (ventas del año + prospectos) cargue sin error.
+  try {
+    const { data: cv } = await sb.from('cobranza_vendedores').select('sap_code,email,nombre,activo');
+    const byEmail = {};
+    (cv || []).forEach(r => {
+      if (r.activo === false) return;
+      const e = (r.email || '').trim().toLowerCase(); if (!e) return;
+      (byEmail[e] = byEmail[e] || { codes: [], nombre: r.nombre || e });
+      if (r.sap_code != null) byEmail[e].codes.push(r.sap_code);
+    });
+    const emails = Object.keys(byEmail);
+    const hasta = new Date().toISOString().slice(0, 10);
+    const desde = new Date().getFullYear() + '-01-01';
+    let okCount = 0; const fails = [];
+    for (const e of emails) {
+      const v = byEmail[e];
+      if (!v.codes.length) { fails.push(`${v.nombre} (sin código SAP → ve $0)`); continue; }
+      let ok = true, why = '';
+      try { const { error } = await sb.rpc('ventas_resumen', { desde, hasta, p_vendedores: v.codes, p_pais: null }); if (error) { ok = false; why = 'ventas: ' + error.message; } }
+      catch (err) { ok = false; why = 'ventas: ' + err.message; }
+      if (ok) { try { const { error } = await sb.from('prospectos').select('id', { count: 'exact', head: true }).eq('asignado_email', e); if (error) { ok = false; why = 'prospectos: ' + error.message; } } catch (err) { ok = false; why = 'prospectos: ' + err.message; } }
+      if (ok) okCount++; else fails.push(`${v.nombre} (${why})`);
+    }
+    add('Paneles de vendedores', fails.length === 0, fails.length === 0 ? `${okCount}/${emails.length} vendedores cargan su panel OK` : `${okCount}/${emails.length} OK · revisar: ${fails.slice(0, 5).join('; ')}`);
+  } catch (e) { add('Paneles de vendedores', false, e.message); }
+
   // 7) Correo (Resend)
   add('Correo (Resend)', !!process.env.RESEND_API_KEY, process.env.RESEND_API_KEY ? 'configurado' : 'falta RESEND_API_KEY');
 
