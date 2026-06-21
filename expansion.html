@@ -83,7 +83,7 @@ a{color:var(--accent);text-decoration:none}.wrap{max-width:1240px;margin:0 auto;
 @media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}.brand{font-size:23px}.wrap{padding:16px 12px 80px}}
 </style></head>
 <body>
-<script>try{document.documentElement.dataset.theme=localStorage.getItem('jfk-theme-pref')||'dark';}catch(e){}</script>
+<script>try{var _p=localStorage.getItem('jfk-theme-pref')||'auto';document.documentElement.dataset.theme=(_p==='auto'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):_p);}catch(e){}</script>
 <div class="wrap">
   <div class="top">
     <div class="brandwrap"><span class="logobox"><img src="jfk-logo.png" class="logo" alt="JFK"><sup class="reg">&reg;</sup></span><div class="brandtag"><b>Expansión</b><small>Clientes potenciales · Oportunidad por país</small></div></div>
