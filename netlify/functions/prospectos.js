@@ -177,6 +177,22 @@ exports.handler = async (event) => {
       return reply(200,{ok:true, correo});
     }
 
+    // Registro de gestión: el vendedor anota qué pasó con el cliente (llamó, cotizó, cerró...).
+    if(action==='gestion'){
+      const row = await getRow(b.id); if(!row) return reply(404,{ok:false,error:'No existe'});
+      if(!(await puedeEditar(row))) return reply(403,{ok:false,error:'Sin permiso'});
+      const res = (b.resultado||'').trim();
+      const nota = (b.nota||'').trim();
+      if(!res) return reply(400,{ok:false,error:'Falta el resultado'});
+      const mapEst = {'Contacté':'contactado','Coticé':'contactando','Cerró venta':'cliente','No contesta':'contactando','No interesado':'descartado','Volver a llamar':'contactando'};
+      const nuevoEst = mapEst[res] || row.estado;
+      const entry = {fecha:now(), quien:email, accion:'📝 '+res+(nota?(' — '+nota):'')};
+      const upd = { estado:nuevoEst, updated_at:now(), historial:[...(row.historial||[]), entry] };
+      const { error } = await sb.from('prospectos').update(upd).eq('id',b.id);
+      if(error) return reply(200,{ok:false,error:error.message});
+      return reply(200,{ok:true, estado:nuevoEst, entry});
+    }
+
     if(action==='assignPais'){
       if(!esAdmin) return reply(403,{ok:false,error:'Solo admin'});
       const { error } = await sb.from('prospecto_pais_vendedor').upsert({

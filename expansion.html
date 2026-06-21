@@ -311,7 +311,7 @@ function card(p){
     <div class="desc">${esc(p.que_vende||"")}</div>
     <div class="row">${p.tipo?`<span class="tag">${esc(p.tipo)}</span>`:""}${web}${p.contacto?`<span class="mini">☎ ${esc(p.contacto)}</span>`:""}</div>
     ${p.asignado_nombre?`<div class="asg">⭐ Asignado a ${esc(p.asignado_nombre)}</div>`:""}
-    <div class="row">${estSel}${adminAsg}${canEdit?`<button class="btn" style="padding:6px 10px" onclick="openMail('${p.id}')">✉️ Correo</button>`:""}${canEdit?`<button class="btn" style="padding:6px 10px" onclick="toggleEdit('${p.id}')">✎ datos</button>`:""}${p.card_code?`<button class="btn" style="padding:6px 10px" onclick="repCliente('${esc(p.card_code)}',this)">📄 Historial</button>`:""}${ST.esAdmin?`<button class="btn" style="padding:6px 10px;color:#ff6b6b" onclick="delPros('${p.id}','${esc((p.empresa||'').replace(/'/g,''))}')">🗑</button>`:""}</div>
+    <div class="row">${estSel}${adminAsg}${canEdit?`<button class="btn" style="padding:6px 10px" onclick="openMail('${p.id}')">✉️ Correo</button>`:""}${canEdit?`<button class="btn" style="padding:6px 10px" onclick="toggleGestion('${p.id}')">📝 Gestión</button>`:""}${canEdit?`<button class="btn" style="padding:6px 10px" onclick="toggleEdit('${p.id}')">✎ datos</button>`:""}${p.card_code?`<button class="btn" style="padding:6px 10px" onclick="repCliente('${esc(p.card_code)}',this)">📄 Historial</button>`:""}${ST.esAdmin?`<button class="btn" style="padding:6px 10px;color:#ff6b6b" onclick="delPros('${p.id}','${esc((p.empresa||'').replace(/'/g,''))}')">🗑</button>`:""}</div>
     ${canEdit?`<div class="edit" id="ed-${p.id}">
       <input id="c-${p.id}" placeholder="Contacto (persona/tel)" value="${esc(p.contacto||"")}">
       <input id="e-${p.id}" type="email" placeholder="Correo del cliente" value="${esc(p.email||"")}">
@@ -321,6 +321,12 @@ function card(p){
       <textarea id="n-${p.id}" placeholder="Notas" rows="2">${esc(p.notas||"")}</textarea>
       <button class="btn p" style="padding:6px 12px" onclick="saveEdit('${p.id}')">Guardar</button>
     </div>`:(p.notas?`<div class="mini">${esc(p.notas)}</div>`:"")}
+    ${canEdit?`<div class="edit" id="ge-${p.id}">
+      <select id="gr-${p.id}"><option value="">— ¿qué pasó? —</option><option>Contacté</option><option>Coticé</option><option>Cerró venta</option><option>No contesta</option><option>Volver a llamar</option><option>No interesado</option></select>
+      <input id="gn-${p.id}" placeholder="Nota (opcional)">
+      <button class="btn p" style="padding:6px 12px" onclick="saveGestion('${p.id}')">Registrar gestión</button>
+    </div>`:""}
+    ${(function(){var g=(p.historial||[]).filter(function(x){return (x.accion||"").indexOf("📝")===0;}).slice(-1)[0];return g?'<div class="mini">📝 Última: '+esc(g.accion.replace("📝 ",""))+' · '+esc((g.fecha||"").slice(0,10))+'</div>':"";})()}
   </div>`;
 }
 function renderOpp(ps){
@@ -349,6 +355,8 @@ function bind(){
   document.querySelectorAll(".selpais").forEach(s=>s.onchange=async()=>{const[em,nm]=(s.value||"|").split("|");const r=await api("assignPais",{pais:s.dataset.pais,vendedor_email:em,vendedor_nombre:nm});if(r.ok){toast("País "+s.dataset.pais+" → "+(nm||"sin encargado"));ST.paisVend=ST.paisVend||[];const e=ST.paisVend.find(x=>x.pais===s.dataset.pais);if(e){e.vendedor_email=em;e.vendedor_nombre=nm;}else ST.paisVend.push({pais:s.dataset.pais,vendedor_email:em,vendedor_nombre:nm});}else toast("Error");});
 }
 function toggleEdit(id){document.getElementById("ed-"+id).classList.toggle("open");}
+function toggleGestion(id){document.getElementById("ge-"+id).classList.toggle("open");}
+async function saveGestion(id){const res=val("gr-"+id);if(!res){toast("Elige qué pasó");return;}const nota=val("gn-"+id);const r=await api("gestion",{id,resultado:res,nota});if(r.ok){toast("Gestión registrada ✓");const p=ST.pros.find(x=>x.id===id);if(p){p.estado=r.estado;(p.historial=p.historial||[]).push(r.entry);}render();}else toast("Error: "+(r.error||""));}
 async function delPros(id,nombre){if(!confirm("¿Eliminar \""+(nombre||"este prospecto")+"\" de la lista? No se puede deshacer."))return;const r=await api("eliminar",{id});if(r.ok){toast("Eliminado");ST.pros=ST.pros.filter(x=>x.id!==id);render();}else toast("Error: "+(r.error||""));}
 async function repCliente(cc,el){const prev=el?el.textContent:"";if(el)el.textContent="⏳";try{const r=await fetch("/.netlify/functions/cliente-reporte",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:SES&&SES.email,cardCode:cc,modo:"download"})});const j=await r.json();if(!j.ok){toast("No se pudo: "+(j.error||""));}else{const u=URL.createObjectURL(b64toBlob(j.pdf,"application/pdf"));const a=document.createElement("a");a.href=u;a.download=j.filename||"historial.pdf";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);}}catch(e){toast("Error al generar el reporte");}if(el)el.textContent=prev||"📄 Historial";}
 async function saveEdit(id){const f={contacto:val("c-"+id),email:val("e-"+id),web:val("w-"+id),ciudad:val("ci-"+id),direccion:val("d-"+id),notas:val("n-"+id)};const r=await api("update",{id,fields:f});if(r.ok){toast("Guardado");const p=ST.pros.find(x=>x.id===id);if(p)Object.assign(p,f);render();}else toast("Error: "+(r.error||""));}

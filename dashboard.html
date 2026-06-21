@@ -374,6 +374,9 @@ const FN='/.netlify/functions/ventas-dashboard';
 let DATA=null;        // resumen filtrado actual
 let BASE=null;        // resumen sin filtro (para poblar selects)
 let prodView='producto';
+let prodSort='ventas';
+function setProdSort(s){prodSort=s;renderProductos();}
+function prodSortToggle(){return `<div style="margin-bottom:8px"><span class="seg"><button class="${prodSort==='ventas'?'active':''}" onclick="setProdSort('ventas')">Por ventas</button><button class="${prodSort==='margen'?'active':''}" onclick="setProdSort('margen')">💰 Por margen</button></span></div>`;}
 let mapInstance=null;
 
 // Adapta la interfaz según el rol (oculta lo de admin a los vendedores).
@@ -616,6 +619,7 @@ function renderKPIs(){
   if(ES_ADMIN) items.push(['Vendedores',k.num_vendedores,nInt,'']);
   items.push(['Países',k.num_paises,nInt,'']);
   items.push(['Factura prom.',k.ticket_promedio,fmtUSD,'']);
+  if((Number(k.costo_cob)||0)>0) items.push(['Margen',Number(k.margen_pct)||0,v=>(Math.round(v*10)/10)+'%','']);
   document.getElementById('kpis').innerHTML=items.map(([l,v,f,c],i)=>
     `<div class="kpi ${c||''}"><div class="lbl">${l}</div><div class="val" data-kpi="${i}">${f(v)}</div></div>`).join('');
   items.forEach(([l,v,f],i)=>{ const el=document.querySelector(`.val[data-kpi="${i}"]`); if(el) countUp(el,v,f); });
@@ -712,14 +716,18 @@ function renderFamiliaResumen(){
     ]}) : '<div class="empty">Sin datos.</div>';
 }
 
+const margenPct=r=>{ const c=Number(r.costo); if(!(c||c===0)||!(Number(r.total)>0)) return '—'; return Math.round((Number(r.total)-c)/Number(r.total)*100)+'%'; };
+const hayCosto=()=> (Number((DATA&&DATA.kpis&&DATA.kpis.costo_cob))||0) > 0;
 function renderVendedores(){
   const v=DATA.por_vendedor||[];
+  const cols=[
+    {key:'name',label:'Vendedor',bar:true,cta:true},
+    {key:'clientes',label:'Clientes',num:true},
+    {key:'total',label:'Ventas',num:true,fmt:fmtUSD},
+  ];
+  if(hayCosto()) cols.push({key:'costo',label:'Margen %',num:true,fmt:(_,r)=>margenPct(r)});
   document.getElementById('tblVendedores').innerHTML = v.length?
-    tablaRanking(v,{barKey:'total',cols:[
-      {key:'name',label:'Vendedor',bar:true,cta:true},
-      {key:'clientes',label:'Clientes',num:true},
-      {key:'total',label:'Ventas',num:true,fmt:fmtUSD},
-    ]}) : '<div class="empty">Sin datos.</div>';
+    tablaRanking(v,{barKey:'total',cols}) : '<div class="empty">Sin datos.</div>';
 }
 
 /* Universo objetivo: Latinoamérica + Caribe (ISO2 que usa SAP). */
@@ -855,18 +863,23 @@ function setProdView(v){ prodView=v;
   renderProductos();
 }
 function renderProductos(){
+  const conC=hayCosto();
+  const tog=conC?prodSortToggle():'';
+  const byMargen=(a,b)=>((Number(b.total)-Number(b.costo))||-1e15)-((Number(a.total)-Number(a.costo))||-1e15);
   if(prodView==='familia'){
-    const f=DATA.por_familia||[];
-    document.getElementById('tblProductos').innerHTML=f.length?tablaRanking(f,{barKey:'total',cols:[
-      {key:'name',label:'Familia',bar:true,cta:true},{key:'total',label:'Ventas',num:true,fmt:fmtUSD},
-    ]}):'<div class="empty">Sin datos.</div>'; return;
+    let f=(DATA.por_familia||[]).slice(); if(conC&&prodSort==='margen') f.sort(byMargen);
+    const cols=[{key:'name',label:'Familia',bar:true,cta:true},{key:'total',label:'Ventas',num:true,fmt:fmtUSD}];
+    if(conC) cols.push({key:'costo',label:'Margen %',num:true,fmt:(_,r)=>margenPct(r)});
+    document.getElementById('tblProductos').innerHTML=tog+(f.length?tablaRanking(f,{barKey:'total',cols}):'<div class="empty">Sin datos.</div>'); return;
   }
-  const p=DATA.por_producto||[];
-  document.getElementById('tblProductos').innerHTML=p.length?tablaRanking(p,{barKey:'total',cols:[
+  let p=(DATA.por_producto||[]).slice(); if(conC&&prodSort==='margen') p.sort(byMargen);
+  const cols=[
     {key:'descripcion',label:'Producto',bar:true,fmt:(v,r)=>`${esc(v||r.code)} <span class="muted" style="font-size:.72rem">${esc(r.familia||'')}</span>`},
     {key:'qty',label:'Cant.',num:true,fmt:v=>Math.round(Number(v)||0).toLocaleString()},
     {key:'total',label:'Ventas',num:true,fmt:fmtUSD},
-  ]}):'<div class="empty">Sin datos.</div>';
+  ];
+  if(conC) cols.push({key:'costo',label:'Margen %',num:true,fmt:(_,r)=>margenPct(r)});
+  document.getElementById('tblProductos').innerHTML=tog+(p.length?tablaRanking(p,{barKey:'total',cols}):'<div class="empty">Sin datos.</div>');
 }
 
 /* ── Bloque de contacto del cliente ── */

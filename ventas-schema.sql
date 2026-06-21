@@ -80,9 +80,7 @@ drop function if exists ventas_resumen(date, date, integer, text);
 create or replace function ventas_resumen(desde date, hasta date,
                                           p_vendedores integer[] default null,
                                           p_pais text default null)
-returns jsonb
-language sql stable
-as $$
+returns jsonb language sql stable as $$
   with f as (
     select * from ventas_lineas
     where doc_date >= desde and doc_date <= hasta
@@ -95,7 +93,10 @@ as $$
     'kpis', (
       select jsonb_build_object(
         'ventas_total',     coalesce(sum(line_total),0),
-        -- Facturas y factura promedio SOLO sobre facturas (no notas de crédito).
+        'costo_total',      coalesce(sum(line_cost),0),
+        'margen_total',     coalesce(sum(line_total),0)-coalesce(sum(line_cost),0),
+        'margen_pct',       case when coalesce(sum(line_total),0)>0 then round(100*(coalesce(sum(line_total),0)-coalesce(sum(line_cost),0))/sum(line_total),1) else 0 end,
+        'costo_cob',        case when count(*)>0 then round(100.0*count(line_cost)/count(*)) else 0 end,
         'num_facturas',     count(distinct doc_entry) filter (where doc_type='I'),
         'num_clientes',     count(distinct card_code),
         'num_vendedores',   count(distinct sales_person_code),
@@ -105,59 +106,37 @@ as $$
                               then coalesce(sum(line_total) filter (where doc_type='I'),0)/count(distinct doc_entry) filter (where doc_type='I') else 0 end
       ) from f
     ),
-    'por_vendedor', coalesce((
-      select jsonb_agg(x) from (
-        select sales_person_code as code,
-               coalesce(max(sales_person_name),'(sin vendedor)') as name,
-               sum(line_total) as total,
-               count(distinct card_code) as clientes,
+    'por_vendedor', coalesce((select jsonb_agg(x) from (
+        select sales_person_code as code, coalesce(max(sales_person_name),'(sin vendedor)') as name,
+               sum(line_total) as total, sum(line_cost) as costo, count(distinct card_code) as clientes,
                round(100*sum(line_total)/nullif((select t from total),0),1) as pct
-        from f group by sales_person_code order by total desc
-      ) x), '[]'::jsonb),
-    'por_pais', coalesce((
-      select jsonb_agg(x) from (
-        select country_code as code,
-               coalesce(max(country_name), country_code, '(sin país)') as name,
-               sum(line_total) as total,
-               count(distinct card_code) as clientes,
+        from f group by sales_person_code order by total desc) x), '[]'::jsonb),
+    'por_pais', coalesce((select jsonb_agg(x) from (
+        select country_code as code, coalesce(max(country_name), country_code, '(sin país)') as name,
+               sum(line_total) as total, sum(line_cost) as costo, count(distinct card_code) as clientes,
                round(100*sum(line_total)/nullif((select t from total),0),1) as pct
-        from f group by country_code order by total desc
-      ) x), '[]'::jsonb),
-    'por_familia', coalesce((
-      select jsonb_agg(x) from (
-        select item_group_code as code,
-               coalesce(max(item_group_name),'(sin familia)') as name,
-               sum(line_total) as total,
+        from f group by country_code order by total desc) x), '[]'::jsonb),
+    'por_familia', coalesce((select jsonb_agg(x) from (
+        select item_group_code as code, coalesce(max(item_group_name),'(sin familia)') as name,
+               sum(line_total) as total, sum(line_cost) as costo,
                round(100*sum(line_total)/nullif((select t from total),0),1) as pct
-        from f group by item_group_code order by total desc
-      ) x), '[]'::jsonb),
-    'por_producto', coalesce((
-      select jsonb_agg(x) from (
-        select item_code as code,
-               coalesce(max(item_description),'') as descripcion,
-               coalesce(max(item_group_name),'') as familia,
-               sum(line_total) as total,
-               sum(quantity) as qty,
+        from f group by item_group_code order by total desc) x), '[]'::jsonb),
+    'por_producto', coalesce((select jsonb_agg(x) from (
+        select item_code as code, coalesce(max(item_description),'') as descripcion,
+               coalesce(max(item_group_name),'') as familia, sum(line_total) as total,
+               sum(line_cost) as costo, sum(quantity) as qty,
                round(100*sum(line_total)/nullif((select t from total),0),1) as pct
-        from f group by item_code order by total desc limit 80
-      ) x), '[]'::jsonb),
-    'por_cliente', coalesce((
-      select jsonb_agg(x) from (
-        select card_code,
-               coalesce(max(card_name), card_code) as name,
+        from f group by item_code order by total desc limit 80) x), '[]'::jsonb),
+    'por_cliente', coalesce((select jsonb_agg(x) from (
+        select card_code, coalesce(max(card_name), card_code) as name,
                coalesce(max(country_name), max(country_code)) as pais,
                coalesce(max(sales_person_name),'') as vendedor,
-               sum(line_total) as total,
-               count(distinct (doc_type||doc_entry)) as documentos,
-               max(doc_date) as ultima_compra
-        from f group by card_code order by total desc limit 200
-      ) x), '[]'::jsonb),
-    'tendencia', coalesce((
-      select jsonb_agg(x) from (
-        select to_char(date_trunc('month', doc_date),'YYYY-MM') as mes,
-               sum(line_total) as total
-        from f group by 1 order by 1
-      ) x), '[]'::jsonb)
+               sum(line_total) as total, sum(line_cost) as costo,
+               count(distinct (doc_type||doc_entry)) as documentos, max(doc_date) as ultima_compra
+        from f group by card_code order by total desc limit 200) x), '[]'::jsonb),
+    'tendencia', coalesce((select jsonb_agg(x) from (
+        select to_char(date_trunc('month', doc_date),'YYYY-MM') as mes, sum(line_total) as total
+        from f group by 1 order by 1) x), '[]'::jsonb)
   );
 $$;
 
