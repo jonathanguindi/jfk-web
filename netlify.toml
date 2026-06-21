@@ -20,3 +20,8 @@
 # 06:00 UTC = 1:00 AM Panamá. Reanudable: se completa en varias corridas si hace falta.
 [functions."ventas-sync"]
   schedule = "0 6 * * *"
+
+# Chequeo diario de salud (sync, dashboard, dormidos, reportes, CRM, correo).
+# 12:00 UTC = 7:00 AM Panamá. Manda email de estado al admin (alerta si algo falla).
+[functions."salud-diaria"]
+  schedule = "0 12 * * *"
