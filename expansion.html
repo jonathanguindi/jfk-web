@@ -83,7 +83,7 @@ a{color:var(--accent);text-decoration:none}.wrap{max-width:1240px;margin:0 auto;
 @media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}.brand{font-size:23px}.wrap{padding:16px 12px 80px}}
 </style></head>
 <body>
-<script>try{document.documentElement.dataset.theme=localStorage.getItem('exp-theme')||'dark';}catch(e){}</script>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('jfk-theme-pref')||'dark';}catch(e){}</script>
 <div class="wrap">
   <div class="top">
     <div class="brandwrap"><span class="logobox"><img src="jfk-logo.png" class="logo" alt="JFK"><sup class="reg">&reg;</sup></span><div class="brandtag"><b>Expansión</b><small>Clientes potenciales · Oportunidad por país</small></div></div>
@@ -142,7 +142,7 @@ function ventasDe(k){ const n=normPais(k); if(LIVE_V12){ const v=LIVE_V12[n]; if
 function fuenteVentas(){ return LIVE_V12 ? `<span class="up">● en vivo</span> · actualizado ${esc(V12_FECHA||"hoy")}` : `snapshot ${esc("Junio 2026")}`; }
 function toast(m){const t=document.getElementById("toast");t.textContent=m;t.style.display="block";setTimeout(()=>t.style.display="none",2200);}
 async function api(action,extra){const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({action,email:SES&&SES.email,nombre:SES&&SES.name},extra||{}))});return r.json();}
-function toggleTheme(){const h=document.documentElement;const t=h.dataset.theme==="light"?"dark":"light";h.dataset.theme=t;try{localStorage.setItem("exp-theme",t);}catch(e){}}
+function toggleTheme(){const h=document.documentElement;const t=h.dataset.theme==="light"?"dark":"light";h.dataset.theme=t;try{localStorage.setItem("jfk-theme-pref",t);}catch(e){}}
 function b64toBlob(b64,type){const bin=atob(b64);const arr=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);return new Blob([arr],{type});}
 async function carteraPDF(vEmail,vNombre,modo){
   toast(modo==="email"?"Enviando cartera…":"Generando PDF…");

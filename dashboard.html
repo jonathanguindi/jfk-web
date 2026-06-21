@@ -213,6 +213,7 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
   .field{flex:1 1 100%}
   .filters>.btn-cta{width:100%}
   .kpi .val{font-size:1.4rem}
+  .panelGrid{grid-template-columns:1fr!important}
 }
 </style>
 </head>
@@ -251,7 +252,8 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
   <div id="scopeNote" style="display:none;align-items:center;gap:8px;margin:14px 0 0;padding:10px 14px;border:1px solid var(--border);background:var(--bg-sunken);border-radius:10px;font-size:.82rem;color:var(--text-muted)">🔒 <span><b style="color:var(--text)">Vista personal:</b> solo ves <b>tus</b> clientes y <b>tus</b> ventas. No aparece lo de otros vendedores.</span></div>
 
   <div class="tabs" id="tabs">
-    <button class="tab active" data-t="resumen">Resumen</button>
+    <button class="tab active" data-t="panel">🏠 Mi Panel</button>
+    <button class="tab" data-t="resumen">Resumen</button>
     <button class="tab" data-t="anios">📅 Por año</button>
     <button class="tab" data-t="pedidos">📦 Por despachar</button>
     <button class="tab" data-t="explorar">Explorar por país</button>
@@ -262,8 +264,13 @@ a.ci-v{color:var(--accent)} .ci-v.miss{color:var(--text-subtle)}
     <button class="tab" data-t="plazas" id="tab-plazas">Plazas</button>
   </div>
 
+  <!-- MI PANEL -->
+  <section class="panel active" id="p-panel">
+    <div id="panelBody"><div class="empty" style="padding:40px">Cargando tu panel…</div></div>
+  </section>
+
   <!-- RESUMEN -->
-  <section class="panel active" id="p-resumen">
+  <section class="panel" id="p-resumen">
     <div class="kpis" id="kpis"></div>
     <div class="card" id="cardPrioridades" style="display:none"><h3>📞 Prioridades de hoy <span class="sub">clientes para reactivar · toca para ver y llamar</span></h3><div id="prioridades"></div></div>
     <div class="card"><h3>Tendencia <span class="sub">ventas mensuales en USD</span>
@@ -465,7 +472,9 @@ document.querySelectorAll('#tabs .tab').forEach(b=>b.onclick=()=>{
   if(b.dataset.t==='huerfanos') loadHuerfanos();
   if(b.dataset.t==='pedidos') loadPedidos();
   if(b.dataset.t==='anios') loadAnios();
+  if(b.dataset.t==='panel') loadPanel();
 });
+function goTab(t){ const b=document.querySelector('#tabs .tab[data-t="'+t+'"]'); if(b) b.click(); }
 
 /* ── Dormidos (reactivación) ── */
 let DORM=null, DORM_DIAS=365, DORM_LOADING=false, DORM_VENDS=null, DORM_REACT={}, DORM_BY_CC={};
@@ -474,6 +483,67 @@ async function prosApi(action,extra){ const r=await fetch(PROS_FN,{method:'POST'
 function setDormDias(d){ DORM_DIAS=d;
   document.querySelectorAll('#segDorm button').forEach(x=>x.classList.toggle('active', Number(x.dataset.d)===d));
   loadDormidos(true);
+}
+/* ── Mi Panel: inicio del vendedor (ventas del año + pedidos + agenda + prioridades) ── */
+let PANEL=null, PANEL_LOADING=false;
+async function loadPanel(force){
+  if(PANEL_LOADING) return; if(PANEL && !force){ renderPanel(); return; }
+  PANEL_LOADING=true;
+  const y=new Date().getFullYear(), hoy=new Date().toISOString().slice(0,10);
+  const fYear=fetchData({desde:y+'-01-01', hasta:hoy}).catch(()=>null);
+  const fPed=fetch('/.netlify/functions/pedidos-pendientes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL})}).then(r=>r.json()).catch(()=>null);
+  const fPros=fetch('/.netlify/functions/prospectos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'list',email:EMAIL})}).then(r=>r.json()).catch(()=>null);
+  const [jy,jp,jpr]=await Promise.all([fYear,fPed,fPros]);
+  PANEL_LOADING=false;
+  PANEL={ year:(jy&&jy.resumen)||null, ped:jp||null, pros:jpr||null };
+  renderPanel();
+}
+function renderPanel(){
+  const cont=document.getElementById('panelBody'); if(!cont||!PANEL) return;
+  const y=new Date().getFullYear(), hoy=new Date().toISOString().slice(0,10);
+  const R=PANEL.year||{}, K=R.kpis||{};
+  const ped=(PANEL.ped&&PANEL.ped.pedidos)||[];
+  const pedTot=(PANEL.ped&&PANEL.ped.total)||0;
+  const pros=(PANEL.pros&&PANEL.pros.prospectos)||[];
+  const dDe=f=>Math.round((new Date(hoy+'T00:00:00')-new Date((f||'')+'T00:00:00'))/864e5);
+  const agenda=pros.filter(p=>p.fecha_visita).map(p=>({...p,d:dDe(p.fecha_visita)}));
+  const hoyV=agenda.filter(p=>p.d===0);
+  const atras=agenda.filter(p=>p.d>0 && ['nuevo','asignado','contactando'].includes(p.estado));
+  const porContactar=pros.filter(p=>['nuevo','asignado','contactando'].includes(p.estado));
+  const nombre=(sesion.name||'').split(' ')[0]||'';
+  // KPIs
+  const kpi=(l,v,s,cls)=>`<div class="kpi${cls?' '+cls:''}"><div class="lbl">${l}</div><div class="val">${v}</div>${s?`<div class="sub" style="font-size:.72rem;color:var(--text-muted);margin-top:2px">${s}</div>`:''}</div>`;
+  let h=`<div style="margin:4px 2px 14px"><h2 style="margin:0;font-size:1.25rem">${nombre?('Hola, '+esc(nombre)+' 👋'):'Tu panel'}</h2><p class="muted" style="margin:2px 0 0;font-size:.84rem">Todo lo tuyo de un vistazo · ${new Date().toLocaleDateString('es-PA',{weekday:'long',day:'2-digit',month:'long'})}</p></div>`;
+  h+=`<div class="kpis" style="margin-bottom:18px">
+    ${kpi('Facturado '+y, fmtUSD(K.ventas_total||0), (K.clientes!=null?K.clientes+' clientes':''),'cta')}
+    ${kpi('📦 Por despachar', ped.length, ped.length?fmtUSD(pedTot):'al día 🎉')}
+    ${kpi('📅 Agenda hoy', hoyV.length, atras.length?(atras.length+' atrasada(s)'):'')}
+    ${kpi('📞 Por contactar', porContactar.length, 'prospectos')}
+  </div>`;
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start" class="panelGrid">';
+  // Agenda de hoy
+  const verExp='onclick="location.href=\'expansion.html\'"';
+  let ag='';
+  const agShow=[...hoyV, ...atras].slice(0,6);
+  if(agShow.length){ ag=agShow.map(p=>`<div class="prio" ${verExp} style="cursor:pointer"><div style="min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.empresa||p.name||'')}</b><span class="muted" style="font-size:.76rem">${esc(p.ciudad||p.pais||'')}${p.contacto?' · '+esc(p.contacto):''}</span></div><div style="text-align:right;white-space:nowrap"><span style="font-weight:600;font-size:.8rem;color:${p.d>0?'var(--red)':'var(--accent)'}">${p.d>0?('atrasada '+p.d+'d'):'hoy'}</span></div></div>`).join(''); }
+  else ag='<div class="empty" style="padding:20px">No tienes visitas para hoy.<br><span class="muted" style="font-size:.8rem">Programa en Expansión → 📅 Mi Agenda</span></div>';
+  h+=`<div class="card"><h3>📅 Tu agenda <span class="sub">visitas de hoy y atrasadas</span></h3>${ag}<p style="margin:12px 2px 0"><a href="expansion.html" style="font-size:.8rem">Abrir Mi Agenda →</a></p></div>`;
+  // Pedidos por despachar
+  let pd='';
+  if(ped.length){ const top=ped.slice().sort((a,b)=>(b.dias||0)-(a.dias||0)).slice(0,6);
+    pd=top.map(p=>{const col=p.dias>15?'var(--red)':(p.dias>7?'var(--amber)':'var(--text-muted)');return `<div class="prio"><div style="min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.cliente)}</b><span class="muted" style="font-size:.76rem">#${esc(p.docNum)} · ${esc(p.fecha)}</span></div><div style="text-align:right;white-space:nowrap"><div class="num" style="font-weight:600;font-size:.82rem">${fmtUSD(p.total)}</div><span style="color:${col};font-size:.74rem">${p.dias!=null?p.dias+'d':''}</span></div></div>`;}).join(''); }
+  else pd='<div class="empty" style="padding:20px">Sin pedidos pendientes de despacho. 🎉</div>';
+  h+=`<div class="card"><h3>📦 Por despachar <span class="sub">órdenes abiertas en SAP</span></h3>${pd}<p style="margin:12px 2px 0"><a href="#" onclick="goTab('pedidos');return false" style="font-size:.8rem">Ver todos →</a></p></div>`;
+  // Prioridades de reactivación
+  const cli=(R.por_cliente||[]).map(x=>({...x,dias:x.ultima_compra?Math.round((new Date(hoy+'T00:00:00')-new Date(x.ultima_compra+'T00:00:00'))/864e5):9999})).filter(x=>x.dias>=60).sort((a,b)=>(b.total||0)-(a.total||0)).slice(0,6);
+  let pr= cli.length? cli.map(x=>{const txt=x.dias>365?(x.dias/365).toFixed(1)+' años':Math.round(x.dias/30)+' meses';return `<div class="prio" onclick="verCliente('${esc(x.card_code)}')"><div style="min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.name)}</b><span class="muted" style="font-size:.76rem">${esc(x.pais||'')}</span></div><div style="text-align:right;white-space:nowrap"><span style="color:var(--amber);font-weight:600;font-size:.78rem">${txt} sin comprar</span><div class="muted num" style="font-size:.76rem">${fmtUSD(x.total)}</div></div></div>`;}).join('') : '<div class="empty" style="padding:20px">Sin clientes pendientes de reactivar. 👍</div>';
+  h+=`<div class="card"><h3>📞 Reactivar <span class="sub">clientes que dejaron de comprar</span></h3>${pr}<p style="margin:12px 2px 0"><a href="#" onclick="goTab('dormidos');return false" style="font-size:.8rem">Ver dormidos →</a></p></div>`;
+  // Productos top
+  const prod=(R.por_producto||[]).slice().sort((a,b)=>(b.total||0)-(a.total||0)).slice(0,6);
+  let pt= prod.length? prod.map((x,i)=>`<div class="prio"><div style="min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${i+1}. ${esc(x.descripcion||x.code||'')}</b><span class="muted" style="font-size:.76rem">${esc(x.familia||'')}</span></div><div style="text-align:right;white-space:nowrap"><div class="num" style="font-weight:600;font-size:.82rem">${fmtUSD(x.total)}</div><span class="muted" style="font-size:.74rem">${Math.round(Number(x.qty)||0).toLocaleString()} u</span></div></div>`).join('') : '<div class="empty" style="padding:20px">Sin datos.</div>';
+  h+=`<div class="card"><h3>🏆 Tus productos top <span class="sub">${y}</span></h3>${pt}<p style="margin:12px 2px 0"><a href="#" onclick="goTab('productos');return false" style="font-size:.8rem">Ver todos →</a></p></div>`;
+  h+='</div>';
+  cont.innerHTML=h;
 }
 /* ── Facturación por año (matriz año × mes) ── */
 let ANIOS=null, ANIOS_LOADING=false;
@@ -1474,6 +1544,7 @@ async function aplicarPropuesta(){
 aplicarRolUI();
 setPreset('12m');
 aplicar();
+loadPanel();
 </script>
 </body>
 </html>
