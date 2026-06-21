@@ -136,12 +136,13 @@ exports.handler = async (event) => {
     if(action==='reactivar'){
       if(!esAdmin) return reply(403,{ok:false,error:'Solo admin'});
       const d = b.cliente||{};
-      if(!d.card_code || !d.empresa) return reply(400,{ok:false,error:'Falta cliente'});
+      const nombreCli = d.empresa || d.name;  // el dormido trae el nombre en "name"
+      if(!d.card_code || !nombreCli) return reply(400,{ok:false,error:'Falta cliente'});
       const vEmail=(b.vendedor_email||'').toLowerCase(), vNombre=b.vendedor_nombre||'';
       if(!vEmail) return reply(400,{ok:false,error:'Falta vendedor'});
       const contacto=[d.contact_person,d.telefono,d.email].filter(Boolean).join(' · ')||null;
       const notas=`♻️ Cliente dormido. Valía ~${d.valor_anual||'?'}/año · última compra ${d.ultima_compra||'?'} · ${d.n_compras||'?'} órdenes en ${d.meses_activos||'?'} meses. Escríbele y recupéralo.`;
-      const fields={ pais:d.pais||'—', ciudad:d.city||null, empresa:d.empresa, tipo:'♻️ Reactivar dormido',
+      const fields={ pais:d.pais||'—', ciudad:d.city||null, empresa:nombreCli, tipo:'♻️ Reactivar dormido',
         que_vende:d.top_familia||null, encaja:label, web:null, contacto, email:d.email||null,
         direccion:null, fuente:'Cliente dormido', notas, card_code:d.card_code,
         asignado_email:vEmail, asignado_nombre:vNombre, estado:'asignado', creado_por:email,
@@ -168,7 +169,7 @@ exports.handler = async (event) => {
         }
       }
       const correo = await emailVendor(empresa, vEmail, vNombre,
-        { empresa:d.empresa, pais:d.pais, ciudad:d.city, que_vende:d.top_familia, contacto, valor_anual:d.valor_anual, ultima_compra:d.ultima_compra }, 'reactivar');
+        { empresa:nombreCli, pais:d.pais, ciudad:d.city, que_vende:d.top_familia, contacto, valor_anual:d.valor_anual, ultima_compra:d.ultima_compra }, 'reactivar');
       return reply(200,{ok:true, correo});
     }
 
