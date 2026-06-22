@@ -26,6 +26,11 @@
 [functions."customers-sync-background"]
   schedule = "0 5 * * *"
 
+# Sincronización diaria de inventario (stock) SAP -> tabla products.
+# 04:00 UTC = 11:00 PM Panamá.
+[functions."products-sync-background"]
+  schedule = "0 4 * * *"
+
 # Chequeo diario de salud (sync, dashboard, dormidos, reportes, CRM, correo).
 # 12:00 UTC = 7:00 AM Panamá. Manda email de estado al admin (alerta si algo falla).
 [functions."salud-diaria"]

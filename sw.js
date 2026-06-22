@@ -4,7 +4,7 @@
    - Estáticos propios + librerías CDN + fuentes: cache-first con actualización en segundo plano.
    - Supabase y Netlify Functions: NUNCA se cachean (datos dinámicos; lo offline lo manejan IndexedDB/cola en fases 2-3).
    Sube CACHE_VERSION en cada cambio del shell para forzar actualización. */
-const CACHE_VERSION = 'jfk-portal-v25';
+const CACHE_VERSION = 'jfk-portal-v26';
 const SHELL = [
   '/vendedores.html',
   '/favicon.svg',
@@ -29,7 +29,9 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter(k => k !== CACHE_VERSION).map(k => caches.delete(k)));
+    // Borra versiones viejas del shell PERO conserva 'portal-img' (fotos offline),
+    // para no re-descargar todas las imágenes en cada actualización.
+    await Promise.all(keys.filter(k => k !== CACHE_VERSION && k !== 'portal-img').map(k => caches.delete(k)));
     await self.clients.claim();
   })());
 });
