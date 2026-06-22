@@ -21,6 +21,25 @@
     });
     document.addEventListener('visibilitychange', function () { if (!document.hidden) navigator.serviceWorker.getRegistration().then(function (r) { if (r) try { r.update(); } catch (e) {} }); });
   }
+  // ===== Botón "Instalar app" (PWA) =====
+  var __dp = null;
+  function __isStandalone() { return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; }
+  function __showInstall() {
+    if (__isStandalone() || !document.body) return;
+    var b = document.getElementById('__installbtn');
+    if (!b) {
+      b = document.createElement('button'); b.id = '__installbtn'; b.textContent = '📲 Instalar app';
+      b.style.cssText = 'position:fixed;bottom:18px;left:14px;z-index:100000;background:#009FE3;color:#fff;border:none;border-radius:999px;padding:10px 16px;font:700 13px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.3);cursor:pointer';
+      b.onclick = async function () {
+        if (__dp) { __dp.prompt(); try { await __dp.userChoice; } catch (e) {} __dp = null; b.remove(); }
+        else { alert('Para instalar la app:\n\niPhone/iPad (Safari): toca Compartir ↑ y luego "Agregar a inicio".\nAndroid/Chrome: menú ⋮ y "Instalar app".'); }
+      };
+      document.body.appendChild(b);
+    }
+  }
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); __dp = e; __showInstall(); });
+  window.addEventListener('appinstalled', function () { __dp = null; var b = document.getElementById('__installbtn'); if (b) b.remove(); });
+  window.addEventListener('DOMContentLoaded', function () { if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !__isStandalone()) __showInstall(); });
   </script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3702,6 +3721,9 @@ async function bioInitLoginButton() {
   if (Object.keys(_bioMap()).length && await bioAvailable()) {
     btn.style.display = 'flex';
     const dv = document.getElementById('bio-divider-cli'); if (dv) dv.style.display = 'block';
+    // Intenta el Face ID directo al abrir el login (si el navegador lo permite sin tocar;
+    // en iOS queda el botón para tocar). Solo si no hay sesión activa.
+    setTimeout(function () { try { if (!localStorage.getItem('jfk_customer')) bioLogin(); } catch (e) {} }, 400);
   }
 }
 async function bioMaybeOfferEnroll() {
