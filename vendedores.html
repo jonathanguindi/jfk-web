@@ -8025,17 +8025,14 @@ function renderFicha(p) {
     <div style="color:var(--text-muted);text-align:center;margin-bottom:12px;font-size:.9rem">${(p.name||'').replace(/[<>&]/g,'')}</div>
     ${specs}
     <div style="display:flex;gap:10px;margin-top:16px">
-      <button onclick="fichaWhatsApp('${(p.sap_item_code||'').replace(/'/g,'')}')" style="flex:1;background:#25D366;color:#fff;border:none;border-radius:14px;padding:14px;font-weight:800;font-size:14px;cursor:pointer">💬 WhatsApp</button>
+      <button onclick="fichaShare('${(p.sap_item_code||'').replace(/'/g,'')}')" style="flex:1;background:#25D366;color:#fff;border:none;border-radius:14px;padding:14px;font-weight:800;font-size:14px;cursor:pointer">💬 Enviar PDF</button>
       <button onclick="generateFichaPDF('${(p.sap_item_code||'').replace(/'/g,'')}')" style="flex:1;background:var(--punch);color:#fff;border:none;border-radius:14px;padding:14px;font-weight:800;font-size:14px;cursor:pointer">📄 PDF</button>
     </div>
   </div>`;
   ov.style.display = 'flex';
 }
 function closeFicha() { const ov = document.getElementById('ficha-modal'); if (ov) ov.style.display = 'none'; }
-async function generateFichaPDF(code) {
-  const p = FICHA_DATA[code]; if (!p) { showToast('Ficha no disponible', true); return; }
-  try {
-    showLoading && showLoading(true);
+async function _buildFichaDoc(p) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'letter' });
     const A = FICHA_BRAND.accent; const W = 215.9;
@@ -8079,8 +8076,30 @@ async function generateFichaPDF(code) {
     doc.setFontSize(7.5); doc.setTextColor(140, 145, 155); doc.setFont('helvetica', 'normal');
     doc.text(FICHA_BRAND.footer || FICHA_BRAND.legal, 15, ph - 9);
     doc.text('Documento generado el ' + new Date().toLocaleDateString('es-PA'), 200, ph - 9, { align: 'right' });
-    doc.save('Ficha_' + (p.sap_item_code || 'producto') + '.pdf');
-  } catch (e) { showToast('No se pudo generar el PDF: ' + e.message, true); }
+    return doc;
+}
+async function generateFichaPDF(code) {
+  const p = FICHA_DATA[code]; if (!p) { showToast('Ficha no disponible', true); return; }
+  try { showLoading && showLoading(true); const doc = await _buildFichaDoc(p); doc.save('Ficha_' + (p.sap_item_code || 'producto') + '.pdf'); }
+  catch (e) { showToast('No se pudo generar el PDF: ' + e.message, true); }
+  finally { showLoading && showLoading(false); }
+}
+// Compartir la ficha como ARCHIVO PDF (WhatsApp, etc.) usando el menú nativo del teléfono.
+async function fichaShare(code) {
+  const p = FICHA_DATA[code]; if (!p) { showToast('Ficha no disponible', true); return; }
+  try {
+    showLoading && showLoading(true);
+    const doc = await _buildFichaDoc(p);
+    const fname = 'Ficha_' + (p.sap_item_code || 'producto') + '.pdf';
+    const file = new File([doc.output('blob')], fname, { type: 'application/pdf' });
+    showLoading && showLoading(false);
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'Ficha técnica ' + (p.sap_item_code || ''), text: (p.sap_item_code || '') + ' — ' + (p.name || '') });
+    } else {
+      // Sin soporte para compartir archivos: descarga el PDF y abre WhatsApp con el texto.
+      doc.save(fname); fichaWhatsApp(code);
+    }
+  } catch (e) { if (!e || e.name !== 'AbortError') showToast('No se pudo compartir el PDF', true); }
   finally { showLoading && showLoading(false); }
 }
 function fichaWhatsApp(code) {
