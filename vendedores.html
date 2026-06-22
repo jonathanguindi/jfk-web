@@ -5422,14 +5422,15 @@ async function addBoxToAll() {
     prods = prods.filter(p => (p.stock || 0) >= (p.items_per_box || 1));
     if (clientBoughtCodes.size) prods = prods.filter(p => !clientBoughtCodes.has(p.sap_item_code));
     if (prods.length === 0) { showToast('No hay productos para agregar (revisa los filtros)', true); return; }
-    const tieneCarrito = Object.keys(currentCart).length > 0;
-    if (!confirm('Poner 1 bulto de cada uno de los ' + prods.length + ' productos del filtro en el carrito' + (tieneCarrito ? ' (reemplaza lo que ya tienes)' : '') + '?')) return;
-    currentCart = {};
+    if (!confirm('Agregar 1 bulto de cada uno de los ' + prods.length + ' productos del filtro al carrito?')) return;
+    // ADITIVO: suma al carrito sin borrar lo que ya tienes (puedes filtrar un tipo, agregar, y luego otro).
+    let added = 0;
     prods.forEach(p => {
       const box = p.items_per_box || 1;
-      currentCart[p.sap_item_code] = { qty: box, discount: 0, product: p };
+      if (!currentCart[p.sap_item_code]) { currentCart[p.sap_item_code] = { qty: box, discount: 0, product: p }; added++; }
     });
-    showToast('✅ Carrito = ' + prods.length + ' productos del filtro (1 bulto c/u)');
+    const yaEstaban = prods.length - added;
+    showToast('✅ ' + added + ' agregado(s) (1 bulto c/u)' + (yaEstaban > 0 ? ' · ' + yaEstaban + ' ya estaban' : ''));
     updateFooter();
     loadProducts();
   } catch (e) {
