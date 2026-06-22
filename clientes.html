@@ -2,17 +2,34 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<meta name="theme-color" content="#0E1016">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#009FE3">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>JFK · Portal Clientes</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest-clientes.webmanifest">
+  <script>
+  if ('serviceWorker' in navigator) {
+    var _hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (window.__swReloaded || !_hadController) return; window.__swReloaded = true; location.reload();
+    });
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('/sw.js').then(function (reg) { try { reg.update(); } catch (e) {} }).catch(function (e) {});
+    });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) navigator.serviceWorker.getRegistration().then(function (r) { if (r) try { r.update(); } catch (e) {} }); });
+  }
+  </script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 :root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
   --ink-900: #0E1016;
   --punch: #009FE3;          /* color principal del portal cliente: azul JFK */
   --punch-light: #E6F4FB;    /* azul muy claro para fondos sutiles */
@@ -65,6 +82,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
   background: linear-gradient(160deg, var(--ink-900) 0%, #1a1d24 55%, #0a3a5c 100%);
   color: #fff;
   padding: 2rem 1.5rem;
+  padding-top: calc(2rem + var(--safe-top));
 }
 .login-logo {
   font-family: 'Inter', sans-serif;
@@ -144,6 +162,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
   background: var(--ink-900);
   color: #fff;
   padding: 0.85rem 1.25rem 0.7rem;
+  padding-top: calc(0.85rem + var(--safe-top));
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -738,7 +757,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .cart-footer {
   position: fixed; left: 0; right: 0; bottom: 0;
   background: var(--ink-900); color: #fff;
-  padding: 0.85rem 1.25rem;
+  padding: 0.85rem 1.25rem calc(0.85rem + var(--safe-bottom));
   display: flex; justify-content: space-between; align-items: center;
   z-index: 100;
   box-shadow: 0 -2px 16px rgba(0,0,0,0.15);
