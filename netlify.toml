@@ -21,6 +21,11 @@
 [functions."ventas-sync"]
   schedule = "0 6 * * *"
 
+# Sincronización diaria de clientes SAP -> tabla customers (correos, saldo, datos).
+# 05:00 UTC = 12:00 AM Panamá. Actualiza/agrega todos los clientes.
+[functions."customers-sync-background"]
+  schedule = "0 5 * * *"
+
 # Chequeo diario de salud (sync, dashboard, dormidos, reportes, CRM, correo).
 # 12:00 UTC = 7:00 AM Panamá. Manda email de estado al admin (alerta si algo falla).
 [functions."salud-diaria"]

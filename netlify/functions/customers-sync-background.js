@@ -11,7 +11,8 @@ exports.handler = async (event) => {
   let body = {}; try { body = JSON.parse(event.body || '{}'); } catch (_) {}
   const token = body.token || (event.queryStringParameters && event.queryStringParameters.token) || '';
   const expected = process.env.VENTAS_SYNC_TOKEN;
-  if (expected && token !== expected) {
+  const esProgramado = !!body.next_run;   // las corridas programadas de Netlify traen next_run
+  if (expected && token !== expected && !esProgramado) {
     return { statusCode: 401, body: JSON.stringify({ ok: false, error: 'token inválido' }) };
   }
 
