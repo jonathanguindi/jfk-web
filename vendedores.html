@@ -8030,6 +8030,7 @@ function renderFicha(p) {
     </div>
   </div>`;
   ov.style.display = 'flex';
+  _prepFichaShare(p);   // pre-genera el PDF para que "Enviar PDF" abra el compartir al instante
 }
 function closeFicha() { const ov = document.getElementById('ficha-modal'); if (ov) ov.style.display = 'none'; }
 async function _buildFichaDoc(p) {
@@ -8084,23 +8085,41 @@ async function generateFichaPDF(code) {
   catch (e) { showToast('No se pudo generar el PDF: ' + e.message, true); }
   finally { showLoading && showLoading(false); }
 }
-// Compartir la ficha como ARCHIVO PDF (WhatsApp, etc.) usando el menú nativo del teléfono.
-async function fichaShare(code) {
-  const p = FICHA_DATA[code]; if (!p) { showToast('Ficha no disponible', true); return; }
+// El PDF se PRE-genera al abrir la ficha, así al tocar "Enviar PDF" el menú de
+// compartir nativo abre AL INSTANTE (iOS exige que share() salga del mismo toque).
+let __fichaFile = null; // { code, file }
+async function _prepFichaShare(p) {
+  __fichaFile = null;
+  try {
+    const doc = await _buildFichaDoc(p);
+    __fichaFile = { code: p.sap_item_code, file: new File([doc.output('blob')], 'Ficha_' + (p.sap_item_code || 'producto') + '.pdf', { type: 'application/pdf' }) };
+  } catch (e) {}
+}
+// Compartir la ficha como ARCHIVO PDF. Síncrono: llama a share() dentro del gesto.
+function fichaShare(code) {
+  const p = FICHA_DATA[code]; if (!p) return;
+  const f = (__fichaFile && __fichaFile.code === code) ? __fichaFile.file : null;
+  if (f && navigator.canShare && navigator.canShare({ files: [f] })) {
+    navigator.share({ files: [f], title: 'Ficha técnica ' + (p.sap_item_code || ''), text: (p.sap_item_code || '') + ' — ' + (p.name || '') }).catch(function () {});
+    return;
+  }
+  fichaShareFallback(code); // aún preparando o navegador sin compartir archivos
+}
+async function fichaShareFallback(code) {
+  const p = FICHA_DATA[code]; if (!p) return;
   try {
     showLoading && showLoading(true);
-    const doc = await _buildFichaDoc(p);
-    const fname = 'Ficha_' + (p.sap_item_code || 'producto') + '.pdf';
-    const file = new File([doc.output('blob')], fname, { type: 'application/pdf' });
+    let f = (__fichaFile && __fichaFile.code === code) ? __fichaFile.file : null;
+    if (!f) { const doc = await _buildFichaDoc(p); f = new File([doc.output('blob')], 'Ficha_' + (p.sap_item_code || 'producto') + '.pdf', { type: 'application/pdf' }); }
     showLoading && showLoading(false);
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: 'Ficha técnica ' + (p.sap_item_code || ''), text: (p.sap_item_code || '') + ' — ' + (p.name || '') });
+    if (navigator.canShare && navigator.canShare({ files: [f] })) {
+      await navigator.share({ files: [f], title: 'Ficha técnica ' + (p.sap_item_code || '') }).catch(function () {});
     } else {
-      // Sin soporte para compartir archivos: descarga el PDF y abre WhatsApp con el texto.
-      doc.save(fname); fichaWhatsApp(code);
+      // Sin soporte de compartir archivos: abre el PDF para enviarlo desde el visor.
+      try { window.open(URL.createObjectURL(f), '_blank'); } catch (e) {}
+      showToast('Abre el PDF y toca Compartir ↑ → WhatsApp');
     }
-  } catch (e) { if (!e || e.name !== 'AbortError') showToast('No se pudo compartir el PDF', true); }
-  finally { showLoading && showLoading(false); }
+  } catch (e) { showLoading && showLoading(false); showToast('No se pudo preparar el PDF', true); }
 }
 function fichaWhatsApp(code) {
   const p = FICHA_DATA[code]; if (!p) { showToast('Ficha no disponible', true); return; }
