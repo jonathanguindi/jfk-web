@@ -8014,7 +8014,7 @@ function renderFicha(p) {
       <strong style="font-size:1.05rem">Ficha técnica</strong>
       <button onclick="closeFicha()" style="background:var(--bg-sunken,#eee);border:none;width:34px;height:34px;border-radius:50%;font-size:18px;cursor:pointer;color:var(--text)">✕</button>
     </div>
-    <div style="text-align:center;margin-bottom:10px"><img src="${PRODUCT_IMG_BASE}/${encodeURIComponent(p.sap_item_code)}.jpg" onerror="this.src='${THUMB_IMG_BASE}/${encodeURIComponent(p.sap_item_code)}.jpg'" style="max-width:200px;max-height:200px;object-fit:contain;border-radius:12px;background:#fff;border:1px solid var(--border-soft)"></div>
+    <div style="text-align:center;margin-bottom:10px;min-height:120px;display:flex;align-items:center;justify-content:center"><img src="${PRODUCT_IMG_BASE}/${encodeURIComponent(p.sap_item_code)}.jpg" onerror="this.onerror=function(){this.style.display='none';var d=document.createElement('div');d.textContent='Sin foto';d.style.cssText='color:var(--text-muted);font-size:.85rem;padding:30px';this.parentElement.appendChild(d);};this.src='${THUMB_IMG_BASE}/${encodeURIComponent(p.sap_item_code)}.jpg';" style="max-width:220px;max-height:220px;object-fit:contain;border-radius:12px;background:#fff;border:1px solid var(--border-soft)"></div>
     <div style="font-weight:800;font-size:1.05rem;text-align:center">${(p.sap_item_code||'').replace(/[<>&]/g,'')}</div>
     <div style="color:var(--text-muted);text-align:center;margin-bottom:12px;font-size:.9rem">${(p.name||'').replace(/[<>&]/g,'')}</div>
     ${specs}
