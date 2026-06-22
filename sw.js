@@ -4,7 +4,7 @@
    - Estáticos propios + librerías CDN + fuentes: cache-first con actualización en segundo plano.
    - Supabase y Netlify Functions: NUNCA se cachean (datos dinámicos; lo offline lo manejan IndexedDB/cola en fases 2-3).
    Sube CACHE_VERSION en cada cambio del shell para forzar actualización. */
-const CACHE_VERSION = 'jfk-portal-v20';
+const CACHE_VERSION = 'jfk-portal-v21';
 const SHELL = [
   '/vendedores.html',
   '/favicon.svg',
@@ -69,10 +69,14 @@ self.addEventListener('fetch', (e) => {
   }
 
   // estáticos/CDN/fuentes: cache-first + refresco en segundo plano
+  const prodImg = isProductImg(url);
   e.respondWith((async () => {
     const cached = await caches.match(req);
     const fetching = fetch(req).then(res => {
-      if (res && (res.ok || res.type === 'opaque')) {
+      // Para fotos de producto SOLO se cachean respuestas legibles (res.ok / CORS),
+      // nunca opacas: una opaca no se puede usar en canvas y rompía el PDF.
+      const cacheable = res && (res.ok || (res.type === 'opaque' && !prodImg));
+      if (cacheable) {
         caches.open(CACHE_VERSION).then(c => c.put(req, res.clone()));
       }
       return res;

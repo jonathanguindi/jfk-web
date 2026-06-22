@@ -5806,23 +5806,21 @@ function _downscaleToDataUrl(blob, maxPx, quality) {
 
 async function _imgToDataUrl(code) {
   if (!code) return null;
-  if (_imgCache[code] !== undefined) return _imgCache[code];      // 1) memoria (esta sesión)
-  const cached = await _idbGet(code);                              // 2) disco (sesiones anteriores)
-  if (cached !== undefined) { _imgCache[code] = cached; return cached; }
+  if (_imgCache[code]) return _imgCache[code];                     // 1) memoria — SOLO valores reales (no null cacheado)
+  const cached = await _idbGet(code);                              // 2) disco
+  if (cached) { _imgCache[code] = cached; return cached; }         // si fue null en el pasado, reintenta
 
+  // 3) miniatura del servidor; si falla (lanza o !ok), cae a la imagen completa.
+  async function tryFetch(url) {
+    try { const r = await fetch(url, { mode: 'cors', cache: 'force-cache' }); return (r && r.ok) ? r : null; }
+    catch (e) { return null; }
+  }
+  let res = await tryFetch(`${THUMB_IMG_BASE}/${encodeURIComponent(code)}.jpg`);
+  if (!res) res = await tryFetch(`${PRODUCT_IMG_BASE}/${encodeURIComponent(code)}.jpg`);
   let result = null;
-  try {
-    // 3) miniatura del servidor (liviana). Si no existe, baja la original.
-    let res = await fetch(`${THUMB_IMG_BASE}/${encodeURIComponent(code)}.jpg`);
-    if (!res.ok) res = await fetch(`${PRODUCT_IMG_BASE}/${encodeURIComponent(code)}.jpg`);
-    if (res.ok) {
-      const blob = await res.blob();
-      result = await _downscaleToDataUrl(blob, 240, 0.62); // garantiza miniatura aunque venga grande
-    }
-  } catch (e) { result = null; }
+  if (res) { try { result = await _downscaleToDataUrl(await res.blob(), 240, 0.62); } catch (e) {} }
 
-  _imgCache[code] = result;
-  _idbSet(code, result); // guarda permanente para próximas veces
+  if (result) { _imgCache[code] = result; _idbSet(code, result); } // NO cachear fallos
   return result;
 }
 
@@ -8184,7 +8182,7 @@ const OFFLINE = (function () {
     async function worker() {
       while (i < all.length) {
         const p = all[i++]; const url = THUMB_IMG_BASE + '/' + encodeURIComponent(p.sap_item_code) + '.jpg';
-        try { const hit = await cache.match(url); if (!hit) { const r = await fetch(url, { mode: 'no-cors' }); await cache.put(url, r); fetched++; } } catch (e) {}
+        try { const hit = await cache.match(url); if (!hit) { let r = null; try { r = await fetch(url, { mode: 'cors' }); } catch (e) {} if (!r || !r.ok) { try { r = await fetch(url, { mode: 'no-cors' }); } catch (e) {} } if (r) { await cache.put(url, r); fetched++; } } } catch (e) {}
         done++; if (onProgress && done % 20 === 0) onProgress(done, total);
       }
     }
