@@ -3647,6 +3647,11 @@ function shakePin() {
 function showHome() {
   document.getElementById('vendor-name-greeting').innerHTML =
     `${currentVendor.name.split(' ')[0]} <em>👋</em>`;
+  // Offline: guardar catálogo/clientes para usar sin señal + enviar pedidos en cola
+  if (typeof OFFLINE !== 'undefined') {
+    OFFLINE.updateBadge();
+    if (navigator.onLine) { OFFLINE.flush(); OFFLINE.syncAll(true); }
+  }
   const initials = currentVendor.name.split(' ').map(p => p[0]).slice(0,2).join('').toUpperCase();
   const firstName = currentVendor.name.split(' ')[0];
   document.getElementById('vendor-avatar').textContent = initials;
@@ -3847,6 +3852,7 @@ async function openAccountModal() {
 function closeAccountModal() { document.getElementById('modal-account').classList.remove('show'); }
 
 async function loadCustomers() {
+  if (!navigator.onLine && typeof OFFLINE !== 'undefined') { return OFFLINE.loadCustomersOffline(); }
   const list = document.getElementById('modal-account-list');
   list.innerHTML = '<div class="modal-account-empty"><div class="spinner"></div><div style="margin-top:1rem;font-size:0.85rem;">Cargando clientes...</div></div>';
 
@@ -4230,6 +4236,7 @@ function applyExtraFilters(arr) {
 }
 
 async function loadProducts(append = false) {
+  if (!navigator.onLine && typeof OFFLINE !== 'undefined') { return OFFLINE.loadProductsOffline(append); }
   const grid = document.getElementById('pedido-grid');
   const pagination = document.getElementById('pedido-pagination');
   if (!append) {
@@ -5441,6 +5448,7 @@ async function getVendorSapCode() {
   return code;
 }
 async function confirmSubmitOrder() {
+  if (!navigator.onLine && typeof OFFLINE !== 'undefined') { try { closeConfirmModal(); } catch (e) {} return OFFLINE.queueCurrentOrder(); }
   closeConfirmModal();
   const items = Object.values(currentCart);
   if (items.length === 0) { showToast('Sin productos', true); return; }
@@ -7824,6 +7832,180 @@ function closeLightbox() {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && document.getElementById('lightbox').classList.contains('show')) closeLightbox();
 });
+
+/* ===================== MODO OFFLINE (Fases 2 y 3) =====================
+   Guarda catálogo y clientes en IndexedDB para armar pedidos sin señal,
+   y encola los pedidos para enviarlos a Supabase+SAP al reconectar.
+   Todo es ADITIVO: con señal el flujo online no cambia. */
+const OFFLINE = (function () {
+  const DBN = 'portal-offline', VER = 1;
+  let _db = null, _prodCache = null, _custCache = null;
+  function open() {
+    if (_db) return Promise.resolve(_db);
+    return new Promise((res) => {
+      try {
+        const r = indexedDB.open(DBN, VER);
+        r.onupgradeneeded = () => { const d = r.result;
+          if (!d.objectStoreNames.contains('products')) d.createObjectStore('products', { keyPath: 'sap_item_code' });
+          if (!d.objectStoreNames.contains('customers')) d.createObjectStore('customers', { keyPath: 'sap_card_code' });
+          if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta');
+          if (!d.objectStoreNames.contains('outbox')) d.createObjectStore('outbox', { keyPath: 'id' });
+        };
+        r.onsuccess = () => { _db = r.result; res(_db); };
+        r.onerror = () => res(null);
+      } catch (e) { res(null); }
+    });
+  }
+  function _allFrom(store) { return open().then(d => d ? new Promise((res) => { const out = []; const c = d.transaction(store).objectStore(store).openCursor(); c.onsuccess = e => { const cur = e.target.result; if (cur) { out.push(cur.value); cur.continue(); } else res(out); }; c.onerror = () => res(out); }) : []); }
+  function _put(store, val) { return open().then(d => d ? new Promise((res) => { const t = d.transaction(store, 'readwrite'); t.objectStore(store).put(val); t.oncomplete = () => res(true); t.onerror = () => res(false); }) : false); }
+  function _del(store, key) { return open().then(d => d ? new Promise((res) => { const t = d.transaction(store, 'readwrite'); t.objectStore(store).delete(key); t.oncomplete = () => res(true); t.onerror = () => res(false); }) : false); }
+  function _setMeta(k, v) { return open().then(d => d ? new Promise((res) => { const t = d.transaction('meta', 'readwrite'); t.objectStore('meta').put(v, k); t.oncomplete = () => res(true); t.onerror = () => res(false); }) : false); }
+  function _getMeta(k) { return open().then(d => d ? new Promise((res) => { const r = d.transaction('meta').objectStore('meta').get(k); r.onsuccess = () => res(r.result); r.onerror = () => res(null); }) : null); }
+  function _bulk(store, rows, clearFirst) {
+    return open().then(d => d ? new Promise((res) => {
+      const t = d.transaction(store, 'readwrite'); const os = t.objectStore(store);
+      if (clearFirst) os.clear();
+      rows.forEach(r => { try { os.put(r); } catch (e) {} });
+      t.oncomplete = () => res(true); t.onerror = () => res(false);
+    }) : false);
+  }
+
+  async function syncCatalog() {
+    if (!navigator.onLine || typeof supa === 'undefined') return;
+    const cols = 'sap_item_code, name, stock, price_kennedy, line_jfk, items_per_box, volume_unit, volume_cft_per_unit, weight_kg_per_unit, volume_verified, barcode, desc_ingles, origen, composicion, medidas, subcategoria, categoria_corregida' + ((typeof currentVendor !== 'undefined' && currentVendor && currentVendor.role === 'admin') ? ', fob_cost, cif_cost' : '');
+    let from = 0; const batch = 1000; const all = [];
+    while (true) {
+      const { data, error } = await supa.from('products').select(cols).eq('is_active', true).order('name').range(from, from + batch - 1);
+      if (error || !data || !data.length) break;
+      all.push(...data); if (data.length < batch) break; from += batch;
+    }
+    if (all.length) { await _bulk('products', all, true); _prodCache = all; await _setMeta('products_at', new Date().toISOString()); await _setMeta('products_n', all.length); }
+    return all.length;
+  }
+  async function syncCustomers() {
+    if (!navigator.onLine || typeof supa === 'undefined') return;
+    let from = 0; const batch = 1000; const all = [];
+    while (true) {
+      const { data, error } = await supa.from('customers').select('sap_card_code, name, tax_id, email, phone, mobile, city, current_balance, sap_price_list_num').eq('active', true).order('name').range(from, from + batch - 1);
+      if (error || !data || !data.length) break;
+      all.push(...data); if (data.length < batch) break; from += batch;
+    }
+    if (all.length) { await _bulk('customers', all, true); _custCache = all; await _setMeta('customers_at', new Date().toISOString()); await _setMeta('customers_n', all.length); }
+    return all.length;
+  }
+  async function syncAll(silent) {
+    try {
+      const np = await syncCatalog(); const nc = await syncCustomers();
+      if (!silent && (np || nc)) showToast(`📥 Guardado para uso offline: ${np || 0} productos · ${nc || 0} clientes`);
+    } catch (e) { /* sin ruido */ }
+  }
+  async function products() { if (_prodCache) return _prodCache; _prodCache = await _allFrom('products'); return _prodCache; }
+  async function customers() { if (_custCache) return _custCache; _custCache = await _allFrom('customers'); return _custCache; }
+
+  function _sort(arr) {
+    if (currentSort === 'stock_desc') return arr.sort((a, b) => (b.stock || 0) - (a.stock || 0));
+    if (currentSort === 'stock_asc') return arr.sort((a, b) => (a.stock || 0) - (b.stock || 0));
+    return arr.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }
+  function _msg(html) { const g = document.getElementById('pedido-grid'); if (g) g.innerHTML = '<div class="pedido-empty">' + html + '</div>'; totalProducts = 0; try { updateFooter(); } catch (e) {} const p = document.getElementById('pedido-pagination'); if (p) p.style.display = 'none'; }
+
+  async function loadProductsOffline(append) {
+    const grid = document.getElementById('pedido-grid'); const pagination = document.getElementById('pedido-pagination');
+    const all = await products();
+    if (!all || !all.length) { _msg('<strong>Catálogo no descargado</strong><br>Conéctate una vez con internet para guardarlo y usarlo sin señal.'); return; }
+    if (showOnlyCart) {
+      const codes = new Set(Object.keys(currentCart));
+      let d = _sort(all.filter(p => codes.has(p.sap_item_code)));
+      totalProducts = d.length; renderProductCards(d); updateFooter(); if (pagination) pagination.style.display = 'none'; return;
+    }
+    if (onlyBought) {
+      let d = all.filter(p => clientBoughtCodes && clientBoughtCodes.has(p.sap_item_code));
+      if (searchTerm) { const t = searchTerm.toLowerCase(); d = d.filter(p => (p.name || '').toLowerCase().includes(t) || (p.sap_item_code || '').toLowerCase().includes(t) || (p.barcode || '').toLowerCase().includes(t)); }
+      if (onlyStock) d = d.filter(p => (p.stock || 0) > 0);
+      d = applyExtraFilters(_sort(d)); totalProducts = d.length; renderProductCards(d); updateFooter();
+      if (pagination) pagination.style.display = 'none'; allLoaded = true; return;
+    }
+    let d = all.slice();
+    if (!searchTerm && currentLine) d = d.filter(p => p.line_jfk === currentLine);
+    if (!searchTerm && currentSubcat) d = d.filter(p => p.subcategoria === currentSubcat);
+    if (onlyStock) d = d.filter(p => (p.stock || 0) > 0);
+    if (searchTerm) { const words = searchTerm.trim().toLowerCase().split(/\s+/).filter(Boolean); d = d.filter(p => { const hay = ((p.name || '') + ' ' + (p.sap_item_code || '') + ' ' + (p.barcode || '')).toLowerCase(); return words.every(w => hay.includes(w)); }); }
+    d = applyExtraFilters(_sort(d));
+    totalProducts = d.length;
+    const fromIdx = currentPage * PAGE_SIZE; const pageData = d.slice(fromIdx, fromIdx + PAGE_SIZE);
+    renderProductCards(pageData, append);
+    allLoaded = (fromIdx + PAGE_SIZE) >= d.length;
+    updateFooter();
+    const loaded = document.querySelectorAll('#pedido-grid .pedido-card:not(.pedido-card--skeleton)').length;
+    if (pagination) pagination.style.display = loaded > 0 ? 'flex' : 'none';
+    const pi = document.getElementById('page-info'); if (pi && loaded > 0) pi.textContent = `${loaded.toLocaleString()} de ${totalProducts.toLocaleString()} (offline)`;
+    ['page-prev', 'page-next', 'page-more'].forEach(id => { const b = document.getElementById(id); if (b) b.style.display = 'none'; });
+  }
+
+  async function loadCustomersOffline() {
+    const list = document.getElementById('modal-account-list');
+    const cs = await customers();
+    if (!cs || !cs.length) { if (list) list.innerHTML = '<div class="modal-account-empty">Clientes no descargados.<br>Conéctate una vez con internet.</div>'; return; }
+    allCustomers = cs; renderCustomersInModal(cs);
+  }
+
+  async function queueCurrentOrder() {
+    const items = Object.values(currentCart);
+    if (!items.length) { showToast('Sin productos', true); return; }
+    if (!currentCustomer) { showToast('Selecciona un cliente primero', true); return; }
+    const notes = (document.getElementById('cart-remark') || {}).value || null;
+    let units = 0, amount = 0, cbm = 0, weight = 0;
+    const okMed = (typeof medidaOk === 'function') ? medidaOk : () => true;
+    const lines = items.map(it => {
+      const { qty, product } = it; const pf = lineUnitFinal(it);
+      units += qty; amount += qty * pf;
+      cbm += (okMed(product) ? qty * parseFloat(product.volume_cft_per_unit || 0) : 0) * 0.0283168;
+      weight += qty * parseFloat(product.weight_kg_per_unit || 0);
+      const np = []; if (it.fixedPrice != null) np.push('Precio fijo: $' + Number(it.fixedPrice).toFixed(2)); else { if (it.discount > 0) np.push('Ind: ' + it.discount + '%'); if (globalDiscount > 0) np.push('Global: ' + globalDiscount + '%'); }
+      return { product_sap_code: product.sap_item_code, product_name: product.name, line_jfk: product.line_jfk, quantity: qty, unit_price: parseFloat(pf.toFixed(4)), unit_cbm: product.volume_cft_per_unit || 0, unit_weight_kg: product.weight_kg_per_unit || 0, notes: np.length ? ('Descuento: ' + np.join(' + ')) : null };
+    });
+    const payload = { id: 'q' + Date.now() + '-' + Math.floor(Math.random() * 1e6), customer: { sap_card_code: currentCustomer.sap_card_code, name: currentCustomer.name }, seller: { id: currentVendor.id, name: currentVendor.name, email: (currentVendor && currentVendor.email) || null }, lines, totals: { items: items.length, units, amount, cbm, weight }, notes, globalDiscount, queuedAt: new Date().toISOString() };
+    await _put('outbox', payload);
+    showToast('📴 Pedido guardado — se enviará solo al reconectar');
+    currentCart = {}; globalDiscount = 0; try { selectedRows.clear(); } catch (e) {} try { clearCurrentDraft(); } catch (e) {}
+    const rmk = document.getElementById('cart-remark'); if (rmk) rmk.value = '';
+    await updateBadge();
+    setTimeout(() => goToScreen('home'), 1000);
+  }
+
+  async function sendPayload(p) {
+    const { data: order, error: oErr } = await supa.from('orders').insert({ customer_sap_code: p.customer.sap_card_code, customer_name: p.customer.name, seller_id: p.seller.id, seller_name: p.seller.name, status: 'submitted', total_items: p.totals.items, total_units: p.totals.units, total_amount: p.totals.amount, total_cbm: p.totals.cbm, total_weight_kg: p.totals.weight, notes: p.notes, submitted_at: p.queuedAt }).select().single();
+    if (oErr) throw oErr;
+    const itemRows = p.lines.map(l => ({ order_id: order.id, product_sap_code: l.product_sap_code, product_name: l.product_name, line_jfk: l.line_jfk, quantity: l.quantity, unit_price: l.unit_price, unit_cbm: l.unit_cbm, unit_weight_kg: l.unit_weight_kg, notes: l.notes }));
+    const { error: iErr } = await supa.from('order_items').insert(itemRows); if (iErr) throw iErr;
+    let spCode = null; try { spCode = await getVendorSapCode(); } catch (e) {}
+    try {
+      const sapLines = p.lines.map(l => ({ itemCode: l.product_sap_code, quantity: l.quantity, unitPrice: l.unit_price }));
+      const r = await fetch('/.netlify/functions/enviar-sap', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cardCode: p.customer.sap_card_code, comments: `Pedido ${order.order_number} - Vendedor: ${p.seller.name}${p.globalDiscount > 0 ? ` (Desc global: ${p.globalDiscount}%)` : ''}${p.notes ? ' - ' + p.notes : ''} [offline]`, lines: sapLines, salesPersonCode: spCode, vendorEmail: p.seller.email, orderRef: order.order_number }) });
+      const d = await r.json();
+      if (d.success) await supa.from('orders').update({ sap_doc_entry: d.docEntry, sap_doc_num: d.docNum, status: 'sap_created' }).eq('id', order.id);
+      else await supa.from('orders').update({ status: 'sap_error', notes: (p.notes || '') + ' | SAP error: ' + (d.error || '') }).eq('id', order.id);
+    } catch (e) { await supa.from('orders').update({ status: 'sap_error' }).eq('id', order.id); }
+    return { ok: true, orderNumber: order.order_number };
+  }
+  async function flush() {
+    if (!navigator.onLine || typeof supa === 'undefined') return;
+    const list = await _allFrom('outbox'); if (!list.length) return;
+    for (const p of list) { try { const res = await sendPayload(p); await _del('outbox', p.id); showToast('✅ Pedido enviado' + (res.orderNumber ? ' ' + res.orderNumber : '')); } catch (e) { /* sin señal o error: queda en cola */ } }
+    await updateBadge();
+  }
+  async function pendingCount() { return (await _allFrom('outbox')).length; }
+  async function updateBadge() {
+    const n = await pendingCount();
+    let chip = document.getElementById('__pendchip');
+    if (!chip) { chip = document.createElement('div'); chip.id = '__pendchip'; chip.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:99998;background:#E8A317;color:#1a1205;font:700 12px/1 system-ui,sans-serif;padding:8px 14px;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.3);cursor:pointer'; chip.onclick = () => flush(); document.body.appendChild(chip); }
+    if (n > 0) { chip.textContent = '⏳ ' + n + ' pedido' + (n !== 1 ? 's' : '') + ' por enviar'; chip.style.display = 'block'; }
+    else chip.style.display = 'none';
+  }
+
+  return { syncAll, syncCatalog, syncCustomers, products, customers, loadProductsOffline, loadCustomersOffline, queueCurrentOrder, flush, updateBadge, pendingCount, ready: async () => !!(await _getMeta('products_at')) };
+})();
+window.addEventListener('online', function () { try { OFFLINE.flush(); OFFLINE.syncAll(true); } catch (e) {} });
 </script>
 </body>
 </html>
