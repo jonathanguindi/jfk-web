@@ -1,0 +1,14 @@
+{
+  "name": "JFK · Portal Vendedores",
+  "short_name": "JFK Ventas",
+  "description": "Portal de ventas de JFK International",
+  "start_url": "/vendedores.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0E1016",
+  "theme_color": "#009FE3",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
