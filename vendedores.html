@@ -3649,8 +3649,8 @@ function showHome() {
     `${currentVendor.name.split(' ')[0]} <em>👋</em>`;
   // Offline: guardar catálogo/clientes para usar sin señal + enviar pedidos en cola
   if (typeof OFFLINE !== 'undefined') {
-    OFFLINE.updateBadge();
-    if (navigator.onLine) { OFFLINE.flush(); OFFLINE.syncAll(true); }
+    OFFLINE.updateBadge(); OFFLINE.renderStatus();
+    if (navigator.onLine) { OFFLINE.flush(); OFFLINE.syncAll(true).then(function(){ OFFLINE.renderStatus(); }); }
   }
   const initials = currentVendor.name.split(' ').map(p => p[0]).slice(0,2).join('').toUpperCase();
   const firstName = currentVendor.name.split(' ')[0];
@@ -8003,7 +8003,26 @@ const OFFLINE = (function () {
     else chip.style.display = 'none';
   }
 
-  return { syncAll, syncCatalog, syncCustomers, products, customers, loadProductsOffline, loadCustomersOffline, queueCurrentOrder, flush, updateBadge, pendingCount, ready: async () => !!(await _getMeta('products_at')) };
+  async function status() { return { pAt: await _getMeta('products_at'), pN: await _getMeta('products_n'), cAt: await _getMeta('customers_at'), cN: await _getMeta('customers_n'), pend: await pendingCount() }; }
+  function _ago(iso) { if (!iso) return 'nunca'; const s = (Date.now() - new Date(iso).getTime()) / 1000; if (s < 60) return 'hace un momento'; if (s < 3600) return 'hace ' + Math.round(s / 60) + ' min'; if (s < 86400) return 'hace ' + Math.round(s / 3600) + ' h'; return 'hace ' + Math.round(s / 86400) + ' d'; }
+  async function downloadNow() {
+    if (!navigator.onLine) { showToast('Necesitas internet para descargar el catálogo', true); return; }
+    const btn = document.getElementById('__dlbtn'); if (btn) { btn.textContent = 'Descargando…'; btn.disabled = true; }
+    await syncAll(false); await renderStatus();
+  }
+  async function renderStatus() {
+    const grid = document.querySelector('.home-grid'); if (!grid) return;
+    const col = ((document.querySelector('meta[name=theme-color]') || {}).content) || '#009FE3';
+    let card = document.getElementById('__oflcard');
+    if (!card) { card = document.createElement('div'); card.id = '__oflcard'; card.style.cssText = 'margin:0 0 14px;padding:12px 14px;border:1px solid ' + col + '59;background:' + col + '14;border-radius:14px;display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap'; grid.parentNode.insertBefore(card, grid); }
+    const st = await status(); const online = navigator.onLine;
+    card.innerHTML = '<div style="min-width:0;font:500 13px/1.35 system-ui,sans-serif;color:var(--text,#fff)">' +
+      '<div style="font-weight:700">📥 Modo offline ' + (online ? '<span style="color:#0E9F6E">● en línea</span>' : '<span style="color:#E8A317">● sin señal</span>') + '</div>' +
+      '<div style="opacity:.82;font-size:12px;margin-top:2px">' + (st.pN ? ((st.pN).toLocaleString() + ' productos · ' + (st.cN || 0).toLocaleString() + ' clientes · ' + _ago(st.pAt)) : 'aún no descargado — toca Actualizar') + (st.pend ? (' · ⏳ ' + st.pend + ' por enviar') : '') + '</div></div>' +
+      '<button id="__dlbtn" onclick="OFFLINE.downloadNow()" style="flex:0 0 auto;background:' + col + ';color:#fff;border:none;border-radius:10px;padding:9px 14px;font:700 13px system-ui;cursor:pointer">' + (online ? 'Actualizar ahora' : 'Sin señal') + '</button>';
+    const b = document.getElementById('__dlbtn'); if (b) b.disabled = !online;
+  }
+  return { syncAll, syncCatalog, syncCustomers, products, customers, loadProductsOffline, loadCustomersOffline, queueCurrentOrder, flush, updateBadge, pendingCount, status, downloadNow, renderStatus, ready: async () => !!(await _getMeta('products_at')) };
 })();
 window.addEventListener('online', function () { try { OFFLINE.flush(); OFFLINE.syncAll(true); } catch (e) {} });
 </script>
