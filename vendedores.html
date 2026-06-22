@@ -1100,13 +1100,18 @@ input, textarea { font-family: inherit; }
 .pedido-card.has-qty .pedido-card__status-dot { background: var(--success); }
 .pedido-card__menu-dots {
   position: absolute;
-  top: 0.6rem;
-  right: 0.85rem;
+  top: 0.4rem;
+  right: 0.5rem;
   color: var(--text-muted);
   font-size: 1.3rem;
   letter-spacing: 1px;
   line-height: 1;
+  cursor: pointer;
+  z-index: 4;
+  padding: 4px 8px;
+  border-radius: 8px;
 }
+.pedido-card__menu-dots:active { background: rgba(127,127,127,.18); }
 .pedido-card__image {
   aspect-ratio: 1;
   background: #fff;
@@ -4627,6 +4632,7 @@ function markBoughtCards() {
 }
 
 function renderProductCard(p) {
+  try { FICHA_DATA[p.sap_item_code] = p; } catch (e) {}
   const hasPrice = p.price_kennedy !== null && p.price_kennedy !== undefined && !isNaN(parseFloat(p.price_kennedy));
   const price = hasPrice ? parseFloat(p.price_kennedy).toFixed(2) : null;
   const stock = p.stock || 0;
@@ -4669,7 +4675,7 @@ function renderProductCard(p) {
     <div class="pedido-card ${currentQty > 0 ? 'has-qty' : ''}" data-pcode="${escapeHtml(p.sap_item_code)}">
       <div class="pedido-card__status-dot"></div>
       ${boughtBadgeHTML(p.sap_item_code)}
-      <div class="pedido-card__menu-dots">⋯</div>
+      <div class="pedido-card__menu-dots" onclick="event.stopPropagation(); openFicha(this.closest('.pedido-card').getAttribute('data-pcode'))" title="Ficha técnica">⋯</div>
       <div class="pedido-card__image pedido-card__image--empty">
         <img src="${THUMB_IMG_BASE}/${encodeURIComponent(p.sap_item_code)}.jpg"
              alt="${escapeHtml(p.sap_item_code)}"
@@ -7957,6 +7963,86 @@ function openLightbox(src) {
   document.getElementById('lightbox').classList.add('show');
   document.body.style.overflow = 'hidden';
 }
+/* ===== Ficha técnica del producto (modal + PDF) ===== */
+var FICHA_DATA = {};
+const FICHA_ACCENT = [0, 159, 227];   // azul JFK (BDB: [20,110,200])
+function _fichaRows(p) {
+  const rows = [
+    ['Código', p.sap_item_code],
+    ['Descripción', p.name],
+    ['Description (EN)', p.desc_ingles],
+    ['Categoría', p.categoria_corregida],
+    ['Subcategoría', p.subcategoria],
+    ['Línea', p.line_jfk],
+    ['Código de barras', p.barcode],
+    ['Origen', p.origen],
+    ['Composición', p.composicion],
+    ['Medidas', p.medidas],
+    ['Unidades por bulto', p.items_per_box],
+    ['Stock disponible', p.stock],
+    ['Precio', (p.price_kennedy != null && !isNaN(parseFloat(p.price_kennedy))) ? ('$' + parseFloat(p.price_kennedy).toFixed(2)) : null],
+    ['Volumen (CFT/unidad)', p.volume_cft_per_unit],
+    ['Peso (kg/unidad)', p.weight_kg_per_unit]
+  ];
+  if (currentVendor && currentVendor.role === 'admin') {
+    if (p.fob_cost != null) rows.push(['Costo FOB', '$' + parseFloat(p.fob_cost).toFixed(2)]);
+    if (p.cif_cost != null) rows.push(['Costo CIF', '$' + parseFloat(p.cif_cost).toFixed(2)]);
+  }
+  return rows.filter(r => r[1] !== null && r[1] !== undefined && String(r[1]).trim() !== '');
+}
+async function openFicha(code) {
+  let p = FICHA_DATA[code];
+  if (!p && typeof OFFLINE !== 'undefined') { try { const all = await OFFLINE.products(); p = (all || []).find(x => x.sap_item_code === code); } catch (e) {} }
+  if (!p && typeof supa !== 'undefined' && navigator.onLine) { try { const { data } = await supa.from('products').select('*').eq('sap_item_code', code).maybeSingle(); p = data; } catch (e) {} }
+  if (!p) { showToast('No se encontró la ficha del producto', true); return; }
+  FICHA_DATA[code] = p;
+  renderFicha(p);
+}
+function renderFicha(p) {
+  let ov = document.getElementById('ficha-modal');
+  if (!ov) {
+    ov = document.createElement('div'); ov.id = 'ficha-modal';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;padding:0';
+    ov.addEventListener('click', e => { if (e.target === ov) closeFicha(); });
+    document.body.appendChild(ov);
+  }
+  const rows = _fichaRows(p);
+  const specs = rows.map(r => `<div style="display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid var(--border-soft)"><span style="color:var(--text-muted);font-size:.82rem">${r[0]}</span><span style="font-weight:600;font-size:.86rem;text-align:right">${(''+r[1]).replace(/[<>&]/g,'')}</span></div>`).join('');
+  ov.innerHTML = `<div style="background:var(--bg-elevated,#fff);color:var(--text,#0E1016);width:100%;max-width:520px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:18px 18px calc(18px + var(--safe-bottom))">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <strong style="font-size:1.05rem">Ficha técnica</strong>
+      <button onclick="closeFicha()" style="background:var(--bg-sunken,#eee);border:none;width:34px;height:34px;border-radius:50%;font-size:18px;cursor:pointer;color:var(--text)">✕</button>
+    </div>
+    <div style="text-align:center;margin-bottom:10px"><img src="${PRODUCT_IMG_BASE}/${encodeURIComponent(p.sap_item_code)}.jpg" onerror="this.src='${THUMB_IMG_BASE}/${encodeURIComponent(p.sap_item_code)}.jpg'" style="max-width:200px;max-height:200px;object-fit:contain;border-radius:12px;background:#fff;border:1px solid var(--border-soft)"></div>
+    <div style="font-weight:800;font-size:1.05rem;text-align:center">${(p.sap_item_code||'').replace(/[<>&]/g,'')}</div>
+    <div style="color:var(--text-muted);text-align:center;margin-bottom:12px;font-size:.9rem">${(p.name||'').replace(/[<>&]/g,'')}</div>
+    ${specs}
+    <button onclick="generateFichaPDF('${(p.sap_item_code||'').replace(/'/g,'')}')" style="margin-top:16px;width:100%;background:var(--punch);color:#fff;border:none;border-radius:14px;padding:14px;font-weight:800;font-size:15px;cursor:pointer">📄 Descargar ficha en PDF</button>
+  </div>`;
+  ov.style.display = 'flex';
+}
+function closeFicha() { const ov = document.getElementById('ficha-modal'); if (ov) ov.style.display = 'none'; }
+async function generateFichaPDF(code) {
+  const p = FICHA_DATA[code]; if (!p) { showToast('Ficha no disponible', true); return; }
+  try {
+    showLoading && showLoading(true);
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'letter' });
+    doc.setFontSize(18); doc.setFont(undefined, 'bold'); doc.text('Ficha técnica', 15, 20);
+    doc.setFontSize(10); doc.setFont(undefined, 'normal'); doc.setTextColor(120);
+    doc.text((document.title || '').split('·')[0].trim(), 15, 26);
+    doc.setTextColor(20);
+    const img = await _imgToDataUrl(p.sap_item_code);
+    if (img) { try { doc.addImage(img, 'JPEG', 150, 12, 45, 45); } catch (e) {} }
+    doc.setFontSize(15); doc.setFont(undefined, 'bold'); doc.text(String(p.sap_item_code || ''), 15, 40);
+    doc.setFontSize(11); doc.setFont(undefined, 'normal');
+    doc.text(doc.splitTextToSize(String(p.name || ''), 120), 15, 47);
+    doc.autoTable({ startY: 60, head: [['Especificación', 'Detalle']], body: _fichaRows(p).map(r => [r[0], String(r[1])]), styles: { fontSize: 10, cellPadding: 2.5 }, headStyles: { fillColor: FICHA_ACCENT }, columnStyles: { 0: { cellWidth: 55, fontStyle: 'bold' } }, margin: { left: 15, right: 15 } });
+    doc.save('Ficha_' + (p.sap_item_code || 'producto') + '.pdf');
+  } catch (e) { showToast('No se pudo generar el PDF: ' + e.message, true); }
+  finally { showLoading && showLoading(false); }
+}
+
 function closeLightbox() {
   document.getElementById('lightbox').classList.remove('show');
   document.getElementById('lightbox-img').src = '';
