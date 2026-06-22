@@ -3570,6 +3570,7 @@ function goToScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + name).classList.add('active');
   window.scrollTo({top: 0, behavior: 'instant'});
+  if (name === 'login' && typeof bioInitLoginButton === 'function') bioInitLoginButton();
   if (name === 'cart') renderCart();
   // El botón de ocultar costos solo aplica a admin (es quien ve FOB/CIF)
   const costBtn = document.getElementById('btn-toggle-costs');
