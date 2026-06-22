@@ -3733,7 +3733,7 @@ async function bioMaybeOfferEnroll() {
   let b = document.getElementById('__biobtn-cli');
   if (!b) {
     b = document.createElement('button'); b.id = '__biobtn-cli'; b.textContent = '🔒 Activar Face ID para entrar';
-    b.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:99997;background:#009FE3;color:#fff;border:none;border-radius:999px;padding:11px 18px;font:700 13px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.3);cursor:pointer';
+    b.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:74px;z-index:99997;background:#009FE3;color:#fff;border:none;border-radius:999px;padding:11px 18px;font:700 13px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.3);cursor:pointer';
     b.onclick = async function () { const ok = await bioEnroll(); if (ok) b.remove(); };
     document.body.appendChild(b);
   }
