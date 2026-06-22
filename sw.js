@@ -4,7 +4,7 @@
    - Estáticos propios + librerías CDN + fuentes: cache-first con actualización en segundo plano.
    - Supabase y Netlify Functions: NUNCA se cachean (datos dinámicos; lo offline lo manejan IndexedDB/cola en fases 2-3).
    Sube CACHE_VERSION en cada cambio del shell para forzar actualización. */
-const CACHE_VERSION = 'jfk-portal-v4';
+const CACHE_VERSION = 'jfk-portal-v5';
 const SHELL = [
   '/vendedores.html',
   '/favicon.svg',
@@ -34,8 +34,12 @@ self.addEventListener('activate', (e) => {
   })());
 });
 
+// Fotos de productos en Supabase Storage: SÍ se cachean (para verlas offline).
+function isProductImg(url) {
+  return url.hostname.endsWith('.supabase.co') && url.pathname.indexOf('/storage/v1/object/public/productos') !== -1;
+}
 function isDynamic(url) {
-  return url.hostname.endsWith('.supabase.co') ||
+  return (url.hostname.endsWith('.supabase.co') && !isProductImg(url)) ||
          url.pathname.startsWith('/.netlify/functions/');
 }
 

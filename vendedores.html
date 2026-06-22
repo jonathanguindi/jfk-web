@@ -4562,13 +4562,13 @@ function renderProductCard(p) {
       ${boughtBadgeHTML(p.sap_item_code)}
       <div class="pedido-card__menu-dots">⋯</div>
       <div class="pedido-card__image pedido-card__image--empty">
-        <img src="${PRODUCT_IMG_BASE}/${encodeURIComponent(p.sap_item_code)}.jpg"
+        <img src="${THUMB_IMG_BASE}/${encodeURIComponent(p.sap_item_code)}.jpg"
              alt="${escapeHtml(p.sap_item_code)}"
              class="pedido-card__photo"
              loading="lazy"
-             onclick="event.stopPropagation(); openLightbox(this.src);"
+             onclick="event.stopPropagation(); openLightbox('${PRODUCT_IMG_BASE}/${encodeURIComponent(p.sap_item_code)}.jpg');"
              onload="this.parentElement.classList.remove('pedido-card__image--empty');this.nextElementSibling.style.display='none';this.nextElementSibling.nextElementSibling.style.display='none';"
-             onerror="this.style.display='none';">
+             onerror="if(!this.dataset.f){this.dataset.f='1';this.src='${PRODUCT_IMG_BASE}/${encodeURIComponent(p.sap_item_code)}.jpg';}else{this.style.display='none';}">
         <div class="pedido-card__icon-wrap" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">${icon}</div>
         <div class="pedido-card__image-empty-label">Sin foto</div>
       </div>
@@ -7917,10 +7917,29 @@ const OFFLINE = (function () {
     if (all.length) { await _bulk('customers', all, true); _custCache = all; await _setMeta('customers_at', new Date().toISOString()); await _setMeta('customers_n', all.length); }
     return all.length;
   }
+  async function syncImages(onProgress) {
+    if (!navigator.onLine || typeof THUMB_IMG_BASE === 'undefined' || typeof caches === 'undefined') return 0;
+    const all = await products(); const total = all.length; if (!total) return 0;
+    const cache = await caches.open('portal-img');
+    let done = 0, fetched = 0, i = 0; const conc = 8;
+    async function worker() {
+      while (i < all.length) {
+        const p = all[i++]; const url = THUMB_IMG_BASE + '/' + encodeURIComponent(p.sap_item_code) + '.jpg';
+        try { const hit = await cache.match(url); if (!hit) { const r = await fetch(url, { mode: 'no-cors' }); await cache.put(url, r); fetched++; } } catch (e) {}
+        done++; if (onProgress && done % 20 === 0) onProgress(done, total);
+      }
+    }
+    await Promise.all(Array.from({ length: conc }, worker));
+    await _setMeta('images_at', new Date().toISOString()); await _setMeta('images_n', total);
+    if (onProgress) onProgress(total, total);
+    return fetched;
+  }
   async function syncAll(silent) {
     try {
       const np = await syncCatalog(); const nc = await syncCustomers();
       if (!silent && (np || nc)) showToast(`📥 Guardado para uso offline: ${np || 0} productos · ${nc || 0} clientes`);
+      // Fotos en segundo plano (miniaturas, incremental) con progreso en la tarjeta
+      syncImages(function (d, t) { const el = document.getElementById('__oflimg'); if (el) el.textContent = d >= t ? ('✓ ' + t.toLocaleString() + ' fotos') : ('descargando fotos… ' + d.toLocaleString() + '/' + t.toLocaleString()); }).then(function () { renderStatus(); });
     } catch (e) { /* sin ruido */ }
   }
   async function products() { if (_prodCache) return _prodCache; _prodCache = await _allFrom('products'); return _prodCache; }
@@ -8027,12 +8046,15 @@ const OFFLINE = (function () {
     else chip.style.display = 'none';
   }
 
-  async function status() { return { pAt: await _getMeta('products_at'), pN: await _getMeta('products_n'), cAt: await _getMeta('customers_at'), cN: await _getMeta('customers_n'), pend: await pendingCount() }; }
+  async function status() { return { pAt: await _getMeta('products_at'), pN: await _getMeta('products_n'), cAt: await _getMeta('customers_at'), cN: await _getMeta('customers_n'), iAt: await _getMeta('images_at'), iN: await _getMeta('images_n'), pend: await pendingCount() }; }
   function _ago(iso) { if (!iso) return 'nunca'; const s = (Date.now() - new Date(iso).getTime()) / 1000; if (s < 60) return 'hace un momento'; if (s < 3600) return 'hace ' + Math.round(s / 60) + ' min'; if (s < 86400) return 'hace ' + Math.round(s / 3600) + ' h'; return 'hace ' + Math.round(s / 86400) + ' d'; }
   async function downloadNow() {
     if (!navigator.onLine) { showToast('Necesitas internet para descargar el catálogo', true); return; }
     const btn = document.getElementById('__dlbtn'); if (btn) { btn.textContent = 'Descargando…'; btn.disabled = true; }
-    await syncAll(false); await renderStatus();
+    await syncCatalog(); await syncCustomers();
+    await syncImages(function (d, t) { const b = document.getElementById('__dlbtn'); if (b) b.textContent = 'Fotos ' + (t ? Math.round(d / t * 100) : 0) + '%'; });
+    await renderStatus();
+    showToast('✅ Todo guardado para usar sin señal (catálogo, clientes y fotos)');
   }
   async function renderStatus() {
     const grid = document.querySelector('.home-grid'); if (!grid) return;
@@ -8042,11 +8064,12 @@ const OFFLINE = (function () {
     const st = await status(); const online = navigator.onLine;
     card.innerHTML = '<div style="min-width:0;font:500 13px/1.35 system-ui,sans-serif;color:var(--text,#fff)">' +
       '<div style="font-weight:700">📥 Modo offline ' + (online ? '<span style="color:#0E9F6E">● en línea</span>' : '<span style="color:#E8A317">● sin señal</span>') + '</div>' +
-      '<div style="opacity:.82;font-size:12px;margin-top:2px">' + (st.pN ? ((st.pN).toLocaleString() + ' productos · ' + (st.cN || 0).toLocaleString() + ' clientes · ' + _ago(st.pAt)) : 'aún no descargado — toca Actualizar') + (st.pend ? (' · ⏳ ' + st.pend + ' por enviar') : '') + '</div></div>' +
+      '<div style="opacity:.82;font-size:12px;margin-top:2px">' + (st.pN ? ((st.pN).toLocaleString() + ' productos · ' + (st.cN || 0).toLocaleString() + ' clientes · ' + _ago(st.pAt)) : 'aún no descargado — toca Actualizar') + (st.pend ? (' · ⏳ ' + st.pend + ' por enviar') : '') + '</div>' +
+      '<div id="__oflimg" style="opacity:.82;font-size:12px;margin-top:1px">' + (st.iN ? ('🖼️ ' + st.iN.toLocaleString() + ' fotos guardadas') : 'fotos: pendientes — toca Actualizar') + '</div></div>' +
       '<button id="__dlbtn" onclick="OFFLINE.downloadNow()" style="flex:0 0 auto;background:' + col + ';color:#fff;border:none;border-radius:10px;padding:9px 14px;font:700 13px system-ui;cursor:pointer">' + (online ? 'Actualizar ahora' : 'Sin señal') + '</button>';
     const b = document.getElementById('__dlbtn'); if (b) b.disabled = !online;
   }
-  return { syncAll, syncCatalog, syncCustomers, products, customers, loadProductsOffline, loadCustomersOffline, queueCurrentOrder, flush, updateBadge, pendingCount, status, downloadNow, renderStatus, ready: async () => !!(await _getMeta('products_at')) };
+  return { syncAll, syncCatalog, syncCustomers, syncImages, products, customers, loadProductsOffline, loadCustomersOffline, queueCurrentOrder, flush, updateBadge, pendingCount, status, downloadNow, renderStatus, ready: async () => !!(await _getMeta('products_at')) };
 })();
 window.addEventListener('online', function () { try { OFFLINE.flush(); OFFLINE.syncAll(true); } catch (e) {} });
 </script>
