@@ -7966,7 +7966,7 @@ function openLightbox(src) {
 /* ===== Ficha técnica del producto (modal + PDF) ===== */
 var FICHA_DATA = {};
 const FICHA_ACCENT = [0, 159, 227];   // azul JFK (BDB: [20,110,200])
-function _fichaRows(p) {
+function _fichaRows(p, forShare) {
   const rows = [
     ['Código', p.sap_item_code],
     ['Descripción', p.name],
@@ -7984,7 +7984,8 @@ function _fichaRows(p) {
     ['Volumen (CFT/unidad)', p.volume_cft_per_unit],
     ['Peso (kg/unidad)', p.weight_kg_per_unit]
   ];
-  if (currentVendor && currentVendor.role === 'admin') {
+  // Costos SOLO en pantalla y SOLO para admin. Nunca en PDF/WhatsApp (forShare) ni para vendedores.
+  if (!forShare && currentVendor && currentVendor.role === 'admin') {
     if (p.fob_cost != null) rows.push(['Costo FOB', '$' + parseFloat(p.fob_cost).toFixed(2)]);
     if (p.cif_cost != null) rows.push(['Costo CIF', '$' + parseFloat(p.cif_cost).toFixed(2)]);
   }
@@ -8017,7 +8018,10 @@ function renderFicha(p) {
     <div style="font-weight:800;font-size:1.05rem;text-align:center">${(p.sap_item_code||'').replace(/[<>&]/g,'')}</div>
     <div style="color:var(--text-muted);text-align:center;margin-bottom:12px;font-size:.9rem">${(p.name||'').replace(/[<>&]/g,'')}</div>
     ${specs}
-    <button onclick="generateFichaPDF('${(p.sap_item_code||'').replace(/'/g,'')}')" style="margin-top:16px;width:100%;background:var(--punch);color:#fff;border:none;border-radius:14px;padding:14px;font-weight:800;font-size:15px;cursor:pointer">📄 Descargar ficha en PDF</button>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button onclick="fichaWhatsApp('${(p.sap_item_code||'').replace(/'/g,'')}')" style="flex:1;background:#25D366;color:#fff;border:none;border-radius:14px;padding:14px;font-weight:800;font-size:14px;cursor:pointer">💬 WhatsApp</button>
+      <button onclick="generateFichaPDF('${(p.sap_item_code||'').replace(/'/g,'')}')" style="flex:1;background:var(--punch);color:#fff;border:none;border-radius:14px;padding:14px;font-weight:800;font-size:14px;cursor:pointer">📄 PDF</button>
+    </div>
   </div>`;
   ov.style.display = 'flex';
 }
@@ -8037,10 +8041,31 @@ async function generateFichaPDF(code) {
     doc.setFontSize(15); doc.setFont(undefined, 'bold'); doc.text(String(p.sap_item_code || ''), 15, 40);
     doc.setFontSize(11); doc.setFont(undefined, 'normal');
     doc.text(doc.splitTextToSize(String(p.name || ''), 120), 15, 47);
-    doc.autoTable({ startY: 60, head: [['Especificación', 'Detalle']], body: _fichaRows(p).map(r => [r[0], String(r[1])]), styles: { fontSize: 10, cellPadding: 2.5 }, headStyles: { fillColor: FICHA_ACCENT }, columnStyles: { 0: { cellWidth: 55, fontStyle: 'bold' } }, margin: { left: 15, right: 15 } });
+    doc.autoTable({ startY: 60, head: [['Especificación', 'Detalle']], body: _fichaRows(p, true).map(r => [r[0], String(r[1])]), styles: { fontSize: 10, cellPadding: 2.5 }, headStyles: { fillColor: FICHA_ACCENT }, columnStyles: { 0: { cellWidth: 55, fontStyle: 'bold' } }, margin: { left: 15, right: 15 } });
     doc.save('Ficha_' + (p.sap_item_code || 'producto') + '.pdf');
   } catch (e) { showToast('No se pudo generar el PDF: ' + e.message, true); }
   finally { showLoading && showLoading(false); }
+}
+function fichaWhatsApp(code) {
+  const p = FICHA_DATA[code]; if (!p) { showToast('Ficha no disponible', true); return; }
+  const L = [];
+  L.push('*' + (p.sap_item_code || '') + '*');
+  if (p.name) L.push(p.name);
+  if (p.desc_ingles) L.push('(' + p.desc_ingles + ')');
+  L.push('');
+  const add = (lbl, v) => { if (v != null && String(v).trim() !== '') L.push(lbl + ': ' + v); };
+  add('Línea', p.line_jfk);
+  add('Categoría', p.categoria_corregida);
+  add('Medidas', p.medidas);
+  add('Composición', p.composicion);
+  add('Origen', p.origen);
+  add('Código de barras', p.barcode);
+  add('Unidades por bulto', p.items_per_box);
+  if (p.price_kennedy != null && !isNaN(parseFloat(p.price_kennedy))) add('Precio', '$' + parseFloat(p.price_kennedy).toFixed(2));
+  // NUNCA se incluyen costos (FOB/CIF) — es para el cliente.
+  L.push('');
+  L.push(PRODUCT_IMG_BASE + '/' + encodeURIComponent(p.sap_item_code) + '.jpg');
+  window.open('https://wa.me/?text=' + encodeURIComponent(L.join('\n')), '_blank');
 }
 
 function closeLightbox() {
