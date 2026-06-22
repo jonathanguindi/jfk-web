@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>JFK · Portal Vendedores</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <script>
   if ('serviceWorker' in navigator) {
@@ -3610,13 +3610,16 @@ async function attemptLogin(email, pin) {
   errorBox.classList.remove('show');
   successBox.classList.remove('show');
   if (!email || !pin || pin.length !== 6) return;
+  const __em = email.toLowerCase().trim();
+  // Sin señal: validar contra credenciales guardadas del primer login en este teléfono.
+  if (!navigator.onLine) { __offlineLogin(__em, pin); return; }
 
   showLoading(true);
   try {
     const { data: seller, error } = await supa
       .from('sellers')
       .select('id, name, email, pin_hash, role, active, failed_attempts, locked_until')
-      .eq('email', email.toLowerCase().trim())
+      .eq('email', __em)
       .eq('active', true)
       .maybeSingle();
     showLoading(false);
@@ -3646,6 +3649,7 @@ async function attemptLogin(email, pin) {
       failed_attempts: 0, locked_until: null, last_login: new Date().toISOString()
     }).eq('id', seller.id);
 
+    __cacheSeller(seller);   // guardar credenciales para poder entrar offline luego
     currentVendor = { id: seller.id, name: seller.name, email: seller.email, role: seller.role };
     localStorage.setItem(SESSION_KEY, JSON.stringify(currentVendor));
     successBox.textContent = `Bienvenido, ${seller.name}`;
@@ -3653,9 +3657,33 @@ async function attemptLogin(email, pin) {
     setTimeout(showHome, 500);
   } catch(e) {
     showLoading(false);
+    if (__offlineLogin(__em, pin)) return;   // si la red falló, intenta offline
     showLoginError('Error de conexión.');
     console.error(e);
   }
+}
+
+// Guarda (localmente) las credenciales del vendedor para login sin señal.
+function __cacheSeller(s) {
+  try {
+    const c = JSON.parse(localStorage.getItem('jfk_sellers_cache') || '{}');
+    c[(s.email || '').toLowerCase()] = { id: s.id, name: s.name, email: s.email, role: s.role, pin_hash: s.pin_hash };
+    localStorage.setItem('jfk_sellers_cache', JSON.stringify(c));
+  } catch (e) {}
+}
+// Login sin señal contra las credenciales guardadas. Devuelve true si entró.
+function __offlineLogin(email, pin) {
+  try {
+    const c = JSON.parse(localStorage.getItem('jfk_sellers_cache') || '{}');
+    const s = c[email];
+    if (!s) { showLoginError('La primera vez necesitas internet para entrar.'); shakePin(); return false; }
+    if (!dcodeIO.bcrypt.compareSync(pin, s.pin_hash)) { showLoginError('PIN incorrecto.'); shakePin(); return false; }
+    currentVendor = { id: s.id, name: s.name, email: s.email, role: s.role };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(currentVendor));
+    const sb = document.getElementById('login-success'); if (sb) { sb.textContent = 'Bienvenido, ' + s.name + ' (sin conexión)'; sb.classList.add('show'); }
+    setTimeout(showHome, 400);
+    return true;
+  } catch (e) { return false; }
 }
 
 function showLoginError(msg) {
