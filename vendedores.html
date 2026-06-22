@@ -33,7 +33,7 @@
     if (!b) {
       b = document.createElement('button'); b.id = '__installbtn'; b.textContent = '📲 Instalar app';
       var col = '#009FE3';
-      b.style.cssText = 'position:fixed;top:10px;right:10px;z-index:100000;background:'+col+';color:#fff;border:none;border-radius:999px;padding:10px 16px;font:700 13px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.3);cursor:pointer';
+      b.style.cssText = 'position:fixed;bottom:18px;left:14px;z-index:100000;background:'+col+';color:#fff;border:none;border-radius:999px;padding:10px 16px;font:700 13px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.3);cursor:pointer';
       b.onclick = async function(){
         if (__deferredPrompt) { __deferredPrompt.prompt(); try { await __deferredPrompt.userChoice; } catch(e){} __deferredPrompt = null; b.remove(); }
         else { alert('Para instalar la app:\n\niPhone/iPad (Safari): toca Compartir ↑ y luego "Agregar a inicio".\nAndroid/Chrome de escritorio: menú ⋮ y "Instalar app".'); }
@@ -2335,6 +2335,11 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
     <div class="login-logo">JFK<sup>®</sup></div>
     <div class="login-eyebrow">PORTAL VENDEDORES</div>
     <input type="email" id="login-email" class="login-email-input" placeholder="tu@email.com" autocomplete="username">
+    <button id="bio-login-btn" type="button" onclick="bioLogin()" style="display:none;margin:14px 0 4px;width:100%;background:var(--punch);border:none;color:#fff;border-radius:14px;padding:14px;font-weight:800;font-size:15px;cursor:pointer;align-items:center;justify-content:center;gap:8px">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M9 10h.01M15 10h.01M9.5 15a3.5 3.5 0 0 0 5 0"/></svg>
+      Entrar con Face ID
+    </button>
+    <div id="bio-divider" style="display:none;text-align:center;color:var(--text-subtle);font-size:12px;margin:8px 0 2px;letter-spacing:.04em">— o entra con tu PIN —</div>
     <div class="login-instruction">Ingresa tu PIN de 6 dígitos</div>
     <div class="login-error" id="login-error"></div>
     <div class="login-success" id="login-success"></div>
@@ -2356,10 +2361,6 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
       <button class="key" data-key="0" type="button">0</button>
       <button class="key key-action" data-action="back" type="button">←</button>
     </div>
-    <button id="bio-login-btn" type="button" onclick="bioLogin()" style="display:none;margin-top:18px;width:100%;background:transparent;border:1.5px solid var(--punch);color:var(--text);border-radius:14px;padding:13px;font-weight:800;font-size:14px;cursor:pointer;display:none;align-items:center;justify-content:center;gap:8px">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M9 10h.01M15 10h.01M9.5 15a3.5 3.5 0 0 0 5 0"/></svg>
-      Entrar con Face ID
-    </button>
   </div>
 </div>
 
@@ -3738,7 +3739,10 @@ async function bioLogin() {
 }
 async function bioInitLoginButton() {
   const btn = document.getElementById('bio-login-btn'); if (!btn) return;
-  if (Object.keys(_bioMap()).length && await bioAvailable()) btn.style.display = 'flex';
+  if (Object.keys(_bioMap()).length && await bioAvailable()) {
+    btn.style.display = 'flex';
+    const dv = document.getElementById('bio-divider'); if (dv) dv.style.display = 'block';
+  }
 }
 async function bioMaybeOfferEnroll() {
   if (!currentVendor || !currentVendor.email) return;
