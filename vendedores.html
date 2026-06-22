@@ -2356,6 +2356,10 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
       <button class="key" data-key="0" type="button">0</button>
       <button class="key key-action" data-action="back" type="button">←</button>
     </div>
+    <button id="bio-login-btn" type="button" onclick="bioLogin()" style="display:none;margin-top:18px;width:100%;background:transparent;border:1.5px solid var(--punch);color:var(--text);border-radius:14px;padding:13px;font-weight:800;font-size:14px;cursor:pointer;display:none;align-items:center;justify-content:center;gap:8px">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M9 10h.01M15 10h.01M9.5 15a3.5 3.5 0 0 0 5 0"/></svg>
+      Entrar con Face ID
+    </button>
   </div>
 </div>
 
@@ -3587,6 +3591,7 @@ window.addEventListener('DOMContentLoaded', () => {
     try { currentVendor = JSON.parse(saved); showHome(); }
     catch(e) { localStorage.removeItem(SESSION_KEY); }
   }
+  bioInitLoginButton();   // muestra "Entrar con Face ID" si está activado en este teléfono
 
   // Scroll infinito: cargar más productos al acercarse al fondo
   window.addEventListener('scroll', () => {
@@ -3686,6 +3691,68 @@ function __offlineLogin(email, pin) {
   } catch (e) { return false; }
 }
 
+/* ===== Face ID / huella (WebAuthn) — desbloquea la sesión guardada en este teléfono ===== */
+function _b64uToBuf(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; const bin = atob(s); const b = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i); return b.buffer; }
+function _bufToB64u(buf) { const b = new Uint8Array(buf); let s = ''; for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function _rand(n) { const a = new Uint8Array(n); crypto.getRandomValues(a); return a.buffer; }
+async function bioAvailable() { try { return !!window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(); } catch (e) { return false; } }
+function _bioMap() { try { return JSON.parse(localStorage.getItem('jfk_biometric') || '{}'); } catch (e) { return {}; } }
+async function bioEnroll() {
+  if (!currentVendor || !currentVendor.email) { showToast('Entra con tu PIN primero', true); return false; }
+  if (!(await bioAvailable())) { showToast('Este teléfono no tiene Face ID / huella', true); return false; }
+  try {
+    const email = currentVendor.email.toLowerCase();
+    const cred = await navigator.credentials.create({ publicKey: {
+      challenge: _rand(32),
+      rp: { name: 'Portal Vendedores', id: location.hostname },
+      user: { id: new TextEncoder().encode(email), name: email, displayName: currentVendor.name || email },
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' },
+      timeout: 60000, attestation: 'none'
+    }});
+    const map = _bioMap(); map[email] = { id: _bufToB64u(cred.rawId), name: currentVendor.name || email };
+    localStorage.setItem('jfk_biometric', JSON.stringify(map));
+    showToast('✅ Face ID activado — ya puedes entrar con tu cara');
+    return true;
+  } catch (e) { if (e && e.name !== 'NotAllowedError') showToast('No se pudo activar Face ID', true); return false; }
+}
+async function bioLogin() {
+  const map = _bioMap(); const emails = Object.keys(map);
+  if (!emails.length) { showToast('Primero entra con tu PIN y activa Face ID', true); return; }
+  try {
+    const assertion = await navigator.credentials.get({ publicKey: {
+      challenge: _rand(32),
+      allowCredentials: emails.map(e => ({ type: 'public-key', id: _b64uToBuf(map[e].id), transports: ['internal'] })),
+      userVerification: 'required', timeout: 60000, rpId: location.hostname
+    }});
+    const gotId = _bufToB64u(assertion.rawId);
+    const email = emails.find(e => map[e].id === gotId) || emails[0];
+    const cache = (function () { try { return JSON.parse(localStorage.getItem('jfk_sellers_cache') || '{}'); } catch (e) { return {}; } })();
+    const s = cache[email];
+    if (!s) { showToast('Entra con tu PIN una vez para guardar tu sesión', true); return; }
+    currentVendor = { id: s.id, name: s.name, email: s.email, role: s.role };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(currentVendor));
+    const sb = document.getElementById('login-success'); if (sb) { sb.textContent = 'Bienvenido, ' + s.name; sb.classList.add('show'); }
+    setTimeout(showHome, 300);
+  } catch (e) { if (e && e.name === 'NotAllowedError') return; showToast('No se pudo entrar con Face ID', true); }
+}
+async function bioInitLoginButton() {
+  const btn = document.getElementById('bio-login-btn'); if (!btn) return;
+  if (Object.keys(_bioMap()).length && await bioAvailable()) btn.style.display = 'flex';
+}
+async function bioMaybeOfferEnroll() {
+  if (!currentVendor || !currentVendor.email) return;
+  if (_bioMap()[currentVendor.email.toLowerCase()]) return;
+  if (!(await bioAvailable())) return;
+  let b = document.getElementById('__biobtn');
+  if (!b) {
+    b = document.createElement('button'); b.id = '__biobtn'; b.textContent = '🔒 Activar Face ID para entrar';
+    b.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:62px;z-index:99997;background:#009FE3;color:#fff;border:none;border-radius:999px;padding:11px 18px;font:700 13px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.3);cursor:pointer';
+    b.onclick = async function () { const ok = await bioEnroll(); if (ok) b.remove(); };
+    document.body.appendChild(b);
+  }
+}
+
 function showLoginError(msg) {
   const e = document.getElementById('login-error');
   e.textContent = msg; e.classList.add('show'); clearPinBuffer();
@@ -3704,6 +3771,7 @@ function showHome() {
     OFFLINE.updateBadge(); OFFLINE.renderStatus();
     if (navigator.onLine) { OFFLINE.flush(); OFFLINE.syncAll(true).then(function(){ OFFLINE.renderStatus(); }); }
   }
+  if (typeof bioMaybeOfferEnroll === 'function') bioMaybeOfferEnroll();
   const initials = currentVendor.name.split(' ').map(p => p[0]).slice(0,2).join('').toUpperCase();
   const firstName = currentVendor.name.split(' ')[0];
   document.getElementById('vendor-avatar').textContent = initials;
