@@ -9,9 +9,16 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <script>
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function () {
-      navigator.serviceWorker.register('/sw.js').catch(function (e) { console.warn('SW no registrado', e); });
+    // Auto-actualización: si llega una versión nueva, recarga sola (no hay que reinstalar).
+    var _hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (window.__swReloaded || !_hadController) return; window.__swReloaded = true; location.reload();
     });
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('/sw.js').then(function (reg) { try { reg.update(); } catch (e) {} }).catch(function (e) { console.warn('SW no registrado', e); });
+    });
+    // Revisa si hay versión nueva cada vez que la app vuelve al frente.
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) navigator.serviceWorker.getRegistration().then(function (r) { if (r) try { r.update(); } catch (e) {} }); });
     // Banner de estado de conexión
     window.addEventListener('DOMContentLoaded', function(){
       var b = document.createElement('div'); b.id='__offbar';
