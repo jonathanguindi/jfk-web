@@ -648,6 +648,15 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
   border-radius: 6px;
 }
 .product-card__info-btn:active { background: var(--punch-light); }
+.product-card__menu-dots {
+  position: absolute; top: 6px; right: 6px; z-index: 4;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(255,255,255,.92); color: #222;
+  font-size: 1.3rem; font-weight: 700; line-height: 1; letter-spacing: 1px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; box-shadow: 0 1px 5px rgba(0,0,0,.18);
+}
+.product-card__menu-dots:active { background: var(--punch); color: #fff; }
 
 /* Modal detalle */
 .modal--lg { max-width: 500px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; position: relative; }
@@ -2885,6 +2894,7 @@ function renderCard(p) {
         <svg class="product-card__icon-fallback" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         <div class="product-card__icon-fallback-label">Sin foto</div>
         ${noStock ? '<div class="product-card__nostock-badge">Sin stock</div>' : ''}
+        <div class="product-card__menu-dots" onclick="event.stopPropagation(); verDetalle('${escapeHtml(p.item_code)}')" title="Ficha técnica">⋯</div>
       </div>
       <div class="product-card__code">${escapeHtml(p.item_code)}</div>
       <div class="product-card__name">${escapeHtml(desc)}</div>
