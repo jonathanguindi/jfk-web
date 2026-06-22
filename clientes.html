@@ -1362,6 +1362,11 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
       <div id="login-view">
         <div class="login-title">Iniciar sesión</div>
         <div class="login-desc">Ingresa con tu correo y PIN</div>
+        <button id="bio-login-cli" type="button" onclick="bioLogin()" style="display:none;width:100%;background:var(--punch);border:none;color:#fff;border-radius:14px;padding:14px;font-weight:800;font-size:15px;cursor:pointer;align-items:center;justify-content:center;gap:8px;margin-bottom:6px">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M9 10h.01M15 10h.01M9.5 15a3.5 3.5 0 0 0 5 0"/></svg>
+          Entrar con Face ID
+        </button>
+        <div id="bio-divider-cli" style="display:none;text-align:center;color:rgba(255,255,255,.5);font-size:12px;margin:6px 0 10px;letter-spacing:.04em">— o entra con tu PIN —</div>
         <div class="login-field">
           <label>Correo electrónico</label>
           <input type="email" id="login-email" placeholder="tu@empresa.com" autocomplete="email">
@@ -1828,7 +1833,11 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
     </div>
     <div class="gallery-thumbs" id="gallery-thumbs" style="display:none;"></div>
     <div class="modal__title" id="detalle-title" style="margin-top:1rem;">—</div>
-    <div class="modal__details" id="detalle-body" style="max-height:50vh;overflow-y:auto;"></div>
+    <div class="modal__details" id="detalle-body" style="max-height:44vh;overflow-y:auto;"></div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button onclick="fichaShare(window.__detalleCode)" style="flex:1;background:#25D366;color:#fff;border:none;border-radius:12px;padding:13px;font-weight:800;font-size:14px;cursor:pointer">💬 Enviar PDF</button>
+      <button onclick="generateFichaPDF(window.__detalleCode)" style="flex:1;background:var(--punch);color:#fff;border:none;border-radius:12px;padding:13px;font-weight:800;font-size:14px;cursor:pointer">📄 PDF</button>
+    </div>
   </div>
 </div>
 
@@ -2299,6 +2308,7 @@ async function restaurarSesion() {
 // ============ INICIAR APP ============
 async function iniciarApp() {
   // Mostrar Home inmediatamente con los datos del usuario
+  if (typeof bioMaybeOfferEnroll === 'function') bioMaybeOfferEnroll();   // ofrecer activar Face ID
   const avatar = (currentUser.name || currentUser.email).charAt(0).toUpperCase();
   document.getElementById('user-avatar').textContent = avatar;
   document.getElementById('user-avatar-2').textContent = avatar;
@@ -2915,6 +2925,7 @@ async function verDetalle(code) {
     ['Total histórico', p.qty_total + ' unidades']
   ].filter(([_, v]) => v !== null && v !== undefined && v !== '' && v !== 0);
 
+  window.__detalleCode = code; _prepFichaShare(p);   // prepara el PDF para compartir al instante
   document.getElementById('detalle-title').textContent = desc;
   document.getElementById('detalle-body').innerHTML = rows.map(([k, v]) =>
     `<div class="detalle-row"><span class="detalle-row__k">${escapeHtml(k)}</span><span class="detalle-row__v">${escapeHtml(String(v))}</span></div>`
@@ -3646,6 +3657,171 @@ aplicarVista(currentView);
 
 // Iniciar
 restaurarSesion();
+
+/* ===== Face ID / huella (WebAuthn) — portal de clientes ===== */
+function _b64uToBuf(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; const bin = atob(s); const b = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i); return b.buffer; }
+function _bufToB64u(buf) { const b = new Uint8Array(buf); let s = ''; for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function _rand(n) { const a = new Uint8Array(n); crypto.getRandomValues(a); return a.buffer; }
+async function bioAvailable() { try { return !!window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(); } catch (e) { return false; } }
+function _bioMap() { try { return JSON.parse(localStorage.getItem('jfk_bio_cliente') || '{}'); } catch (e) { return {}; } }
+async function bioEnroll() {
+  if (!currentUser || !currentUser.email) { _toast('Entra con tu PIN primero', true); return false; }
+  if (!(await bioAvailable())) { _toast('Este teléfono no tiene Face ID / huella', true); return false; }
+  try {
+    const email = currentUser.email.toLowerCase();
+    const cred = await navigator.credentials.create({ publicKey: {
+      challenge: _rand(32), rp: { name: 'Portal Clientes', id: location.hostname },
+      user: { id: new TextEncoder().encode(email), name: email, displayName: currentUser.name || email },
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' },
+      timeout: 60000, attestation: 'none'
+    }});
+    const map = _bioMap(); map[email] = { cred: _bufToB64u(cred.rawId), uid: currentUser.id, email: currentUser.email };
+    localStorage.setItem('jfk_bio_cliente', JSON.stringify(map));
+    _toast('✅ Face ID activado — ya puedes entrar con tu cara');
+    return true;
+  } catch (e) { if (e && e.name !== 'NotAllowedError') _toast('No se pudo activar Face ID', true); return false; }
+}
+async function bioLogin() {
+  const map = _bioMap(); const emails = Object.keys(map);
+  if (!emails.length) { _toast('Primero entra con tu PIN y activa Face ID', true); return; }
+  try {
+    const assertion = await navigator.credentials.get({ publicKey: {
+      challenge: _rand(32), allowCredentials: emails.map(e => ({ type: 'public-key', id: _b64uToBuf(map[e].cred), transports: ['internal'] })),
+      userVerification: 'required', timeout: 60000, rpId: location.hostname
+    }});
+    const gotId = _bufToB64u(assertion.rawId);
+    const email = emails.find(e => map[e].cred === gotId) || emails[0];
+    const u = map[email];
+    localStorage.setItem('jfk_customer', JSON.stringify({ id: u.uid, email: u.email }));
+    await restaurarSesion();
+  } catch (e) { if (e && e.name === 'NotAllowedError') return; _toast('No se pudo entrar con Face ID', true); }
+}
+async function bioInitLoginButton() {
+  const btn = document.getElementById('bio-login-cli'); if (!btn) return;
+  if (Object.keys(_bioMap()).length && await bioAvailable()) {
+    btn.style.display = 'flex';
+    const dv = document.getElementById('bio-divider-cli'); if (dv) dv.style.display = 'block';
+  }
+}
+async function bioMaybeOfferEnroll() {
+  if (!currentUser || !currentUser.email) return;
+  if (_bioMap()[currentUser.email.toLowerCase()]) return;
+  if (!(await bioAvailable())) return;
+  let b = document.getElementById('__biobtn-cli');
+  if (!b) {
+    b = document.createElement('button'); b.id = '__biobtn-cli'; b.textContent = '🔒 Activar Face ID para entrar';
+    b.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:99997;background:#009FE3;color:#fff;border:none;border-radius:999px;padding:11px 18px;font:700 13px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.3);cursor:pointer';
+    b.onclick = async function () { const ok = await bioEnroll(); if (ok) b.remove(); };
+    document.body.appendChild(b);
+  }
+}
+bioInitLoginButton();
+
+/* ===== Ficha técnica PRO (PDF + compartir por WhatsApp) — portal de clientes ===== */
+const FICHA_BRAND = {
+  name: 'JFK', reg: true, accent: [0, 159, 227], accentHex: '#009FE3',
+  legal: 'JFK INTERNATIONAL, S.A.',
+  lines: ['RUC 304748-1-410636 – DV 71', 'Apartado 0302-00888 · Zona Libre de Colón, Panamá', 'Tel: 441-5267  ·  sales@jfkintl.com  ·  www.jfkintl.com'],
+  footer: 'JFK International, S.A.  ·  Zona Libre de Colón, Panamá'
+};
+function _toast(m, e) { try { if (typeof showToast === 'function') return showToast(m, e); } catch (x) {} }
+function _fichaRows(p) {
+  const desc = p.name_supabase || p.item_description || p.name || '';
+  const rows = [
+    ['Código', p.item_code],
+    ['Descripción', desc],
+    ['Description (EN)', p.desc_ingles],
+    ['Línea', p.line_jfk],
+    ['Subcategoría', p.subcategoria],
+    ['Código de barras', p.barcode],
+    ['Origen', p.origen],
+    ['Composición', p.composicion],
+    ['Medidas', p.medidas],
+    ['Unidades por caja', p.items_per_box],
+    ['Volumen (CFT/u)', p.volume_cft_per_unit],
+    ['Peso (kg/u)', p.weight_kg_per_unit],
+    ['Stock disponible', p.stock]
+  ];
+  return rows.filter(r => r[1] !== null && r[1] !== undefined && String(r[1]).trim() !== '');
+}
+async function _imgDataUrl(code) {
+  try {
+    const r = await fetch(PRODUCT_IMG_BASE + '/' + encodeURIComponent(code) + '.jpg', { mode: 'cors', cache: 'force-cache' });
+    if (!r || !r.ok) return null;
+    const blob = await r.blob();
+    return await new Promise((res) => {
+      const img = new Image(); const u = URL.createObjectURL(blob);
+      img.onload = () => { try { const c = document.createElement('canvas'); const m = Math.min(1, 600 / Math.max(img.width, img.height)); c.width = Math.max(1, img.width * m); c.height = Math.max(1, img.height * m); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(u); res(c.toDataURL('image/jpeg', 0.72)); } catch (e) { res(null); } };
+      img.onerror = () => { URL.revokeObjectURL(u); res(null); };
+      img.src = u;
+    });
+  } catch (e) { return null; }
+}
+async function _buildFichaDoc(p) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'letter' });
+  const A = FICHA_BRAND.accent; const W = 215.9;
+  doc.setFillColor(A[0], A[1], A[2]); doc.rect(0, 0, W, 4, 'F');
+  doc.setTextColor(20, 22, 30); doc.setFont('helvetica', 'bold'); doc.setFontSize(26);
+  doc.text(FICHA_BRAND.name, 15, 21);
+  if (FICHA_BRAND.reg) { const w = doc.getTextWidth(FICHA_BRAND.name); doc.setFontSize(10); doc.setTextColor(A[0], A[1], A[2]); doc.text('®', 16 + w, 14); }
+  doc.setTextColor(110, 115, 125); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.8);
+  let yy = 28; doc.setFont('helvetica', 'bold'); doc.text(FICHA_BRAND.legal, 15, yy); doc.setFont('helvetica', 'normal');
+  FICHA_BRAND.lines.forEach(l => { yy += 4; doc.text(l, 15, yy); });
+  doc.setTextColor(A[0], A[1], A[2]); doc.setFont('helvetica', 'bold'); doc.setFontSize(15);
+  doc.text('FICHA TÉCNICA', 200, 19, { align: 'right' });
+  doc.setTextColor(110, 115, 125); doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+  doc.text(new Date().toLocaleDateString('es-PA'), 200, 25, { align: 'right' });
+  doc.setDrawColor(225, 228, 232); doc.setLineWidth(0.3); doc.line(15, 47, 200, 47);
+  const img = await _imgDataUrl(p.item_code);
+  if (img) { try { doc.setDrawColor(225, 228, 232); doc.setFillColor(255, 255, 255); doc.roundedRect(150, 53, 50, 50, 2, 2, 'FD'); doc.addImage(img, 'JPEG', 152, 55, 46, 46); } catch (e) {} }
+  const desc = p.name_supabase || p.item_description || p.name || '';
+  doc.setTextColor(20, 22, 30); doc.setFont('helvetica', 'bold'); doc.setFontSize(18);
+  doc.text(String(p.item_code || ''), 15, 62);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(70, 74, 82);
+  doc.text(doc.splitTextToSize(String(desc), 125), 15, 70);
+  doc.autoTable({
+    startY: 108, head: [['Especificación', 'Detalle']], body: _fichaRows(p).map(r => [r[0], String(r[1])]),
+    theme: 'grid', styles: { fontSize: 9.5, cellPadding: 2.6, lineColor: [232, 234, 238], textColor: [40, 44, 52] },
+    headStyles: { fillColor: A, textColor: 255, fontStyle: 'bold', fontSize: 10 },
+    alternateRowStyles: { fillColor: [247, 249, 251] },
+    columnStyles: { 0: { cellWidth: 58, fontStyle: 'bold', textColor: [70, 74, 82] } }, margin: { left: 15, right: 15 }
+  });
+  const ph = doc.internal.pageSize.getHeight();
+  doc.setDrawColor(225, 228, 232); doc.line(15, ph - 14, 200, ph - 14);
+  doc.setFontSize(7.5); doc.setTextColor(140, 145, 155); doc.setFont('helvetica', 'normal');
+  doc.text(FICHA_BRAND.footer || FICHA_BRAND.legal, 15, ph - 9);
+  doc.text('Documento generado el ' + new Date().toLocaleDateString('es-PA'), 200, ph - 9, { align: 'right' });
+  return doc;
+}
+let __fichaFile = null;
+async function _prepFichaShare(p) {
+  __fichaFile = null;
+  try { const doc = await _buildFichaDoc(p); __fichaFile = { code: p.item_code, file: new File([doc.output('blob')], 'Ficha_' + (p.item_code || 'producto') + '.pdf', { type: 'application/pdf' }) }; } catch (e) {}
+}
+async function generateFichaPDF(code) {
+  const p = allProducts.find(x => x.item_code === code); if (!p) { _toast('Ficha no disponible', true); return; }
+  try { const doc = await _buildFichaDoc(p); doc.save('Ficha_' + (p.item_code || 'producto') + '.pdf'); } catch (e) { _toast('No se pudo generar el PDF', true); }
+}
+function fichaShare(code) {
+  const p = allProducts.find(x => x.item_code === code); if (!p) return;
+  const f = (__fichaFile && __fichaFile.code === code) ? __fichaFile.file : null;
+  if (f && navigator.canShare && navigator.canShare({ files: [f] })) {
+    navigator.share({ files: [f], title: 'Ficha técnica ' + (p.item_code || ''), text: (p.item_code || '') + ' — ' + (p.name_supabase || p.item_description || '') }).catch(function () {});
+    return;
+  }
+  fichaShareFallback(code);
+}
+async function fichaShareFallback(code) {
+  const p = allProducts.find(x => x.item_code === code); if (!p) return;
+  try {
+    let f = (__fichaFile && __fichaFile.code === code) ? __fichaFile.file : null;
+    if (!f) { const doc = await _buildFichaDoc(p); f = new File([doc.output('blob')], 'Ficha_' + (p.item_code || 'producto') + '.pdf', { type: 'application/pdf' }); }
+    if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title: 'Ficha técnica ' + (p.item_code || '') }).catch(function () {}); }
+    else { try { window.open(URL.createObjectURL(f), '_blank'); } catch (e) {} _toast('Abre el PDF y toca Compartir ↑ → WhatsApp'); }
+  } catch (e) { _toast('No se pudo preparar el PDF', true); }
+}
 </script>
 <script>
 const JFK_INK = 'FF0E1016';
