@@ -1749,6 +1749,13 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
   .cart-table td.total-cell { padding-right: 0.4rem; }
   .cart-table input.cell-input { width: 48px; }
   .cart-cell-meta { display: block; }
+  /* Pie del carrito: que NO se salga de la pantalla (se enredaba hacia la derecha). */
+  .cart-footer-row { flex-direction: column; gap: 0.6rem; }
+  .cart-footer-row .cart-totals, .cart-footer-row .cart-remark { width: 100%; box-sizing: border-box; }
+  .cart-bottom-bar { flex-wrap: wrap; justify-content: stretch; gap: 0.5rem; }
+  .cart-bottom-bar__total { flex: 1 1 100%; }
+  .cart-bottom-bar .btn-pdf, .cart-bottom-bar .btn-enviar { flex: 1 1 auto; min-width: 0; }
+  .btn-enviar { padding: 0.8rem 1rem; }
 }
 .cart-table td.stock-cell {
   font-weight: 600;
