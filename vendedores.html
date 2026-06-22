@@ -24,6 +24,30 @@
     window.addEventListener('offline', function(){ try{ window.__offlineBanner&&window.__offlineBanner(true);}catch(e){} });
     window.addEventListener('online',  function(){ try{ window.__offlineBanner&&window.__offlineBanner(false);}catch(e){} });
   }
+  // ===== Botón "Instalar app" (PWA) =====
+  var __deferredPrompt = null;
+  function __isStandalone(){ return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; }
+  function __showInstallBtn(){
+    if (__isStandalone() || !document.body) return;
+    var b = document.getElementById('__installbtn');
+    if (!b) {
+      b = document.createElement('button'); b.id = '__installbtn'; b.textContent = '📲 Instalar app';
+      var col = '#009FE3';
+      b.style.cssText = 'position:fixed;top:10px;right:10px;z-index:100000;background:'+col+';color:#fff;border:none;border-radius:999px;padding:10px 16px;font:700 13px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.3);cursor:pointer';
+      b.onclick = async function(){
+        if (__deferredPrompt) { __deferredPrompt.prompt(); try { await __deferredPrompt.userChoice; } catch(e){} __deferredPrompt = null; b.remove(); }
+        else { alert('Para instalar la app:\n\niPhone/iPad (Safari): toca Compartir ↑ y luego "Agregar a inicio".\nAndroid/Chrome de escritorio: menú ⋮ y "Instalar app".'); }
+      };
+      document.body.appendChild(b);
+    }
+  }
+  window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); __deferredPrompt = e; __showInstallBtn(); });
+  window.addEventListener('appinstalled', function(){ __deferredPrompt = null; var b = document.getElementById('__installbtn'); if (b) b.remove(); });
+  window.addEventListener('DOMContentLoaded', function(){
+    var iOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    // En iOS no existe beforeinstallprompt: mostramos el botón con instrucciones.
+    if (iOS && !__isStandalone()) __showInstallBtn();
+  });
   </script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
