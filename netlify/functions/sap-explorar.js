@@ -41,6 +41,10 @@ exports.handler = async (event) => {
       const a = await getOne(cookie, 'ChartOfAccounts?$top=3&$select=Code,Name,AccountType,ActiveAccount,Balance');
       out.cuentas = a.error ? { error: a.error } : { muestra: a.value, campos: a.value[0] ? Object.keys(a.value[0]) : [] };
     }
+    if (recurso === 'gastos') {
+      const a = await getOne(cookie, "ChartOfAccounts?$filter=AccountType eq 'at_Expenses'&$top=20&$select=Code,Name,Balance,ActiveAccount", 9000);
+      out.gastos = a.error ? { error: a.error } : { cuentas: a.value, con_saldo: a.value.filter(x => Number(x.Balance) !== 0).length };
+    }
     if (recurso === 'journal') {
       const j = await getOne(cookie, 'JournalEntries?$top=1');
       out.journal = j.error ? { error: j.error } : { campos: j.value[0] ? Object.keys(j.value[0]) : [], ejemplo: j.value[0] || null };
