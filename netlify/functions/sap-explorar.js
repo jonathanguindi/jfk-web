@@ -45,6 +45,10 @@ exports.handler = async (event) => {
       const a = await getOne(cookie, "ChartOfAccounts?$filter=AccountType eq 'at_Expenses'&$top=20&$select=Code,Name,Balance,ActiveAccount", 9000);
       out.gastos = a.error ? { error: a.error } : { cuentas: a.value, con_saldo: a.value.filter(x => Number(x.Balance) !== 0).length };
     }
+    if (recurso === 'cuentas_gasto') {
+      const a = await getOne(cookie, "ChartOfAccounts?$filter=startswith(Code,'610')&$top=60&$select=Code,Name,ActiveAccount", 9000);
+      out.cuentas_gasto = a.error ? { error: a.error } : (a.value || []).map(x => ({ code: x.Code, name: x.Name, activa: x.ActiveAccount }));
+    }
     if (recurso === 'asientos') {
       const a = await getOne(cookie, 'JournalEntries?$orderby=JdtNum desc&$top=3', 9000);
       if (a.error) out.asientos = { error: a.error };
