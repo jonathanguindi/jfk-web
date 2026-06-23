@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>JFK · Contabilidad</title>
+<title>Contabilidad JFK</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" href="/favicon.svg">
 <meta name="theme-color" content="#0B1F3A">
@@ -14,6 +14,8 @@
     if (pref === 'dark' || (pref === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches))
       document.documentElement.setAttribute('data-theme','dark'); })();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
 <style>
 :root{
   --ink-900:#0E1016; --ink-800:#1A1D22; --ink-700:#34363B; --ink-600:#54565B;
@@ -95,15 +97,11 @@ tbody tr:hover{background:var(--bg-sunken)}
 </head>
 <body>
 <div class="topbar"><div class="inner">
-  <div class="logo"><span class="logobox"><img src="jfk-logo.png" alt="JFK"><sup class="reg">&reg;</sup></span><small>Contabilidad</small></div>
+  <div class="logo"><span class="logobox"><img src="jfk-logo.png" alt="JFK"><sup class="reg">&reg;</sup></span><small>Contabilidad JFK</small></div>
   <span id="whoAmI"></span>
   <div class="spacer"></div>
   <button class="btn btn-ghost btn-sm" onclick="toggleTheme()">◐</button>
-  <nav class="topnav">
-    <button class="btn btn-ghost btn-sm" onclick="location.href='vendedores.html'">🏠 Inicio</button>
-    <button class="btn btn-ghost btn-sm" onclick="location.href='dashboard.html'">📊 Ventas</button>
-    <button class="btn btn-ghost btn-sm navcur">🧮 Contabilidad</button>
-  </nav>
+  <button class="btn btn-ghost btn-sm" id="btnSalir" style="display:none" onclick="salir()">Salir</button>
 </div></div>
 
 <div id="app" class="wrap" style="display:none">
@@ -120,10 +118,13 @@ tbody tr:hover{background:var(--bg-sunken)}
   <div id="content"><div class="loading">Cargando…</div></div>
 </div>
 
-<div id="gate" class="gate" style="display:none">
-  <h2 style="margin-top:0">Acceso restringido</h2>
-  <p class="muted">El panel de contabilidad es solo para el administrador.</p>
-  <a class="btn btn-sm" style="background:var(--cta);color:#fff" href="vendedores.html">Ir al portal →</a>
+<div id="login" class="gate" style="display:none">
+  <div style="font-size:1.4rem;font-weight:900;letter-spacing:-.01em">Contabilidad <span style="color:var(--cta)">JFK</span></div>
+  <p class="muted" style="margin-top:4px">Acceso solo para administración</p>
+  <input id="loginEmail" type="email" placeholder="Correo" autocomplete="username" style="width:100%;margin-top:16px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--bg-sunken);color:var(--text);font-size:.95rem">
+  <input id="loginPin" type="password" inputmode="numeric" placeholder="PIN" autocomplete="current-password" style="width:100%;margin-top:10px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--bg-sunken);color:var(--text);font-size:.95rem" onkeydown="if(event.key==='Enter')loginConta()">
+  <button class="btn" style="width:100%;margin-top:14px;background:var(--cta);color:#fff;justify-content:center;padding:12px" onclick="loginConta()">Entrar</button>
+  <div id="loginErr" style="color:var(--red);font-size:.82rem;margin-top:10px;min-height:18px"></div>
 </div>
 
 <script>
@@ -136,16 +137,38 @@ const pct=(n)=>(Number(n)||0).toLocaleString('en-US',{maximumFractionDigits:1})+
 const esc=(s)=>(''+(s==null?'':s)).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
 const margenPct=(t,c)=>{ t=Number(t)||0; c=Number(c)||0; return t>0?Math.round((t-c)/t*1000)/10:0; };
 
-const EMAIL=(sesion&&sesion.email||'').trim().toLowerCase();
-const ES_ADMIN=!!(sesion && sesion.role==='admin');
-if(!sesion || !sesion.email || !ES_ADMIN){
-  document.getElementById('gate').style.display='block';
-}else{
+const SUPA_URL='https://gpighopguwafnxouejfb.supabase.co';
+const SUPA_KEY='sb_publishable_FfCiha0_CJT0rJts1ifzqg_tmFzo0DC';
+let supa=null; try{ supa=window.supabase.createClient(SUPA_URL,SUPA_KEY); }catch(e){}
+let EMAIL='';
+function mostrarApp(email){
+  EMAIL=(email||'').trim().toLowerCase();
+  document.getElementById('login').style.display='none';
   document.getElementById('app').style.display='block';
+  document.getElementById('btnSalir').style.display='';
   document.getElementById('whoAmI').textContent=EMAIL;
   initPresets();
   cargar('ano');
 }
+function salir(){ localStorage.removeItem(SESSION_KEY); location.reload(); }
+async function loginConta(){
+  const err=document.getElementById('loginErr'); err.textContent='';
+  const email=(document.getElementById('loginEmail').value||'').trim().toLowerCase();
+  const pin=(document.getElementById('loginPin').value||'').trim();
+  if(!email||!pin){ err.textContent='Pon tu correo y PIN.'; return; }
+  if(!supa){ err.textContent='Sin conexión a la base.'; return; }
+  try{
+    const { data, error }=await supa.from('sellers').select('id,name,email,pin_hash,role,active').eq('email',email).maybeSingle();
+    if(error||!data){ err.textContent='Correo no encontrado.'; return; }
+    if(data.active===false){ err.textContent='Usuario inactivo.'; return; }
+    if(data.role!=='admin'){ err.textContent='Solo administración puede entrar.'; return; }
+    if(!dcodeIO.bcrypt.compareSync(pin, data.pin_hash||'')){ err.textContent='PIN incorrecto.'; return; }
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ id:data.id, name:data.name, email:data.email, role:data.role }));
+    mostrarApp(data.email);
+  }catch(e){ err.textContent='Error al entrar.'; }
+}
+if(sesion && sesion.email && sesion.role==='admin'){ mostrarApp(sesion.email); }
+else { document.getElementById('login').style.display='block'; }
 
 function initPresets(){
   document.querySelectorAll('#presets .preset').forEach(b=>{
