@@ -40,3 +40,8 @@
 # 11:30 UTC = 6:30 AM Panamá (antes de arrancar el día).
 [functions."agenda-diaria"]
   schedule = "30 11 * * *"
+
+# Sincronización diaria de gastos (facturas de servicio) SAP -> gastos_sap (dashboard de gastos).
+# 07:00 UTC = 2:00 AM Panamá.
+[functions."gastos-sync-background"]
+  schedule = "0 7 * * *"
