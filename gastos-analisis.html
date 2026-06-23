@@ -86,13 +86,13 @@ function render(d){
   const provs=(d.top_proveedores||[]).map((p,i)=>`<tr><td class="l">${i+1}. ${esc(p.nombre)}</td><td class="num">${fmt(p.actual)}</td></tr>`).join('');
   document.getElementById('content').innerHTML=`
     <div class="kpis">
-      <div class="kpi accent"><div class="lbl">Gastos ${d.anio_actual}</div><div class="val num">${fmt(d.total_actual)}</div><div class="sub" style="color:rgba(255,255,255,.85)">año en curso</div></div>
-      <div class="kpi"><div class="lbl">Año pasado (${d.anio_actual-1})</div><div class="val num">${fmt(d.total_anterior)}</div></div>
-      <div class="kpi"><div class="lbl">Cambio vs año pasado</div><div class="val num ${cambio>0?'up':'down'}">${cambio>0?'+':''}${cambio}%</div><div class="sub">${cambio>0?'estás gastando más':'vas gastando menos'}</div></div>
+      <div class="kpi accent"><div class="lbl">Gastos ${d.anio_actual}</div><div class="val num">${fmt(d.total_actual)}</div><div class="sub" style="color:rgba(255,255,255,.85)">ene–hoy (mismo período)</div></div>
+      <div class="kpi"><div class="lbl">Mismo período ${d.anio_actual-1}</div><div class="val num">${fmt(d.total_anterior)}</div><div class="sub">ene–misma fecha</div></div>
+      <div class="kpi"><div class="lbl">Cambio vs mismo período</div><div class="val num ${cambio>0?'up':'down'}">${cambio>0?'+':''}${cambio}%</div><div class="sub">${cambio>0?'estás gastando más':'vas gastando menos'}</div></div>
       <div class="kpi"><div class="lbl">Categorías de gasto</div><div class="val num">${d.top_categorias.length}</div></div>
     </div>
     <div class="card"><h2>Gastos por año</h2><div class="h-sub">Total anual</div><div class="bars">${barsAnio}</div></div>
-    <div class="card"><h2>⚠️ En qué estás gastando MÁS que antes</h2><div class="h-sub">Categorías que más subieron vs ${d.anio_actual-1} — candidatas a revisar/bajar</div>${subieron}</div>
+    <div class="card"><h2>⚠️ En qué estás gastando MÁS que antes</h2><div class="h-sub">Categorías que más subieron vs el mismo período de ${d.anio_actual-1} — candidatas a revisar/bajar</div>${subieron}</div>
     <div class="card"><h2>✅ Lo que bajó</h2><div class="h-sub">Categorías que gastaste menos que el año pasado</div>${bajaron}</div>
     <div class="card"><h2>Top categorías ${d.anio_actual}</h2><div class="h-sub">Dónde se va la plata este año</div>${cats}</div>
     ${provs?`<div class="card"><h2>Top proveedores ${d.anio_actual}</h2><table><thead><tr><th class="l">Proveedor</th><th>Gasto</th></tr></thead><tbody>${provs}</tbody></table></div>`:''}`;

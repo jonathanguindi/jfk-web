@@ -33,21 +33,26 @@ exports.handler = async (event) => {
 
     const anioActual = new Date().getUTCFullYear();
     const anioPrev = anioActual - 1;
+    const mesActual = new Date().getUTCMonth() + 1;   // para comparar MISMO período (YTD)
     const porAnio = {}, porCuentaAnio = {}, tendencia = {}, porProvAnio = {};
     for (const l of rows) {
       const a = l.anio, monto = Number(l.monto) || 0, ym = (l.doc_date || '').slice(0, 7);
+      const ytd = (Number(l.mes) || 0) <= mesActual;   // dentro del mismo período del año
       porAnio[a] = (porAnio[a] || 0) + monto;
       const code = l.account_code;
-      const ca = porCuentaAnio[code] || (porCuentaAnio[code] = { nombre: l.account_name || code, anios: {} });
+      const ca = porCuentaAnio[code] || (porCuentaAnio[code] = { nombre: l.account_name || code, anios: {}, ytdAct: 0, ytdPrev: 0 });
       ca.anios[a] = (ca.anios[a] || 0) + monto;
+      if (a === anioActual && ytd) ca.ytdAct += monto;
+      if (a === anioPrev && ytd) ca.ytdPrev += monto;
       if (ym) tendencia[ym] = (tendencia[ym] || 0) + monto;
       const prov = l.proveedor || '—';
-      const pa = porProvAnio[prov] || (porProvAnio[prov] = {});
-      pa[a] = (pa[a] || 0) + monto;
+      const pa = porProvAnio[prov] || (porProvAnio[prov] = { act: 0 });
+      if (a === anioActual) pa.act += monto;
     }
 
+    // Comparativo a MISMO período (enero–mes actual de ambos años) = justo.
     const categorias = Object.entries(porCuentaAnio).map(([code, o]) => {
-      const act = o.anios[anioActual] || 0, prev = o.anios[anioPrev] || 0, delta = act - prev;
+      const act = o.ytdAct, prev = o.ytdPrev, delta = act - prev;
       return {
         code, nombre: o.nombre, actual: r2(act), anterior: r2(prev), delta: r2(delta),
         pct: prev > 0 ? Math.round(delta / prev * 100) : (act > 0 ? 100 : 0),
@@ -55,7 +60,7 @@ exports.handler = async (event) => {
         por_anio: Object.fromEntries(Object.entries(o.anios).map(([y, v]) => [y, r2(v)]))
       };
     });
-    const proveedores = Object.entries(porProvAnio).map(([nombre, a]) => ({ nombre, actual: r2(a[anioActual] || 0), anterior: r2(a[anioPrev] || 0) }))
+    const proveedores = Object.entries(porProvAnio).map(([nombre, a]) => ({ nombre, actual: r2(a.act || 0) }))
       .filter(p => p.actual > 0).sort((a, b) => b.actual - a.actual).slice(0, 10);
 
     return reply(200, {
