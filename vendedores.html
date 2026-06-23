@@ -8063,6 +8063,27 @@ async function abrirDashboardCliente() {
   } catch (e) { showToast('Sin conexión: el dashboard necesita internet', true); cerrarDashboardCliente(); }
 }
 function cerrarDashboardCliente() { const ov = document.getElementById('dash-cliente-modal'); if (ov) ov.style.display = 'none'; }
+// Recompra en 1 toque desde el dashboard: busca el producto completo y lo suma al pedido.
+async function recomprarDelDashboard(code, qty, btn) {
+  qty = parseInt(qty) || 0; if (qty < 1) qty = 1;
+  const original = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    let p = null;
+    if (navigator.onLine && typeof supa !== 'undefined') {
+      const { data } = await supa.from('products')
+        .select(`sap_item_code, name, stock, price_kennedy, line_jfk, items_per_box, volume_unit, volume_cft_per_unit, weight_kg_per_unit, volume_verified${costColsSuffix()}, barcode, desc_ingles, origen, composicion, medidas, subcategoria, categoria_corregida`)
+        .eq('sap_item_code', code).maybeSingle();
+      p = data;
+    }
+    if (!p && typeof OFFLINE !== 'undefined') { try { const all = await OFFLINE.products(); p = (all || []).find(x => x.sap_item_code === code); } catch (e) {} }
+    if (!p) { showToast('No se encontró el producto en el catálogo', true); if (btn) { btn.disabled = false; btn.textContent = original; } return; }
+    const prev = currentCart[code]?.qty || 0;
+    updateQty(p, prev + qty);
+    showToast(`✓ Agregado: ${qty} × ${code}`);
+    if (btn) { btn.textContent = '✓ En pedido'; btn.style.background = '#1f9d55'; btn.style.color = '#fff'; }
+  } catch (e) { showToast('Error al agregar', true); if (btn) { btn.disabled = false; btn.textContent = original; } }
+}
 function _dashTab(name) {
   ['productos', 'facturas', 'devoluciones', 'recuperar'].forEach(t => {
     const sec = document.getElementById('dash-sec-' + t), tab = document.getElementById('dash-tab-' + t);
@@ -8145,8 +8166,8 @@ function renderDashboardCliente(d) {
   // Recuperar (dejó de comprar)
   const recRow = (p) => `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border-soft)">
     <img src="${THUMB_IMG_BASE}/${encodeURIComponent(p.item_code)}.jpg" loading="lazy" onerror="this.style.visibility='hidden'" style="width:44px;height:44px;object-fit:contain;background:#fff;border-radius:8px;border:1px solid var(--border-soft);flex:0 0 auto">
-    <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.item_description || p.item_code)}</div><div style="color:var(--text-muted);font-size:.72rem">${esc(p.item_code)} · compró ${p.veces_comprado}× · ${fmt(p.monto_total)}</div></div>
-    <div style="text-align:right;flex:0 0 auto"><div style="font-size:.72rem;color:#e08a00;font-weight:800">${p.dias_sin}d</div><div style="font-size:.66rem;color:var(--text-muted)">sin pedir</div></div>
+    <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.item_description || p.item_code)}</div><div style="color:var(--text-muted);font-size:.72rem">${esc(p.item_code)} · compró ${p.veces_comprado}× · ${fmt(p.monto_total)}</div><div style="font-size:.66rem;color:#e08a00;margin-top:1px">⏱ ${p.dias_sin}d sin pedir · última: ${p.qty_ultima} uds</div></div>
+    <button onclick="recomprarDelDashboard('${(p.item_code || '').replace(/'/g, '')}', ${p.qty_ultima || 1}, this)" style="flex:0 0 auto;background:${accent};color:#fff;border:none;border-radius:10px;padding:9px 11px;font-weight:800;font-size:.76rem;cursor:pointer;white-space:nowrap">+ ${p.qty_ultima || 1}</button>
   </div>`;
   const recHTML = A.dejo_de_comprar.length
     ? `<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:8px">Productos que compraba seguido y hace meses no pide — ¡buena oportunidad de recompra!</div>${A.dejo_de_comprar.map(recRow).join('')}`
