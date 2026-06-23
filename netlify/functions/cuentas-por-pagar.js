@@ -28,19 +28,30 @@ exports.handler = async (event) => {
     const rows = await sapGetAll(cookie, path);
 
     const hoy = new Date();
-    let total = 0, vencido = 0, porVencer = 0;
-    const aging = { d0_30: 0, d31_60: 0, d61_90: 0, d90: 0 };
+    // "Vigente/operativo" = factura emitida en los últimos N meses (configurable) y saldo >= $1.
+    // El resto (docs viejísimos, posible intercompañía/basura SAP) va al bloque "histórico".
+    const meses = Number(body.meses) > 0 ? Number(body.meses) : 18;
+    const corte = new Date(hoy.getFullYear(), hoy.getMonth() - meses, hoy.getDate());
+
+    let histTotal = 0, histFacturas = 0;                       // TODO lo abierto con saldo
+    const vig = { total: 0, vencido: 0, porVencer: 0, aging: { d0_30: 0, d31_60: 0, d61_90: 0, d90: 0 } };
     const provMap = {};
     const facturas = [];
 
     for (const f of rows) {
       const saldo = (Number(f.DocTotal) || 0) - (Number(f.PaidToDate) || 0);
       if (saldo <= 0.01) continue;
-      total += saldo;
+      histTotal += saldo; histFacturas += 1;
+
+      const fecha = f.DocDate ? new Date(f.DocDate.slice(0, 10) + 'T00:00:00') : null;
+      const esVigente = saldo >= 1 && (!fecha || fecha >= corte);
+      if (!esVigente) continue;   // los viejos solo cuentan en el histórico
+
       const due = f.DocDueDate ? new Date(f.DocDueDate.slice(0, 10) + 'T00:00:00') : null;
       const atraso = due ? dias(hoy, due) : 0;   // positivo = ya venció
-      if (atraso > 0) { vencido += saldo; if (atraso <= 30) aging.d0_30 += saldo; else if (atraso <= 60) aging.d31_60 += saldo; else if (atraso <= 90) aging.d61_90 += saldo; else aging.d90 += saldo; }
-      else porVencer += saldo;
+      vig.total += saldo;
+      if (atraso > 0) { vig.vencido += saldo; const a = vig.aging; if (atraso <= 30) a.d0_30 += saldo; else if (atraso <= 60) a.d31_60 += saldo; else if (atraso <= 90) a.d61_90 += saldo; else a.d90 += saldo; }
+      else vig.porVencer += saldo;
 
       const k = f.CardCode || '?';
       const p = provMap[k] || (provMap[k] = { card_code: k, name: f.CardName || k, saldo: 0, facturas: 0, vencido: 0 });
@@ -56,15 +67,19 @@ exports.handler = async (event) => {
     return reply(200, {
       ok: true,
       empresa: empresa.nombreCorto,
-      total_por_pagar: r2(total),
-      vencido: r2(vencido),
-      por_vencer: r2(porVencer),
+      meses_vigente: meses,
+      // Bloque VIGENTE (operativo)
+      total_por_pagar: r2(vig.total),
+      vencido: r2(vig.vencido),
+      por_vencer: r2(vig.porVencer),
       num_facturas: facturas.length,
       num_proveedores: proveedores.length,
-      aging: { d0_30: r2(aging.d0_30), d31_60: r2(aging.d31_60), d61_90: r2(aging.d61_90), d90: r2(aging.d90) },
+      aging: { d0_30: r2(vig.aging.d0_30), d31_60: r2(vig.aging.d31_60), d61_90: r2(vig.aging.d61_90), d90: r2(vig.aging.d90) },
       proveedores: proveedores.slice(0, 30),
       facturas: facturas.slice(0, 60),
-      _debug: { leidas: rows.length, abiertas_con_saldo: facturas.length }
+      // Bloque HISTÓRICO (incluye docs antiguos / posible intercompañía)
+      historico: { total: r2(histTotal), num_facturas: histFacturas },
+      _debug: { leidas: rows.length }
     });
   } catch (e) {
     return reply(200, { ok: false, error: e.message || String(e) });
