@@ -109,6 +109,7 @@ tbody tr:hover{background:var(--bg-sunken)}
     <button class="preset active" style="background:var(--cta);color:#fff;border-color:var(--cta)">📊 Resumen</button>
     <button class="preset" onclick="location.href='cxp-revision.html'">📋 Cuentas por pagar</button>
     <button class="preset" onclick="location.href='planilla.html'">👥 Planilla</button>
+    <button class="preset" onclick="location.href='gastos.html'">🧾 Gastos</button>
     <button class="preset" onclick="location.href='prestamos.html'">🏦 Préstamos</button>
   </div>
   <div class="filters">
@@ -209,6 +210,17 @@ function render(){
     <div class="kpi"><div class="lbl">Clientes activos</div><div class="val num">${k.num_clientes||0}</div><div class="sub">${k.num_paises||0} países</div></div>
   </div>`;
 
+  // Ganancia neta (utilidad bruta − gastos − planilla del periodo)
+  const n=d.neto||{};
+  const netoHTML=`<div class="card"><h2>Ganancia neta</h2><div class="h-sub">Utilidad bruta menos gastos y planilla del periodo</div>
+    <div class="kpis" style="margin-top:0">
+      <div class="kpi good"><div class="lbl">Utilidad bruta</div><div class="val num">${fmt(n.utilidad_bruta)}</div></div>
+      <div class="kpi"><div class="lbl">− Gastos</div><div class="val num">${fmt(n.gastos_periodo)}</div></div>
+      <div class="kpi"><div class="lbl">− Planilla (${n.meses_periodo||1}m)</div><div class="val num">${fmt(n.planilla_periodo)}</div><div class="sub">${fmt(n.planilla_mensual)}/mes</div></div>
+      <div class="kpi accent"><div class="lbl">Ganancia NETA</div><div class="val num">${fmt(n.utilidad_neta)}</div><div class="sub">${(Number(n.utilidad_bruta)||0)>0?Math.round((Number(n.utilidad_neta)||0)/(Number(n.utilidad_bruta)||1)*100):0}% de la bruta</div></div>
+    </div>
+    <div class="h-sub" style="margin-top:8px">Carga tus <a href="gastos.html" style="color:var(--cta);font-weight:700">Gastos</a> y <a href="planilla.html" style="color:var(--cta);font-weight:700">Planilla</a> para que la neta sea exacta.</div></div>`;
+
   // Tendencia mensual
   const tend=(d.pnl.tendencia||[]);
   const maxT=Math.max(1,...tend.map(t=>Number(t.total)||0));
@@ -242,7 +254,7 @@ function render(){
     <div style="margin-bottom:10px"><button class="preset" style="background:var(--cta);color:#fff;border-color:var(--cta)" onclick="location.href='cxp-revision.html'">📋 Revisar y cerrar facturas →</button></div>
     <div id="ap-box">${_apData?renderApHTML(_apData):`<button class="preset" onclick="cargarPorPagar()">📥 Cargar de SAP</button> <span class="muted" style="font-size:.78rem">Toma unos segundos: lee las facturas de compra directo de SAP.</span>`}</div></div>`;
 
-  document.getElementById('content').innerHTML=kpis+bars+desglose+arCard+ap;
+  document.getElementById('content').innerHTML=kpis+netoHTML+bars+desglose+arCard+ap;
 }
 function setTab(k){ _tab=k; render(); }
 

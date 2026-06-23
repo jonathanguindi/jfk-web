@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Contabilidad JFK · Gastos</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta name="theme-color" content="#0B1F3A">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<script>(function(){var p=localStorage.getItem('jfk-theme-pref')||'auto';if(p==='dark'||(p==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.setAttribute('data-theme','dark');})();</script>
+<style>
+:root{--ink-900:#0E1016;--ink-800:#1A1D22;--ink-500:#6E7178;--ink-400:#98999B;
+--punch:#009FE3;--punch-hover:#0085C0;--electric:#009FE3;--green:#1FA971;--amber:#E8A317;--red:#E5484D;
+--font-sans:'Hanken Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;--font-mono:'Space Grotesk',ui-monospace,Menlo,monospace;
+--bg:#EEF1F5;--bg-elevated:#FFFFFF;--bg-sunken:#F3F5F8;--text:var(--ink-900);--text-muted:var(--ink-500);--border:#DFE3E9;--border-soft:#EAEDF1;
+--cta:var(--punch);--shadow-soft:0 1px 2px rgba(14,16,22,.04),0 8px 24px rgba(14,16,22,.05);--navy:#0B1F3A;}
+[data-theme="dark"]{--bg:var(--ink-900);--bg-elevated:var(--ink-800);--bg-sunken:#07080B;--text:#F4F5F7;--text-muted:var(--ink-400);--border:var(--ink-800);--border-soft:#232730;--shadow-soft:0 10px 30px rgba(0,0,0,.4);}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:1100px;margin:0 auto;padding:0 16px calc(60px + env(safe-area-inset-bottom))}
+.topbar{position:sticky;top:0;z-index:20;background:var(--navy);color:#fff;padding-top:env(safe-area-inset-top)}
+.topbar .inner{max-width:1100px;margin:0 auto;padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.logo{font-size:1.2rem;font-weight:700;display:flex;align-items:center;gap:2px}.logo img{height:22px}.logo .reg{color:var(--electric);font-size:9px;font-weight:700;margin-top:1px}
+.logo small{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--electric);margin-left:10px}
+.spacer{flex:1}.btn{font-weight:600;font-size:.82rem;border:none;border-radius:8px;padding:9px 14px;cursor:pointer}
+.btn-ghost{background:rgba(255,255,255,.1);color:#fff}.btn-cta{background:var(--cta);color:#fff}.btn-sm{padding:6px 10px;font-size:.74rem}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:18px 0}
+.kpi{background:var(--bg-elevated);border:1px solid var(--border-soft);border-radius:14px;padding:15px;box-shadow:var(--shadow-soft)}
+.kpi .lbl{font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);font-weight:800}.kpi .val{font-size:1.45rem;font-weight:800;margin-top:5px}
+.kpi.accent{background:linear-gradient(135deg,var(--red),#b3373b);color:#fff;border:none}.kpi.accent .lbl{color:rgba(255,255,255,.85)}
+.bar{display:flex;gap:8px;align-items:center;margin:6px 0}
+.card{background:var(--bg-elevated);border:1px solid var(--border-soft);border-radius:14px;box-shadow:var(--shadow-soft);overflow:hidden;margin-top:8px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.chip{background:var(--bg-elevated);border:1px solid var(--border);border-radius:999px;padding:5px 11px;font-size:.74rem;font-weight:600}
+.tbl-scroll{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:.84rem}
+th,td{padding:10px;text-align:right;border-bottom:1px solid var(--border-soft);white-space:nowrap}th:first-child,td:first-child,.l{text-align:left}
+th{font-size:.66rem;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);font-weight:800}tbody tr:hover{background:var(--bg-sunken)}
+.act{border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-muted);border-radius:7px;padding:4px 8px;font-size:.72rem;cursor:pointer;font-weight:700}
+.loading{padding:40px;text-align:center;color:var(--text-muted)}
+.gate{max-width:440px;margin:90px auto;text-align:center;background:var(--bg-elevated);border:1px solid var(--border-soft);border-radius:16px;padding:34px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:50;padding:14px}.modal.show{display:flex}
+.modal .box{background:var(--bg-elevated);border-radius:16px;padding:20px;max-width:480px;width:100%;max-height:92vh;overflow:auto}
+.fld{margin-top:10px}.fld label{font-size:.72rem;color:var(--text-muted);font-weight:700;display:block;margin-bottom:3px}
+.fld input,.fld select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:var(--bg-sunken);color:var(--text);font-size:.9rem}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:600px){.logo small{display:none}}
+</style></head>
+<body>
+<div class="topbar"><div class="inner">
+  <div class="logo"><img src="jfk-logo.png" alt="JFK"><sup class="reg">&reg;</sup><small>Gastos</small></div>
+  <span class="spacer"></span>
+  <button class="btn btn-ghost btn-sm" onclick="toggleTheme()">◐</button>
+  <button class="btn btn-ghost btn-sm" onclick="location.href='contabilidad.html'">🧮 Contabilidad</button>
+  <button class="btn btn-cta btn-sm" onclick="abrirForm()">➕ Nuevo gasto</button>
+</div></div>
+<div id="app" class="wrap" style="display:none">
+  <div id="kpis" class="kpis"></div>
+  <div id="chips" class="chips"></div>
+  <div class="bar"><strong style="font-size:.95rem">Gastos registrados</strong></div>
+  <div class="card"><div class="tbl-scroll"><table>
+    <thead><tr><th class="l">Fecha</th><th class="l">Categoría</th><th class="l">Descripción</th><th class="l">Proveedor</th><th>Monto</th><th></th></tr></thead>
+    <tbody id="tbody"><tr><td colspan="6" class="loading">Cargando…</td></tr></tbody>
+  </table></div></div>
+</div>
+<div id="gate" class="gate" style="display:none"><h2 style="margin-top:0">Acceso restringido</h2><p style="color:var(--text-muted)">Entra primero a Contabilidad JFK.</p><a class="btn btn-sm btn-cta" href="contabilidad.html">Ir a Contabilidad JFK →</a></div>
+
+<div id="modal" class="modal"><div class="box">
+  <div style="display:flex;justify-content:space-between;align-items:center"><h2 id="mTit" style="margin:0">Nuevo gasto</h2><button class="act" onclick="cerrarForm()">✕</button></div>
+  <input type="hidden" id="f_id">
+  <div class="grid2">
+    <div class="fld"><label>Fecha *</label><input id="f_fecha" type="date"></div>
+    <div class="fld"><label>Monto *</label><input id="f_monto" type="number" inputmode="decimal" placeholder="0"></div>
+  </div>
+  <div class="fld"><label>Categoría</label><input id="f_cat" list="cats" placeholder="Alquiler, Servicios, Sueldos, Transporte…"><datalist id="cats"><option>Alquiler</option><option>Servicios (luz/agua/internet)</option><option>Transporte/Flete</option><option>Mantenimiento</option><option>Suministros de oficina</option><option>Honorarios</option><option>Impuestos</option><option>Comisiones</option><option>Otros</option></datalist></div>
+  <div class="fld"><label>Descripción</label><input id="f_desc" placeholder="Detalle del gasto"></div>
+  <div class="fld"><label>Proveedor</label><input id="f_prov" placeholder="opcional"></div>
+  <div id="mErr" style="color:var(--red);font-size:.8rem;margin-top:8px"></div>
+  <div style="display:flex;gap:8px;margin-top:14px"><button class="btn btn-cta" style="flex:1;justify-content:center" onclick="guardar()">Guardar</button><button class="btn" style="background:var(--bg-sunken);color:var(--text)" onclick="cerrarForm()">Cancelar</button></div>
+</div></div>
+
+<script>
+const SESSION_KEY='jfk_vendor_session';
+let sesion=null;try{sesion=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');}catch(e){}
+function toggleTheme(){var c=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',c);localStorage.setItem('jfk-theme-pref',c);}
+const EMAIL=(sesion&&sesion.email||'').trim().toLowerCase();
+const ES_ADMIN=!!(sesion&&sesion.role==='admin');
+const fmt=(n)=>'$'+(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc=(s)=>(''+(s==null?'':s)).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+let _g=[];
+if(!ES_ADMIN){document.getElementById('gate').style.display='block';}
+else{document.getElementById('app').style.display='block';cargar();}
+async function api(extra){const r=await fetch('/.netlify/functions/gastos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL,...extra})});return r.json();}
+async function cargar(){
+  document.getElementById('tbody').innerHTML='<tr><td colspan="6" class="loading">Cargando…</td></tr>';
+  const d=await api({accion:'listar'});
+  if(!d.ok){document.getElementById('tbody').innerHTML='<tr><td colspan="6" class="loading">'+esc(d.error||'error')+(/relation|does not exist/i.test(d.error||'')?' — falta correr el SQL de gastos.':'')+'</td></tr>';return;}
+  _g=d.gastos||[];const s=d.resumen;
+  document.getElementById('kpis').innerHTML=`
+    <div class="kpi accent"><div class="lbl">Total gastos</div><div class="val num">${fmt(s.total)}</div></div>
+    <div class="kpi"><div class="lbl"># de gastos</div><div class="val num">${s.num}</div></div>
+    <div class="kpi"><div class="lbl">Categorías</div><div class="val num">${(s.por_categoria||[]).length}</div></div>`;
+  document.getElementById('chips').innerHTML=(s.por_categoria||[]).map(c=>`<span class="chip">${esc(c.categoria)}: <b>${fmt(c.monto)}</b></span>`).join('');
+  document.getElementById('tbody').innerHTML=_g.map(g=>`<tr>
+    <td class="l">${esc(g.fecha||'—')}</td><td class="l">${esc(g.categoria||'—')}</td><td class="l">${esc(g.descripcion||'')}</td><td class="l">${esc(g.proveedor||'')}</td>
+    <td class="num">${fmt(g.monto)}</td>
+    <td><button class="act" onclick='editar(${g.id})'>✏️</button> <button class="act" onclick='eliminar(${g.id})'>🗑️</button></td>
+  </tr>`).join('')||'<tr><td colspan="6" class="loading">Aún no hay gastos. Agrega el primero con "➕ Nuevo gasto".</td></tr>';
+}
+function hoyISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function abrirForm(){document.getElementById('mTit').textContent='Nuevo gasto';['f_id','f_monto','f_cat','f_desc','f_prov'].forEach(i=>document.getElementById(i).value='');document.getElementById('f_fecha').value=hoyISO();document.getElementById('mErr').textContent='';document.getElementById('modal').classList.add('show');}
+function cerrarForm(){document.getElementById('modal').classList.remove('show');}
+function editar(id){const g=_g.find(x=>x.id===id);if(!g)return;document.getElementById('mTit').textContent='Editar gasto';
+  const set=(i,v)=>document.getElementById(i).value=(v==null?'':v);
+  set('f_id',g.id);set('f_fecha',g.fecha);set('f_monto',g.monto);set('f_cat',g.categoria);set('f_desc',g.descripcion);set('f_prov',g.proveedor);
+  document.getElementById('mErr').textContent='';document.getElementById('modal').classList.add('show');}
+async function guardar(){
+  const g=(i)=>document.getElementById(i).value;
+  const gasto={id:g('f_id')||null,fecha:g('f_fecha'),monto:g('f_monto'),categoria:g('f_cat'),descripcion:g('f_desc'),proveedor:g('f_prov')};
+  if(!gasto.fecha||!gasto.monto){document.getElementById('mErr').textContent='Pon al menos fecha y monto.';return;}
+  const d=await api({accion:'guardar',gasto});
+  if(!d.ok){document.getElementById('mErr').textContent=d.error||'error';return;}
+  cerrarForm();cargar();
+}
+async function eliminar(id){if(!confirm('¿Eliminar este gasto?'))return;const d=await api({accion:'eliminar',id});if(d.ok)cargar();else alert(d.error||'error');}
+</script>
+</body></html>

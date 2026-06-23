@@ -69,8 +69,38 @@ exports.handler = async (event) => {
       };
     })();
 
-    const [{ data: pnl, error: pnlErr }, ar] = await Promise.all([pnlP, arP]);
+    // GASTOS del periodo (tabla gastos del portal) — tolerante si la tabla no existe aún.
+    const gastosP = (async () => {
+      try {
+        let total = 0;
+        for (let from = 0; ; from += 1000) {
+          const { data, error } = await sb.from('gastos').select('monto').gte('fecha', desde).lte('fecha', hasta).range(from, from + 999);
+          if (error) return 0;
+          if (!data || !data.length) break;
+          total += data.reduce((s, g) => s + (Number(g.monto) || 0), 0);
+          if (data.length < 1000) break;
+        }
+        return r2(total);
+      } catch (e) { return 0; }
+    })();
+
+    // PLANILLA del periodo (empleados activos, salario mensual * meses del periodo).
+    const mesesPeriodo = periodo === 'ano' ? (new Date().getUTCMonth() + 1) : 1;
+    const planillaP = (async () => {
+      try {
+        const { data, error } = await sb.from('empleados').select('salario,frecuencia_pago,estado');
+        if (error || !data) return { mensual: 0, periodo: 0 };
+        const aMensual = (s, f) => { s = Number(s) || 0; return f === 'quincenal' ? s * 2 : f === 'semanal' ? s * 52 / 12 : f === 'anual' ? s / 12 : s; };
+        const mensual = data.filter(e => e.estado !== 'inactivo').reduce((acc, e) => acc + aMensual(e.salario, e.frecuencia_pago), 0);
+        return { mensual: r2(mensual), periodo: r2(mensual * mesesPeriodo) };
+      } catch (e) { return { mensual: 0, periodo: 0 }; }
+    })();
+
+    const [{ data: pnl, error: pnlErr }, ar, gastos_periodo, planilla] = await Promise.all([pnlP, arP, gastosP, planillaP]);
     if (pnlErr) return reply(500, { ok: false, error: 'P&L: ' + pnlErr.message });
+
+    const margenBruto = Number((pnl && pnl.kpis && pnl.kpis.margen_total) || 0);
+    const utilidad_neta = r2(margenBruto - gastos_periodo - planilla.periodo);
 
     return reply(200, {
       ok: true,
@@ -78,7 +108,15 @@ exports.handler = async (event) => {
       empresa: empresa.nombreCorto,
       pnl: pnl || {},
       cuentas_por_cobrar: ar,
-      cuentas_por_pagar: { disponible: false, nota: 'Pendiente: sincronizar facturas de proveedores de SAP.' }
+      neto: {
+        utilidad_bruta: r2(margenBruto),
+        gastos_periodo,
+        planilla_mensual: planilla.mensual,
+        planilla_periodo: planilla.periodo,
+        meses_periodo: mesesPeriodo,
+        utilidad_neta
+      },
+      cuentas_por_pagar: { disponible: false, nota: 'Ver módulo Cuentas por pagar.' }
     });
   } catch (e) {
     return reply(500, { ok: false, error: e.message || String(e) });
