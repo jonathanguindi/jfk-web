@@ -58,8 +58,8 @@ th{font-size:.66rem;text-transform:uppercase;letter-spacing:.04em;color:var(--te
   <div id="chips" class="chips"></div>
   <div class="bar"><strong style="font-size:.95rem">Gastos registrados</strong></div>
   <div class="card"><div class="tbl-scroll"><table>
-    <thead><tr><th class="l">Fecha</th><th class="l">Categoría</th><th class="l">Descripción</th><th class="l">Proveedor</th><th>Monto</th><th></th></tr></thead>
-    <tbody id="tbody"><tr><td colspan="6" class="loading">Cargando…</td></tr></tbody>
+    <thead><tr><th class="l">Fecha</th><th class="l">Categoría</th><th class="l">Descripción</th><th class="l">Proveedor</th><th>Monto</th><th>SAP</th><th></th></tr></thead>
+    <tbody id="tbody"><tr><td colspan="7" class="loading">Cargando…</td></tr></tbody>
   </table></div></div>
 </div>
 <div id="gate" class="gate" style="display:none"><h2 style="margin-top:0">Acceso restringido</h2><p style="color:var(--text-muted)">Entra primero a Contabilidad JFK.</p><a class="btn btn-sm btn-cta" href="contabilidad.html">Ir a Contabilidad JFK →</a></div>
@@ -105,9 +105,9 @@ if(!ES_ADMIN){document.getElementById('gate').style.display='block';}
 else{document.getElementById('app').style.display='block';cargar();}
 async function api(extra){const r=await fetch('/.netlify/functions/gastos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL,...extra})});return r.json();}
 async function cargar(){
-  document.getElementById('tbody').innerHTML='<tr><td colspan="6" class="loading">Cargando…</td></tr>';
+  document.getElementById('tbody').innerHTML='<tr><td colspan="7" class="loading">Cargando…</td></tr>';
   const d=await api({accion:'listar'});
-  if(!d.ok){document.getElementById('tbody').innerHTML='<tr><td colspan="6" class="loading">'+esc(d.error||'error')+(/relation|does not exist/i.test(d.error||'')?' — falta correr el SQL de gastos.':'')+'</td></tr>';return;}
+  if(!d.ok){document.getElementById('tbody').innerHTML='<tr><td colspan="7" class="loading">'+esc(d.error||'error')+(/relation|does not exist/i.test(d.error||'')?' — falta correr el SQL de gastos.':'')+'</td></tr>';return;}
   _g=d.gastos||[];const s=d.resumen;
   document.getElementById('kpis').innerHTML=`
     <div class="kpi accent"><div class="lbl">Total gastos</div><div class="val num">${fmt(s.total)}</div></div>
@@ -117,8 +117,9 @@ async function cargar(){
   document.getElementById('tbody').innerHTML=_g.map(g=>`<tr>
     <td class="l">${esc(g.fecha||'—')}</td><td class="l">${esc(g.categoria||'—')}</td><td class="l">${esc(g.descripcion||'')}</td><td class="l">${esc(g.proveedor||'')}</td>
     <td class="num">${fmt(g.monto)}</td>
+    <td>${g.sap_doc_entry?`<span style="color:var(--green);font-weight:700" title="Factura SAP">✓ ${esc(g.sap_doc_entry)}</span>`:`<button class="act" onclick='postearSAP(${g.id})'>📤 Postear</button>`}</td>
     <td><button class="act" onclick='editar(${g.id})'>✏️</button> <button class="act" onclick='eliminar(${g.id})'>🗑️</button></td>
-  </tr>`).join('')||'<tr><td colspan="6" class="loading">Aún no hay gastos. Agrega el primero con "➕ Nuevo gasto".</td></tr>';
+  </tr>`).join('')||'<tr><td colspan="7" class="loading">Aún no hay gastos. Agrega el primero con "➕ Nuevo gasto".</td></tr>';
 }
 function hoyISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function resetProv(){['f_provq','f_prov','f_prov_code','cp_nombre','cp_ruc','cp_tel','cp_email'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});document.getElementById('provRes').innerHTML='';document.getElementById('provSel').textContent='';document.getElementById('crearProv').style.display='none';document.getElementById('cpMsg').textContent='';}
@@ -138,10 +139,20 @@ function pintarCuentas(){ const sel=document.getElementById('f_cuenta'); sel.inn
 async function provApi(extra){const r=await fetch('/.netlify/functions/proveedores',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL,...extra})});return r.json();}
 async function buscarProv(){
   const q=document.getElementById('f_provq').value.trim();
-  document.getElementById('provRes').innerHTML='<div style="font-size:.78rem;color:var(--text-muted);padding:4px">Buscando…</div>';
+  const cont=document.getElementById('provRes');
+  cont.innerHTML='<div style="font-size:.78rem;color:var(--text-muted);padding:4px">Buscando…</div>';
   const d=await provApi({accion:'buscar',q});
-  if(!d.ok){document.getElementById('provRes').innerHTML='<div style="font-size:.78rem;color:var(--red)">'+esc(d.error||'error')+'</div>';return;}
-  document.getElementById('provRes').innerHTML=(d.proveedores||[]).map(p=>`<div class="act" style="display:block;text-align:left;width:100%;margin:2px 0;cursor:pointer" onclick="pickProv('${(p.card_code||'').replace(/'/g,'')}','${(p.nombre||'').replace(/'/g,'\\'')}')">${esc(p.nombre)} <span style="color:var(--text-muted)">· ${esc(p.card_code)}</span></div>`).join('')||'<div style="font-size:.78rem;color:var(--text-muted)">Sin resultados. Usa "Crear proveedor nuevo".</div>';
+  if(!d.ok){cont.innerHTML='<div style="font-size:.78rem;color:var(--red)">'+esc(d.error||'error')+'</div>';return;}
+  cont.innerHTML='';
+  const list=d.proveedores||[];
+  if(!list.length){cont.innerHTML='<div style="font-size:.78rem;color:var(--text-muted)">Sin resultados. Usa "Crear proveedor nuevo".</div>';return;}
+  list.forEach(p=>{
+    const el=document.createElement('div');
+    el.className='act'; el.style.cssText='display:block;text-align:left;width:100%;margin:2px 0;cursor:pointer';
+    el.innerHTML=esc(p.nombre)+' <span style="color:var(--text-muted)">· '+esc(p.card_code)+'</span>';
+    el.onclick=()=>pickProv(p.card_code,p.nombre);
+    cont.appendChild(el);
+  });
 }
 function pickProv(code,nombre){document.getElementById('f_prov_code').value=code;document.getElementById('f_prov').value=nombre;document.getElementById('provSel').textContent='✓ '+nombre+' ('+code+')';document.getElementById('provRes').innerHTML='';document.getElementById('crearProv').style.display='none';}
 function toggleCrear(){const c=document.getElementById('crearProv');c.style.display=c.style.display==='none'?'block':'none';}
@@ -170,5 +181,19 @@ async function guardar(){
   cerrarForm();cargar();
 }
 async function eliminar(id){if(!confirm('¿Eliminar este gasto?'))return;const d=await api({accion:'eliminar',id});if(d.ok)cargar();else alert(d.error||'error');}
+async function postearSAP(id){
+  const g=_g.find(x=>x.id===id);if(!g)return;
+  if(!g.proveedor_codigo){alert('Primero edita el gasto y elige el PROVEEDOR (SAP).');return;}
+  if(!g.cuenta_gasto){alert('Primero edita el gasto y elige la CUENTA DE GASTO (SAP).');return;}
+  const itStr=prompt('ITBMS incluido en el monto '+fmt(g.monto)+' (si no tiene, deja 0):','0');
+  if(itStr===null)return;
+  const itbms=Number(itStr)||0;
+  if(!confirm('⚠️ Esto crea una FACTURA DE SERVICIO REAL en SAP a:\n\n'+(g.proveedor||g.proveedor_codigo)+'\nMonto: '+fmt(g.monto)+(itbms>0?' (ITBMS '+fmt(itbms)+')':'')+'\nCuenta: '+g.cuenta_gasto+'\n\nUna vez posteado NO se puede anular desde aquí (solo en SAP). ¿Continuar?'))return;
+  const d=await api2({accion:'postear',id,itbms});
+  if(!d.ok){alert('No se pudo postear: '+(d.error||'error'));return;}
+  alert('✓ Posteado a SAP — Factura '+(d.doc_num||d.doc_entry));
+  cargar();
+}
+async function api2(extra){const r=await fetch('/.netlify/functions/gasto-a-sap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL,...extra})});return r.json();}
 </script>
 </body></html>
