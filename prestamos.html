@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Contabilidad JFK · Préstamos</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta name="theme-color" content="#0B1F3A">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<script>(function(){var p=localStorage.getItem('jfk-theme-pref')||'auto';if(p==='dark'||(p==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.setAttribute('data-theme','dark');})();</script>
+<style>
+:root{--ink-900:#0E1016;--ink-800:#1A1D22;--ink-500:#6E7178;--ink-400:#98999B;
+--punch:#009FE3;--punch-hover:#0085C0;--electric:#009FE3;--green:#1FA971;--amber:#E8A317;--red:#E5484D;
+--font-sans:'Hanken Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;--font-mono:'Space Grotesk',ui-monospace,Menlo,monospace;
+--bg:#EEF1F5;--bg-elevated:#FFFFFF;--bg-sunken:#F3F5F8;--text:var(--ink-900);--text-muted:var(--ink-500);--border:#DFE3E9;--border-soft:#EAEDF1;
+--cta:var(--punch);--shadow-soft:0 1px 2px rgba(14,16,22,.04),0 8px 24px rgba(14,16,22,.05);--navy:#0B1F3A;}
+[data-theme="dark"]{--bg:var(--ink-900);--bg-elevated:var(--ink-800);--bg-sunken:#07080B;--text:#F4F5F7;--text-muted:var(--ink-400);--border:var(--ink-800);--border-soft:#232730;--shadow-soft:0 10px 30px rgba(0,0,0,.4);}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px calc(60px + env(safe-area-inset-bottom))}
+.topbar{position:sticky;top:0;z-index:20;background:var(--navy);color:#fff;padding-top:env(safe-area-inset-top)}
+.topbar .inner{max-width:1200px;margin:0 auto;padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.logo{font-size:1.2rem;font-weight:700;display:flex;align-items:center;gap:2px}.logo img{height:22px}.logo .reg{color:var(--electric);font-size:9px;font-weight:700;margin-top:1px}
+.logo small{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--electric);margin-left:10px}
+.spacer{flex:1}.btn{font-weight:600;font-size:.82rem;border:none;border-radius:8px;padding:9px 14px;cursor:pointer}
+.btn-ghost{background:rgba(255,255,255,.1);color:#fff}.btn-cta{background:var(--cta);color:#fff}.btn-sm{padding:6px 10px;font-size:.74rem}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:18px 0}
+.kpi{background:var(--bg-elevated);border:1px solid var(--border-soft);border-radius:14px;padding:15px;box-shadow:var(--shadow-soft)}
+.kpi .lbl{font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);font-weight:800}.kpi .val{font-size:1.45rem;font-weight:800;margin-top:5px}
+.kpi.accent{background:linear-gradient(135deg,var(--cta),#0072b8);color:#fff;border:none}.kpi.accent .lbl{color:rgba(255,255,255,.85)}.kpi.red .val{color:var(--red)}.kpi.amber .val{color:var(--amber)}
+.bar{display:flex;gap:8px;align-items:center;margin:6px 0}
+.card{background:var(--bg-elevated);border:1px solid var(--border-soft);border-radius:14px;box-shadow:var(--shadow-soft);overflow:hidden;margin-top:8px}
+.tbl-scroll{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:.84rem}
+th,td{padding:10px;text-align:right;border-bottom:1px solid var(--border-soft);white-space:nowrap}th:first-child,td:first-child,.l{text-align:left}
+th{font-size:.66rem;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);font-weight:800}tbody tr:hover{background:var(--bg-sunken)}
+.due-soon{color:var(--amber);font-weight:700}.due-late{color:var(--red);font-weight:700}
+.act{border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-muted);border-radius:7px;padding:4px 8px;font-size:.72rem;cursor:pointer;font-weight:700}
+.loading{padding:40px;text-align:center;color:var(--text-muted)}
+.gate{max-width:440px;margin:90px auto;text-align:center;background:var(--bg-elevated);border:1px solid var(--border-soft);border-radius:16px;padding:34px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:50;padding:14px}
+.modal.show{display:flex}.modal .box{background:var(--bg-elevated);border-radius:16px;padding:20px;max-width:520px;width:100%;max-height:92vh;overflow:auto}
+.fld{margin-top:10px}.fld label{font-size:.72rem;color:var(--text-muted);font-weight:700;display:block;margin-bottom:3px}
+.fld input,.fld select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:var(--bg-sunken);color:var(--text);font-size:.9rem}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:600px){.logo small{display:none}}
+</style></head>
+<body>
+<div class="topbar"><div class="inner">
+  <div class="logo"><img src="jfk-logo.png" alt="JFK"><sup class="reg">&reg;</sup><small>Préstamos</small></div>
+  <span class="spacer"></span>
+  <button class="btn btn-ghost btn-sm" onclick="toggleTheme()">◐</button>
+  <button class="btn btn-ghost btn-sm" onclick="location.href='contabilidad.html'">🧮 Contabilidad</button>
+  <button class="btn btn-cta btn-sm" onclick="abrirForm()">➕ Nuevo préstamo</button>
+</div></div>
+<div id="app" class="wrap" style="display:none">
+  <div id="kpis" class="kpis"></div>
+  <div class="bar"><strong style="font-size:.95rem">Préstamos y deuda bancaria</strong></div>
+  <div class="card"><div class="tbl-scroll"><table>
+    <thead><tr><th class="l">Banco / Descripción</th><th>Saldo</th><th>Cuota</th><th>Tasa</th><th>Próximo pago</th><th>Vence</th><th>Estado</th><th></th></tr></thead>
+    <tbody id="tbody"><tr><td colspan="8" class="loading">Cargando…</td></tr></tbody>
+  </table></div></div>
+</div>
+<div id="gate" class="gate" style="display:none"><h2 style="margin-top:0">Acceso restringido</h2><p style="color:var(--text-muted)">Entra primero a Contabilidad JFK.</p><a class="btn btn-sm btn-cta" href="contabilidad.html">Ir a Contabilidad JFK →</a></div>
+
+<div id="modal" class="modal"><div class="box">
+  <div style="display:flex;justify-content:space-between;align-items:center"><h2 id="mTit" style="margin:0">Nuevo préstamo</h2><button class="act" onclick="cerrarForm()">✕</button></div>
+  <input type="hidden" id="f_id">
+  <div class="fld"><label>Banco / acreedor</label><input id="f_banco" placeholder="Banco General, Banistmo…"></div>
+  <div class="fld"><label>Descripción</label><input id="f_desc" placeholder="Préstamo capital de trabajo"></div>
+  <div class="grid2">
+    <div class="fld"><label>Monto original</label><input id="f_monto" type="number" inputmode="decimal" placeholder="0"></div>
+    <div class="fld"><label>Saldo actual</label><input id="f_saldo" type="number" inputmode="decimal" placeholder="0"></div>
+    <div class="fld"><label>Cuota</label><input id="f_cuota" type="number" inputmode="decimal" placeholder="0"></div>
+    <div class="fld"><label>Tasa % anual</label><input id="f_tasa" type="number" inputmode="decimal" placeholder="0"></div>
+    <div class="fld"><label>Frecuencia</label><select id="f_frec"><option value="mensual">Mensual</option><option value="quincenal">Quincenal</option><option value="trimestral">Trimestral</option><option value="unico">Pago único</option></select></div>
+    <div class="fld"><label>Moneda</label><select id="f_moneda"><option>USD</option></select></div>
+    <div class="fld"><label>Fecha inicio</label><input id="f_inicio" type="date"></div>
+    <div class="fld"><label>Vencimiento final</label><input id="f_venc" type="date"></div>
+    <div class="fld"><label>Próximo pago</label><input id="f_prox" type="date"></div>
+    <div class="fld"><label>Estado</label><select id="f_estado"><option value="activo">Activo</option><option value="pagado">Pagado</option></select></div>
+  </div>
+  <div class="fld"><label>Nota</label><input id="f_nota" placeholder="opcional"></div>
+  <div id="mErr" style="color:var(--red);font-size:.8rem;margin-top:8px"></div>
+  <div style="display:flex;gap:8px;margin-top:14px"><button class="btn btn-cta" style="flex:1;justify-content:center" onclick="guardar()">Guardar</button><button class="btn" style="background:var(--bg-sunken);color:var(--text)" onclick="cerrarForm()">Cancelar</button></div>
+</div></div>
+
+<script>
+const SESSION_KEY='jfk_vendor_session';
+let sesion=null;try{sesion=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');}catch(e){}
+function toggleTheme(){var c=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',c);localStorage.setItem('jfk-theme-pref',c);}
+const EMAIL=(sesion&&sesion.email||'').trim().toLowerCase();
+const ES_ADMIN=!!(sesion&&sesion.role==='admin');
+const fmt=(n)=>'$'+(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc=(s)=>(''+(s==null?'':s)).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+let _ps=[];
+if(!ES_ADMIN){document.getElementById('gate').style.display='block';}
+else{document.getElementById('app').style.display='block';cargar();}
+async function api(extra){const r=await fetch('/.netlify/functions/prestamos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL,...extra})});return r.json();}
+function diaTxt(d){ if(d==null) return '—'; if(d<0) return `<span class="due-late">venció hace ${-d}d</span>`; if(d<=30) return `<span class="due-soon">en ${d}d</span>`; return `en ${d}d`; }
+async function cargar(){
+  document.getElementById('tbody').innerHTML='<tr><td colspan="8" class="loading">Cargando…</td></tr>';
+  const d=await api({accion:'listar'});
+  if(!d.ok){document.getElementById('tbody').innerHTML='<tr><td colspan="8" class="loading">'+esc(d.error||'error')+(/relation|does not exist/i.test(d.error||'')?' — falta correr el SQL de préstamos.':'')+'</td></tr>';return;}
+  _ps=d.prestamos||[]; const s=d.resumen;
+  document.getElementById('kpis').innerHTML=`
+    <div class="kpi accent"><div class="lbl">Deuda total</div><div class="val num">${fmt(s.deuda_total)}</div></div>
+    <div class="kpi"><div class="lbl">Préstamos activos</div><div class="val num">${s.num_activos}</div></div>
+    <div class="kpi"><div class="lbl">Cuota mensual</div><div class="val num">${fmt(s.cuota_mensual)}</div></div>
+    <div class="kpi ${s.vencen_30?'amber':''}"><div class="lbl">Pagos en 30 días</div><div class="val num">${s.vencen_30}</div></div>
+    <div class="kpi ${s.vencidos?'red':''}"><div class="lbl">Pagos vencidos</div><div class="val num">${s.vencidos}</div></div>`;
+  document.getElementById('tbody').innerHTML=_ps.map(p=>`<tr>
+    <td class="l"><b>${esc(p.banco||'—')}</b>${p.descripcion?`<div style="font-size:.72rem;color:var(--text-muted)">${esc(p.descripcion)}</div>`:''}</td>
+    <td class="num">${fmt(p.saldo)}</td><td class="num">${fmt(p.cuota)}</td><td class="num">${p.tasa!=null?p.tasa+'%':'—'}</td>
+    <td class="num">${esc(p.proximo_pago||'—')}<div style="font-size:.7rem">${diaTxt(p.dias_proximo_pago)}</div></td>
+    <td class="num">${esc(p.fecha_vencimiento||'—')}</td>
+    <td>${p.estado==='pagado'?'<span style="color:var(--green);font-weight:700">Pagado</span>':'Activo'}</td>
+    <td><button class="act" onclick='editar(${p.id})'>✏️</button> <button class="act" onclick='eliminar(${p.id})'>🗑️</button></td>
+  </tr>`).join('')||'<tr><td colspan="8" class="loading">Aún no hay préstamos. Agrega el primero con "➕ Nuevo préstamo".</td></tr>';
+}
+function abrirForm(){ document.getElementById('mTit').textContent='Nuevo préstamo'; ['f_id','f_banco','f_desc','f_monto','f_saldo','f_cuota','f_tasa','f_inicio','f_venc','f_prox','f_nota'].forEach(i=>document.getElementById(i).value=''); document.getElementById('f_frec').value='mensual'; document.getElementById('f_estado').value='activo'; document.getElementById('mErr').textContent=''; document.getElementById('modal').classList.add('show'); }
+function cerrarForm(){ document.getElementById('modal').classList.remove('show'); }
+function editar(id){ const p=_ps.find(x=>x.id===id); if(!p)return; document.getElementById('mTit').textContent='Editar préstamo';
+  const set=(i,v)=>document.getElementById(i).value=(v==null?'':v);
+  set('f_id',p.id);set('f_banco',p.banco);set('f_desc',p.descripcion);set('f_monto',p.monto_original);set('f_saldo',p.saldo);set('f_cuota',p.cuota);set('f_tasa',p.tasa);set('f_inicio',p.fecha_inicio);set('f_venc',p.fecha_vencimiento);set('f_prox',p.proximo_pago);set('f_nota',p.nota);
+  document.getElementById('f_frec').value=p.frecuencia||'mensual';document.getElementById('f_estado').value=p.estado||'activo';
+  document.getElementById('mErr').textContent='';document.getElementById('modal').classList.add('show'); }
+async function guardar(){
+  const g=(i)=>document.getElementById(i).value;
+  const prestamo={id:g('f_id')||null,banco:g('f_banco'),descripcion:g('f_desc'),monto_original:g('f_monto'),saldo:g('f_saldo'),cuota:g('f_cuota'),tasa:g('f_tasa'),frecuencia:g('f_frec'),moneda:g('f_moneda'),fecha_inicio:g('f_inicio'),fecha_vencimiento:g('f_venc'),proximo_pago:g('f_prox'),estado:g('f_estado'),nota:g('f_nota')};
+  if(!prestamo.banco){document.getElementById('mErr').textContent='Pon al menos el banco.';return;}
+  const d=await api({accion:'guardar',prestamo});
+  if(!d.ok){document.getElementById('mErr').textContent=d.error||'error';return;}
+  cerrarForm(); cargar();
+}
+async function eliminar(id){ if(!confirm('¿Eliminar este préstamo?'))return; const d=await api({accion:'eliminar',id}); if(d.ok)cargar(); else alert(d.error||'error'); }
+</script>
+</body></html>

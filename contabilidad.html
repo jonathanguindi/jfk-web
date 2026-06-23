@@ -105,6 +105,12 @@ tbody tr:hover{background:var(--bg-sunken)}
 </div></div>
 
 <div id="app" class="wrap" style="display:none">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 4px">
+    <button class="preset active" style="background:var(--cta);color:#fff;border-color:var(--cta)">📊 Resumen</button>
+    <button class="preset" onclick="location.href='cxp-revision.html'">📋 Cuentas por pagar</button>
+    <button class="preset" onclick="location.href='planilla.html'">👥 Planilla</button>
+    <button class="preset" onclick="location.href='prestamos.html'">🏦 Préstamos</button>
+  </div>
   <div class="filters">
     <div class="presets" id="presets">
       <button class="preset" data-p="mes">Este mes</button>
