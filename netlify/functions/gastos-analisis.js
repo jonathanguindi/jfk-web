@@ -1,8 +1,8 @@
-// gastos-analisis.js · Analiza los GASTOS reales de SAP (facturas de servicio a proveedores) por
-// cuenta, mes y año. SOLO LECTURA, SOLO ADMIN. Devuelve totales por año, por categoría, tendencia,
-// y comparativo año vs año (qué subió/bajó) para el dashboard de gastos.
+// gastos-analisis.js · Analiza los GASTOS desde Supabase (tabla gastos_sap, sincronizada de SAP).
+// SOLO LECTURA, SOLO ADMIN. Rápido. Devuelve totales por año, top categorías, tendencia y
+// comparativo año actual vs anterior (qué subió/bajó) para el dashboard.
 const { getEmpresa } = require('./lib/empresa-config');
-const { SAP_URL, sapLogin, sapGetAll } = require('./lib/sap-ventas');
+const { getSupabase } = require('./lib/supabase');
 
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 const reply = (c, o) => ({ statusCode: c, headers: { 'Content-Type': 'application/json', ...cors }, body: JSON.stringify(o) });
@@ -14,80 +14,61 @@ exports.handler = async (event) => {
   try {
     const body = JSON.parse(event.body || '{}');
     const empresa = getEmpresa();
+    const sb = getSupabase(empresa);
+    if (!sb) return reply(500, { ok: false, error: 'Supabase no configurado' });
     const adminEmail = (process.env.VENTAS_ADMIN_EMAIL || empresa.admin || '').trim().toLowerCase();
     if ((body.email || '').trim().toLowerCase() !== adminEmail) return reply(403, { ok: false, error: 'Solo el administrador' });
 
-    const prefijo = process.env.SAP_GASTO_PREFIX || '61';      // 61 JFK · 7 BDB
-    const itbmsAcct = process.env.SAP_ITBMS_ACCT || '610224';  // se excluye del análisis
-    const anios = Math.min(6, Math.max(2, Number(body.anios) || 4));
-    const hoy = new Date();
-    const anioActual = hoy.getUTCFullYear();
-    const desde = (anioActual - anios + 1) + '-01-01';
-
-    const cookie = await sapLogin();
-
-    // Nombres de cuentas de gasto
-    const cuentasRows = await sapGetAll(cookie, `ChartOfAccounts?$filter=startswith(Code,'${prefijo}')&$select=Code,Name`);
-    const nombreCuenta = new Map((cuentasRows || []).map(c => [c.Code, c.Name]));
-
-    // Facturas de servicio (gastos) desde 'desde'. Paginado con tope de seguridad.
-    const path = `PurchaseInvoices?$filter=DocType eq 'dDocument_Service' and DocDate ge '${desde}'&$select=DocDate,DocumentLines&$orderby=DocEntry desc`;
-    const docs = await sapGetAll(cookie, path);
-
-    const porAnio = {};                  // anio -> total
-    const porCuentaAnio = {};            // code -> { anio -> total }
-    const tendencia = {};                // 'YYYY-MM' -> total (solo para gráfica)
-    let totalLineas = 0;
-
-    for (const d of (docs || [])) {
-      const fecha = (d.DocDate || '').slice(0, 10);
-      if (!fecha) continue;
-      const anio = fecha.slice(0, 4);
-      const ym = fecha.slice(0, 7);
-      for (const l of (d.DocumentLines || [])) {
-        const code = l.AccountCode;
-        if (!code || !String(code).startsWith(prefijo)) continue;   // solo cuentas de gasto
-        if (code === itbmsAcct) continue;                            // ITBMS no es gasto
-        const monto = Number(l.LineTotal) || 0;
-        if (!monto) continue;
-        totalLineas++;
-        porAnio[anio] = (porAnio[anio] || 0) + monto;
-        (porCuentaAnio[code] || (porCuentaAnio[code] = {}))[anio] = (porCuentaAnio[code][anio] || 0) + monto;
-        tendencia[ym] = (tendencia[ym] || 0) + monto;
-      }
+    // Traer todas las líneas (paginado)
+    let rows = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await sb.from('gastos_sap').select('doc_date,account_code,account_name,monto,anio,mes,proveedor').range(from, from + 999);
+      if (error) return reply(200, { ok: false, error: error.message });
+      if (!data || !data.length) break;
+      rows = rows.concat(data);
+      if (data.length < 1000) break;
     }
 
-    const anioPrev = String(anioActual - 1), anioAct = String(anioActual);
-    // Por categoría con comparativo año actual vs anterior
-    const categorias = Object.entries(porCuentaAnio).map(([code, porA]) => {
-      const act = porA[anioAct] || 0, prev = porA[anioPrev] || 0;
-      const delta = act - prev;
-      const pct = prev > 0 ? Math.round((delta / prev) * 100) : (act > 0 ? 100 : 0);
+    if (!rows.length) return reply(200, { ok: true, vacio: true, mensaje: 'Sin datos de gastos. Dale "Actualizar desde SAP" para sincronizar.' });
+
+    const anioActual = new Date().getUTCFullYear();
+    const anioPrev = anioActual - 1;
+    const porAnio = {}, porCuentaAnio = {}, tendencia = {}, porProvAnio = {};
+    for (const l of rows) {
+      const a = l.anio, monto = Number(l.monto) || 0, ym = (l.doc_date || '').slice(0, 7);
+      porAnio[a] = (porAnio[a] || 0) + monto;
+      const code = l.account_code;
+      const ca = porCuentaAnio[code] || (porCuentaAnio[code] = { nombre: l.account_name || code, anios: {} });
+      ca.anios[a] = (ca.anios[a] || 0) + monto;
+      if (ym) tendencia[ym] = (tendencia[ym] || 0) + monto;
+      const prov = l.proveedor || '—';
+      const pa = porProvAnio[prov] || (porProvAnio[prov] = {});
+      pa[a] = (pa[a] || 0) + monto;
+    }
+
+    const categorias = Object.entries(porCuentaAnio).map(([code, o]) => {
+      const act = o.anios[anioActual] || 0, prev = o.anios[anioPrev] || 0, delta = act - prev;
       return {
-        code, nombre: nombreCuenta.get(code) || code,
-        actual: r2(act), anterior: r2(prev), delta: r2(delta), pct,
-        total_periodo: r2(Object.values(porA).reduce((s, v) => s + v, 0)),
-        por_anio: Object.fromEntries(Object.entries(porA).map(([y, v]) => [y, r2(v)]))
+        code, nombre: o.nombre, actual: r2(act), anterior: r2(prev), delta: r2(delta),
+        pct: prev > 0 ? Math.round(delta / prev * 100) : (act > 0 ? 100 : 0),
+        total_periodo: r2(Object.values(o.anios).reduce((s, v) => s + v, 0)),
+        por_anio: Object.fromEntries(Object.entries(o.anios).map(([y, v]) => [y, r2(v)]))
       };
     });
-
-    const totActual = categorias.reduce((s, c) => s + c.actual, 0);
-    const totPrev = categorias.reduce((s, c) => s + c.anterior, 0);
-    // Alertas: las que más subieron (en $) respecto al año pasado
-    const subieron = categorias.filter(c => c.delta > 0 && c.anterior > 0).sort((a, b) => b.delta - a.delta).slice(0, 6);
-    const bajaron = categorias.filter(c => c.delta < 0).sort((a, b) => a.delta - b.delta).slice(0, 5);
-    const topActual = categorias.filter(c => c.actual > 0).sort((a, b) => b.actual - a.actual).slice(0, 12);
+    const proveedores = Object.entries(porProvAnio).map(([nombre, a]) => ({ nombre, actual: r2(a[anioActual] || 0), anterior: r2(a[anioPrev] || 0) }))
+      .filter(p => p.actual > 0).sort((a, b) => b.actual - a.actual).slice(0, 10);
 
     return reply(200, {
-      ok: true,
-      empresa: empresa.nombreCorto,
-      anio_actual: anioActual,
+      ok: true, empresa: empresa.nombreCorto, anio_actual: anioActual,
       por_anio: Object.entries(porAnio).map(([anio, total]) => ({ anio, total: r2(total) })).sort((a, b) => a.anio.localeCompare(b.anio)),
       tendencia: Object.entries(tendencia).map(([mes, total]) => ({ mes, total: r2(total) })).sort((a, b) => a.mes.localeCompare(b.mes)),
-      top_categorias: topActual,
-      subieron, bajaron,
-      total_actual: r2(totActual), total_anterior: r2(totPrev),
-      _debug: { facturas: (docs || []).length, lineas: totalLineas, desde, cuentas: nombreCuenta.size }
+      top_categorias: categorias.filter(c => c.actual > 0).sort((a, b) => b.actual - a.actual).slice(0, 12),
+      subieron: categorias.filter(c => c.delta > 0 && c.anterior > 0).sort((a, b) => b.delta - a.delta).slice(0, 6),
+      bajaron: categorias.filter(c => c.delta < 0).sort((a, b) => a.delta - b.delta).slice(0, 5),
+      top_proveedores: proveedores,
+      total_actual: r2(categorias.reduce((s, c) => s + c.actual, 0)),
+      total_anterior: r2(categorias.reduce((s, c) => s + c.anterior, 0)),
+      _debug: { lineas: rows.length }
     });
   } catch (e) {
     return reply(200, { ok: false, error: e.message || String(e) });
