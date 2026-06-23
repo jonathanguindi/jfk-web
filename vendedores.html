@@ -2550,6 +2550,10 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
           <div class="pedido-header__meta-value pedido-header__meta-value--accent">#26 Kennedy</div>
         </div>
       </div>
+      <button id="btn-dashboard-cliente" onclick="abrirDashboardCliente()" style="margin-top:10px;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:10px;font-weight:700;font-size:.82rem;cursor:pointer">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Dashboard del cliente
+      </button>
     </div>
   </header>
 
@@ -8041,6 +8045,130 @@ function renderFicha(p) {
   _prepFichaShare(p);   // pre-genera el PDF para que "Enviar PDF" abra el compartir al instante
 }
 function closeFicha() { const ov = document.getElementById('ficha-modal'); if (ov) ov.style.display = 'none'; }
+
+// ===== DASHBOARD 360° DEL CLIENTE =====
+let _dashData = null;
+async function abrirDashboardCliente() {
+  if (!currentCustomer || !currentCustomer.sap_card_code) { showToast('Selecciona un cliente primero', true); return; }
+  renderDashboardCliente(null);   // overlay con loader
+  try {
+    const r = await fetch('/.netlify/functions/cliente-dashboard', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cardCode: currentCustomer.sap_card_code })
+    });
+    const d = await r.json();
+    if (!d || !d.ok) { showToast('No se pudo cargar el dashboard del cliente', true); cerrarDashboardCliente(); return; }
+    _dashData = d;
+    renderDashboardCliente(d);
+  } catch (e) { showToast('Sin conexión: el dashboard necesita internet', true); cerrarDashboardCliente(); }
+}
+function cerrarDashboardCliente() { const ov = document.getElementById('dash-cliente-modal'); if (ov) ov.style.display = 'none'; }
+function _dashTab(name) {
+  ['productos', 'facturas', 'devoluciones', 'recuperar'].forEach(t => {
+    const sec = document.getElementById('dash-sec-' + t), tab = document.getElementById('dash-tab-' + t);
+    if (sec) sec.style.display = (t === name) ? 'block' : 'none';
+    if (tab) { tab.style.borderBottomColor = (t === name) ? FICHA_BRAND.accentHex : 'transparent'; tab.style.color = (t === name) ? 'var(--text)' : 'var(--text-muted)'; }
+  });
+}
+function renderDashboardCliente(d) {
+  let ov = document.getElementById('dash-cliente-modal');
+  if (!ov) {
+    ov = document.createElement('div'); ov.id = 'dash-cliente-modal';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;padding:0';
+    ov.addEventListener('click', e => { if (e.target === ov) cerrarDashboardCliente(); });
+    document.body.appendChild(ov);
+  }
+  ov.style.display = 'flex';
+  const accent = FICHA_BRAND.accentHex;
+  const cliNombre = (currentCustomer ? `${currentCustomer.name} (${currentCustomer.sap_card_code})` : '').replace(/[<>]/g, '');
+  const shell = (inner) => `<div style="background:var(--bg-elevated,#fff);color:var(--text,#0E1016);width:100%;max-width:600px;max-height:94vh;overflow:auto;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + var(--safe-bottom))">${inner}</div>`;
+  if (!d) {
+    ov.innerHTML = shell(`<div style="text-align:center;padding:50px 0;color:var(--text-muted)">Cargando dashboard…</div>`);
+    return;
+  }
+  const esc = (s) => escapeHtml('' + (s == null ? '' : s));
+  const R = d.resumen, A = d.alertas;
+
+  // Tarjetas de resumen (siempre)
+  const stat = (label, val, sub) => `<div style="background:var(--bg-sunken,#f5f6f8);border:1px solid var(--border-soft);border-radius:14px;padding:12px"><div style="font-size:.66rem;letter-spacing:.08em;color:var(--text-muted);font-weight:800;text-transform:uppercase">${label}</div><div style="font-size:1.15rem;font-weight:900;margin-top:3px;letter-spacing:-.01em">${val}</div>${sub ? `<div style="font-size:.72rem;color:var(--text-muted);margin-top:1px">${sub}</div>` : ''}</div>`;
+  const sinComprar = R.dias_sin_comprar != null ? (R.dias_sin_comprar <= 1 ? 'hoy' : `hace ${R.dias_sin_comprar} días`) : '—';
+  const resumenHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+    ${stat('Total comprado', fmt(R.total_comprado), `${R.num_productos} productos distintos`)}
+    ${stat('Facturas', R.num_facturas, `ticket prom. ${fmt(R.ticket_promedio)}`)}
+    ${stat('Última compra', R.ultima_compra || '—', sinComprar)}
+    ${stat('Cliente desde', R.primera_compra || '—', '')}
+  </div>`;
+
+  // Alertas (solo las que aplican)
+  const al = (icon, titulo, valor, sub, color) => `<div style="flex:1 1 46%;min-width:140px;background:${color}14;border:1px solid ${color}44;border-radius:14px;padding:11px"><div style="font-size:.72rem;font-weight:800;color:${color}">${icon} ${titulo}</div><div style="font-size:1.1rem;font-weight:900;margin-top:2px">${valor}</div><div style="font-size:.7rem;color:var(--text-muted)">${sub}</div></div>`;
+  const alertas = [];
+  if (A.debe.tiene) alertas.push(al('💰', 'Debe', fmt(A.debe.saldo), 'saldo pendiente', '#d9534f'));
+  if (A.caida.hay) alertas.push(al('📉', 'Caída en compras', '-' + A.caida.pct + '%', `6m: ${fmt(A.caida.recientes)} vs ${fmt(A.caida.previos)}`, '#e08a00'));
+  if (A.devoluciones.tiene) alertas.push(al('↩️', 'Devoluciones', A.devoluciones.count, fmt(A.devoluciones.total) + ' devuelto', '#d9534f'));
+  if (A.dejo_de_comprar.length) alertas.push(al('🛒', 'Dejó de comprar', A.dejo_de_comprar.length, 'productos a recuperar', '#e08a00'));
+  const alertasHTML = alertas.length
+    ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">${alertas.join('')}</div>`
+    : `<div style="background:#1f9d5511;border:1px solid #1f9d5544;color:#1f9d55;border-radius:12px;padding:10px 12px;font-size:.82rem;font-weight:700;margin-bottom:14px">✅ Cliente al día: sin saldo, sin caída y sin devoluciones.</div>`;
+
+  // Tabs
+  const tabBtn = (id, label) => `<button id="dash-tab-${id}" onclick="_dashTab('${id}')" style="flex:1;background:none;border:none;border-bottom:2px solid transparent;padding:10px 4px;font-weight:800;font-size:.8rem;color:var(--text-muted);cursor:pointer">${label}</button>`;
+  const tabsHTML = `<div style="display:flex;gap:4px;border-bottom:1px solid var(--border-soft);margin-bottom:12px">
+    ${tabBtn('productos', 'Productos')}${tabBtn('facturas', 'Facturas')}${tabBtn('devoluciones', 'Devol.')}${tabBtn('recuperar', 'Recuperar')}
+  </div>`;
+
+  // Productos comprados (grid con fotos)
+  const prodCard = (p) => `<div style="border:1px solid var(--border-soft);border-radius:12px;overflow:hidden;background:var(--bg-sunken,#f7f7f7)">
+    <div style="aspect-ratio:1/1;background:#fff;display:flex;align-items:center;justify-content:center">
+      <img src="${THUMB_IMG_BASE}/${encodeURIComponent(p.item_code)}.jpg" loading="lazy" onclick="openLightbox('${PRODUCT_IMG_BASE}/${encodeURIComponent(p.item_code)}.jpg')"
+        onerror="if(!this.dataset.f){this.dataset.f='1';this.src='${PRODUCT_IMG_BASE}/${encodeURIComponent(p.item_code)}.jpg';}else{this.style.display='none';this.parentElement.innerHTML='<span style=\\'color:#bbb;font-size:.7rem\\'>Sin foto</span>';}"
+        style="width:100%;height:100%;object-fit:contain;cursor:zoom-in">
+    </div>
+    <div style="padding:8px">
+      <div style="font-weight:800;font-size:.72rem">${esc(p.item_code)}</div>
+      <div style="color:var(--text-muted);font-size:.7rem;line-height:1.2;height:2.4em;overflow:hidden">${esc(p.item_description)}</div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:.72rem"><span><b>${p.qty_total}</b> uds</span><span style="color:var(--text-muted)">${p.veces_comprado}× compras</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-muted)"><span>${fmt(p.precio_ultimo)}</span><span>${(p.fecha_ultima || '').slice(0, 10)}</span></div>
+    </div>
+  </div>`;
+  const prodHTML = d.productos.length
+    ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${d.productos.map(prodCard).join('')}</div>`
+    : `<div style="color:var(--text-muted);text-align:center;padding:30px 0">Sin compras registradas</div>`;
+
+  // Facturas
+  const facRow = (f) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid var(--border-soft)"><div><div style="font-weight:700;font-size:.86rem">Factura ${f.doc_num != null ? esc(f.doc_num) : '—'}</div><div style="color:var(--text-muted);font-size:.76rem">${f.doc_date || '—'} · ${f.items} líneas</div></div><div style="font-weight:800;font-size:.92rem">${fmt(f.total)}</div></div>`;
+  const facHTML = d.facturas.length ? d.facturas.map(facRow).join('') : `<div style="color:var(--text-muted);text-align:center;padding:30px 0">Sin facturas</div>`;
+
+  // Devoluciones
+  const devRow = (f) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid var(--border-soft)"><div><div style="font-weight:700;font-size:.86rem;color:#d9534f">Nota crédito ${f.doc_num != null ? esc(f.doc_num) : '—'}</div><div style="color:var(--text-muted);font-size:.76rem">${f.doc_date || '—'} · ${f.items} líneas</div></div><div style="font-weight:800;font-size:.92rem;color:#d9534f">-${fmt(f.total)}</div></div>`;
+  const devHTML = d.devoluciones.length ? d.devoluciones.map(devRow).join('') : `<div style="color:var(--text-muted);text-align:center;padding:30px 0">Sin devoluciones 🎉</div>`;
+
+  // Recuperar (dejó de comprar)
+  const recRow = (p) => `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border-soft)">
+    <img src="${THUMB_IMG_BASE}/${encodeURIComponent(p.item_code)}.jpg" loading="lazy" onerror="this.style.visibility='hidden'" style="width:44px;height:44px;object-fit:contain;background:#fff;border-radius:8px;border:1px solid var(--border-soft);flex:0 0 auto">
+    <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.item_description || p.item_code)}</div><div style="color:var(--text-muted);font-size:.72rem">${esc(p.item_code)} · compró ${p.veces_comprado}× · ${fmt(p.monto_total)}</div></div>
+    <div style="text-align:right;flex:0 0 auto"><div style="font-size:.72rem;color:#e08a00;font-weight:800">${p.dias_sin}d</div><div style="font-size:.66rem;color:var(--text-muted)">sin pedir</div></div>
+  </div>`;
+  const recHTML = A.dejo_de_comprar.length
+    ? `<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:8px">Productos que compraba seguido y hace meses no pide — ¡buena oportunidad de recompra!</div>${A.dejo_de_comprar.map(recRow).join('')}`
+    : `<div style="color:var(--text-muted);text-align:center;padding:30px 0">Nada que recuperar: el cliente sigue comprando lo de siempre 👍</div>`;
+
+  ov.innerHTML = shell(`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid ${accent}">
+      <div style="min-width:0"><div style="font-size:.62rem;letter-spacing:.14em;color:var(--text-muted);font-weight:800">DASHBOARD DEL CLIENTE</div>
+      <div style="font-size:1.05rem;font-weight:900;line-height:1.1;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${cliNombre}</div></div>
+      <button onclick="cerrarDashboardCliente()" style="background:var(--bg-sunken,#eee);border:none;width:34px;height:34px;border-radius:50%;font-size:18px;cursor:pointer;color:var(--text);flex:0 0 auto">✕</button>
+    </div>
+    ${resumenHTML}
+    ${alertasHTML}
+    ${tabsHTML}
+    <div id="dash-sec-productos">${prodHTML}</div>
+    <div id="dash-sec-facturas" style="display:none">${facHTML}</div>
+    <div id="dash-sec-devoluciones" style="display:none">${devHTML}</div>
+    <div id="dash-sec-recuperar" style="display:none">${recHTML}</div>
+    <button onclick="cerrarDashboardCliente(); if(currentCustomer) openEstadoCuenta(currentCustomer);" style="margin-top:16px;width:100%;background:${accent};color:#fff;border:none;border-radius:14px;padding:14px;font-weight:800;font-size:14px;cursor:pointer">📄 Ver estado de cuenta completo</button>
+  `);
+  _dashTab('productos');
+}
 async function _buildFichaDoc(p) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'letter' });
