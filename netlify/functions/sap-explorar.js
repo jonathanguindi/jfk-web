@@ -45,6 +45,15 @@ exports.handler = async (event) => {
       const a = await getOne(cookie, "ChartOfAccounts?$filter=AccountType eq 'at_Expenses'&$top=20&$select=Code,Name,Balance,ActiveAccount", 9000);
       out.gastos = a.error ? { error: a.error } : { cuentas: a.value, con_saldo: a.value.filter(x => Number(x.Balance) !== 0).length };
     }
+    if (recurso === 'empleados_full') {
+      const e = await sapGetAll(cookie, 'EmployeesInfo?$select=EmployeeID,FirstName,LastName,JobTitle,Department,Salary,SalaryUnit,StartDate,StatusCode,TerminationDate,Active');
+      out.empleados_full = { total: (e || []).length, lista: (e || []).map(x => ({ id: x.EmployeeID, nombre: [x.FirstName, x.LastName].filter(Boolean).join(' '), cargo: x.JobTitle, salario: x.Salary, unidad: x.SalaryUnit, ingreso: (x.StartDate || '').slice(0, 10), term: x.TerminationDate, activo: x.Active })) };
+    }
+    if (recurso === 'cuentas_buscar') {
+      const q = (body.q || '').replace(/'/g, "''");
+      const a = await sapGetAll(cookie, `ChartOfAccounts?$filter=contains(Name,'${q}')&$select=Code,Name,Balance,ActiveAccount`);
+      out.cuentas_buscar = { q, cuentas: (a || []).map(c => ({ code: c.Code, name: c.Name, balance: c.Balance, activa: c.ActiveAccount })) };
+    }
     if (recurso === 'proveedores') {
       const a = await getOne(cookie, "BusinessPartners?$filter=CardType eq 'cSupplier'&$orderby=CardCode desc&$top=6&$select=CardCode,CardName,FederalTaxID,Phone1,EmailAddress,Currency,Series,GroupCode", 9000);
       out.proveedores = a.error ? { error: a.error } : (a.value || []);
