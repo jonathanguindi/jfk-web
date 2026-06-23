@@ -8149,6 +8149,7 @@ function renderDashboardCliente(d) {
       <div style="color:var(--text-muted);font-size:.7rem;line-height:1.2;height:2.4em;overflow:hidden">${esc(p.item_description)}</div>
       <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:.72rem"><span><b>${p.qty_total}</b> uds</span><span style="color:var(--text-muted)">${p.veces_comprado}× compras</span></div>
       <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-muted)"><span>${fmt(p.precio_ultimo)}</span><span>${(p.fecha_ultima || '').slice(0, 10)}</span></div>
+      <button onclick="recomprarDelDashboard('${(p.item_code || '').replace(/'/g, '')}', ${p.qty_ultima || 1}, this)" style="margin-top:7px;width:100%;background:${accent};color:#fff;border:none;border-radius:9px;padding:8px;font-weight:800;font-size:.74rem;cursor:pointer">+ ${p.qty_ultima || 1} al pedido</button>
     </div>
   </div>`;
   const prodHTML = d.productos.length
