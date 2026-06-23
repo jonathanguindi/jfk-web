@@ -210,6 +210,7 @@ function render(){
 
   // Cuentas por pagar — se lee de SAP en vivo a demanda (botón).
   const ap=`<div class="card"><h2>Cuentas por pagar</h2><div class="h-sub">Facturas de compra abiertas — lo que se debe a proveedores (directo de SAP)</div>
+    <div style="margin-bottom:10px"><button class="preset" style="background:var(--cta);color:#fff;border-color:var(--cta)" onclick="location.href='cxp-revision.html'">📋 Revisar y cerrar facturas →</button></div>
     <div id="ap-box">${_apData?renderApHTML(_apData):`<button class="preset" onclick="cargarPorPagar()">📥 Cargar de SAP</button> <span class="muted" style="font-size:.78rem">Toma unos segundos: lee las facturas de compra directo de SAP.</span>`}</div></div>`;
 
   document.getElementById('content').innerHTML=kpis+bars+desglose+arCard+ap;
