@@ -24,20 +24,25 @@
 .logo{font-size:1.2rem;font-weight:700;display:flex;align-items:center;gap:2px}.logo img{height:22px}.logo .reg{color:var(--electric);font-size:9px;font-weight:700;margin-top:1px}
 .logo small{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--electric);margin-left:10px}
 .spacer{flex:1}.btn{font-weight:600;font-size:.82rem;border:none;border-radius:8px;padding:9px 14px;cursor:pointer}
-.btn-ghost{background:rgba(255,255,255,.1);color:#fff}.btn-sm{padding:6px 10px;font-size:.74rem}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:18px 0}
+.btn-ghost{background:rgba(255,255,255,.1);color:#fff}.btn-cta{background:var(--cta);color:#fff}.btn-sm{padding:6px 10px;font-size:.74rem}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:18px 0}
 .kpi{background:var(--bg-elevated);border:1px solid var(--border-soft);border-radius:14px;padding:15px;box-shadow:var(--shadow-soft)}
-.kpi .lbl{font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);font-weight:800}
-.kpi .val{font-size:1.45rem;font-weight:800;margin-top:5px}.kpi.accent{background:linear-gradient(135deg,var(--cta),#0072b8);color:#fff;border:none}.kpi.accent .lbl{color:rgba(255,255,255,.85)}
-.bar{display:flex;gap:8px;align-items:center;margin:6px 0 2px}
+.kpi .lbl{font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);font-weight:800}.kpi .val{font-size:1.45rem;font-weight:800;margin-top:5px}
+.kpi.accent{background:linear-gradient(135deg,var(--cta),#0072b8);color:#fff;border:none}.kpi.accent .lbl{color:rgba(255,255,255,.85)}
+.bar{display:flex;gap:8px;align-items:center;margin:6px 0}
 .card{background:var(--bg-elevated);border:1px solid var(--border-soft);border-radius:14px;box-shadow:var(--shadow-soft);overflow:hidden;margin-top:8px}
 .tbl-scroll{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:.84rem}
 th,td{padding:10px;text-align:right;border-bottom:1px solid var(--border-soft);white-space:nowrap}th:first-child,td:first-child,.l{text-align:left}
-th{font-size:.66rem;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);font-weight:800}
-tbody tr:hover{background:var(--bg-sunken)}tr.inact{opacity:.5}
-.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.7rem;font-weight:700}.pill.on{background:rgba(31,169,113,.15);color:var(--green)}.pill.off{background:rgba(229,72,77,.15);color:var(--red)}
+th{font-size:.66rem;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);font-weight:800}tbody tr:hover{background:var(--bg-sunken)}
+tr.inact{opacity:.5}.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.7rem;font-weight:700}.pill.on{background:rgba(31,169,113,.15);color:var(--green)}.pill.off{background:rgba(229,72,77,.15);color:var(--red)}
+.act{border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-muted);border-radius:7px;padding:4px 8px;font-size:.72rem;cursor:pointer;font-weight:700}
 .loading{padding:40px;text-align:center;color:var(--text-muted)}
 .gate{max-width:440px;margin:90px auto;text-align:center;background:var(--bg-elevated);border:1px solid var(--border-soft);border-radius:16px;padding:34px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:50;padding:14px}.modal.show{display:flex}
+.modal .box{background:var(--bg-elevated);border-radius:16px;padding:20px;max-width:560px;width:100%;max-height:92vh;overflow:auto}
+.fld{margin-top:10px}.fld label{font-size:.72rem;color:var(--text-muted);font-weight:700;display:block;margin-bottom:3px}
+.fld input,.fld select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:var(--bg-sunken);color:var(--text);font-size:.9rem}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media(max-width:600px){.logo small{display:none}}
 </style></head>
 <body>
@@ -46,18 +51,45 @@ tbody tr:hover{background:var(--bg-sunken)}tr.inact{opacity:.5}
   <span class="spacer"></span>
   <button class="btn btn-ghost btn-sm" onclick="toggleTheme()">◐</button>
   <button class="btn btn-ghost btn-sm" onclick="location.href='contabilidad.html'">🧮 Contabilidad</button>
-  <button class="btn btn-ghost btn-sm" id="btnRefr" onclick="cargar()">🔄 Actualizar</button>
+  <button class="btn btn-cta btn-sm" onclick="abrirForm()">➕ Nuevo empleado</button>
 </div></div>
 <div id="app" class="wrap" style="display:none">
   <div id="kpis" class="kpis"></div>
-  <div class="bar"><strong style="font-size:.95rem">Empleados</strong><span class="spacer"></span>
-    <button class="btn btn-sm" style="background:var(--bg-elevated);border:1px solid var(--border);color:var(--text)" onclick="exportarCSV()">⬇️ CSV</button></div>
+  <div class="bar"><strong style="font-size:.95rem">Empleados</strong></div>
   <div class="card"><div class="tbl-scroll"><table>
-    <thead><tr><th class="l">Empleado</th><th class="l">Cargo</th><th>Salario</th><th>Mensual</th><th>Ingreso</th><th>Antigüedad</th><th>Estado</th></tr></thead>
-    <tbody id="tbody"><tr><td colspan="7" class="loading">Cargando de SAP…</td></tr></tbody>
+    <thead><tr><th class="l">Empleado</th><th class="l">Cargo</th><th>Salario/mes</th><th>Ingreso</th><th>Estado</th><th>Contrato</th><th></th></tr></thead>
+    <tbody id="tbody"><tr><td colspan="7" class="loading">Cargando…</td></tr></tbody>
   </table></div></div>
 </div>
-<div id="gate" class="gate" style="display:none"><h2 style="margin-top:0">Acceso restringido</h2><p style="color:var(--text-muted)">Entra primero a Contabilidad JFK.</p><a class="btn btn-sm" style="background:var(--cta);color:#fff" href="contabilidad.html">Ir a Contabilidad JFK →</a></div>
+<div id="gate" class="gate" style="display:none"><h2 style="margin-top:0">Acceso restringido</h2><p style="color:var(--text-muted)">Entra primero a Contabilidad JFK.</p><a class="btn btn-sm btn-cta" href="contabilidad.html">Ir a Contabilidad JFK →</a></div>
+
+<div id="modal" class="modal"><div class="box">
+  <div style="display:flex;justify-content:space-between;align-items:center"><h2 id="mTit" style="margin:0">Nuevo empleado</h2><button class="act" onclick="cerrarForm()">✕</button></div>
+  <input type="hidden" id="f_id">
+  <div class="fld"><label>Nombre completo *</label><input id="f_nombre" placeholder="Nombre y apellido"></div>
+  <div class="grid2">
+    <div class="fld"><label>Cédula</label><input id="f_cedula" placeholder="8-XXX-XXX"></div>
+    <div class="fld"><label>Nacionalidad</label><input id="f_nac" placeholder="PANAMEÑA"></div>
+    <div class="fld"><label>Cargo</label><input id="f_cargo" placeholder="Vendedor, Bodeguero…"></div>
+    <div class="fld"><label>Tipo de contrato</label><select id="f_tipo"><option value="indefinido">Indefinido</option><option value="definido">Definido</option></select></div>
+    <div class="fld"><label>Salario</label><input id="f_salario" type="number" inputmode="decimal" placeholder="0"></div>
+    <div class="fld"><label>Frecuencia</label><select id="f_frec"><option value="mensual">Mensual</option><option value="quincenal">Quincenal</option><option value="semanal">Semanal</option><option value="anual">Anual</option></select></div>
+    <div class="fld"><label>Fecha de ingreso</label><input id="f_ingreso" type="date"></div>
+    <div class="fld"><label>Fecha de nacimiento</label><input id="f_nacim" type="date"></div>
+  </div>
+  <div class="fld"><label>Funciones</label><input id="f_func" placeholder="Funciones del cargo (para el contrato)"></div>
+  <div class="fld"><label>Domicilio</label><input id="f_dom" placeholder="Dirección del trabajador"></div>
+  <div class="fld"><label>Dependientes (separados por coma)</label><input id="f_dep" placeholder="opcional"></div>
+  <div class="grid2">
+    <div class="fld"><label>Representante (Gerente que firma)</label><input id="f_rep" placeholder="opcional"></div>
+    <div class="fld"><label>Estado</label><select id="f_estado"><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select></div>
+    <div class="fld"><label>Correo</label><input id="f_email" placeholder="opcional"></div>
+    <div class="fld"><label>Teléfono</label><input id="f_tel" placeholder="opcional"></div>
+  </div>
+  <div id="mErr" style="color:var(--red);font-size:.8rem;margin-top:8px"></div>
+  <div style="display:flex;gap:8px;margin-top:14px"><button class="btn btn-cta" style="flex:1;justify-content:center" onclick="guardar()">Guardar</button><button class="btn" style="background:var(--bg-sunken);color:var(--text)" onclick="cerrarForm()">Cancelar</button></div>
+</div></div>
+
 <script>
 const SESSION_KEY='jfk_vendor_session';
 let sesion=null;try{sesion=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');}catch(e){}
@@ -66,37 +98,57 @@ const EMAIL=(sesion&&sesion.email||'').trim().toLowerCase();
 const ES_ADMIN=!!(sesion&&sesion.role==='admin');
 const fmt=(n)=>'$'+(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const esc=(s)=>(''+(s==null?'':s)).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
-const UNI={scu_Month:'/mes',scu_Year:'/año',scu_Week:'/sem',scu_Day:'/día',scu_Hour:'/hora'};
 let _emp=[];
 if(!ES_ADMIN){document.getElementById('gate').style.display='block';}
 else{document.getElementById('app').style.display='block';cargar();}
+async function api(extra){const r=await fetch('/.netlify/functions/empleados',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL,...extra})});return r.json();}
 async function cargar(){
-  document.getElementById('tbody').innerHTML='<tr><td colspan="7" class="loading">Leyendo planilla de SAP…</td></tr>';
-  try{
-    const r=await fetch('/.netlify/functions/planilla-sap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL})});
-    const d=await r.json();
-    if(!d.ok){document.getElementById('tbody').innerHTML='<tr><td colspan="7" class="loading">'+esc(d.error||'error')+'</td></tr>';return;}
-    _emp=d.empleados||[];
-    document.getElementById('kpis').innerHTML=`
-      <div class="kpi accent"><div class="lbl">Planilla mensual</div><div class="val num">${fmt(d.planilla_mensual)}</div></div>
-      <div class="kpi"><div class="lbl">Planilla anual</div><div class="val num">${fmt(d.planilla_anual)}</div></div>
-      <div class="kpi"><div class="lbl">Empleados activos</div><div class="val num">${d.activos}</div></div>
-      <div class="kpi"><div class="lbl">Total registrados</div><div class="val num">${d.total_empleados}</div></div>`;
-    document.getElementById('tbody').innerHTML=_emp.map(e=>`<tr class="${e.activo?'':'inact'}">
-      <td class="l"><b>${esc(e.nombre)}</b>${e.cedula?`<div style="font-size:.7rem;color:var(--text-muted)">${esc(e.cedula)}</div>`:''}</td>
-      <td class="l">${esc(e.cargo)}</td>
-      <td class="num">${fmt(e.salario)}<span style="color:var(--text-muted);font-size:.72rem">${UNI[e.unidad]||''}</span></td>
-      <td class="num">${fmt(e.salario_mensual)}</td>
-      <td class="num">${esc(e.fecha_ingreso||'—')}</td>
-      <td class="num">${e.antiguedad_anos!=null?e.antiguedad_anos+' a':'—'}</td>
-      <td><span class="pill ${e.activo?'on':'off'}">${e.activo?'Activo':'Inactivo'}</span></td>
-    </tr>`).join('')||'<tr><td colspan="7" class="loading">Sin empleados en SAP.</td></tr>';
-  }catch(e){document.getElementById('tbody').innerHTML='<tr><td colspan="7" class="loading">Error de conexión.</td></tr>';}
+  document.getElementById('tbody').innerHTML='<tr><td colspan="7" class="loading">Cargando…</td></tr>';
+  const d=await api({accion:'listar'});
+  if(!d.ok){document.getElementById('tbody').innerHTML='<tr><td colspan="7" class="loading">'+esc(d.error||'error')+(/relation|does not exist|column/i.test(d.error||'')?' — falta correr el SQL de empleados.':'')+'</td></tr>';return;}
+  _emp=d.empleados||[];const s=d.resumen;
+  document.getElementById('kpis').innerHTML=`
+    <div class="kpi accent"><div class="lbl">Planilla mensual</div><div class="val num">${fmt(s.planilla_mensual)}</div></div>
+    <div class="kpi"><div class="lbl">Planilla anual</div><div class="val num">${fmt(s.planilla_anual)}</div></div>
+    <div class="kpi"><div class="lbl">Empleados activos</div><div class="val num">${s.activos}</div></div>
+    <div class="kpi"><div class="lbl">Total</div><div class="val num">${s.total}</div></div>`;
+  document.getElementById('tbody').innerHTML=_emp.map(e=>`<tr class="${e.estado==='inactivo'?'inact':''}">
+    <td class="l"><b>${esc(e.nombre||'—')}</b>${e.cedula?`<div style="font-size:.7rem;color:var(--text-muted)">${esc(e.cedula)}</div>`:''}</td>
+    <td class="l">${esc(e.cargo||'—')}</td>
+    <td class="num">${fmt(e.salario_mensual)}</td>
+    <td class="num">${esc(e.fecha_ingreso||'—')}</td>
+    <td><span class="pill ${e.estado==='inactivo'?'off':'on'}">${e.estado==='inactivo'?'Inactivo':'Activo'}</span></td>
+    <td><button class="act" onclick='contrato(${e.id})'>📄 Contrato</button></td>
+    <td><button class="act" onclick='editar(${e.id})'>✏️</button> <button class="act" onclick='eliminar(${e.id})'>🗑️</button></td>
+  </tr>`).join('')||'<tr><td colspan="7" class="loading">Aún no hay empleados. Agrega el primero con "➕ Nuevo empleado".</td></tr>';
 }
-function exportarCSV(){
-  const head=['Empleado','Cedula','Cargo','Salario','Unidad','SalarioMensual','Ingreso','AntiguedadAnos','Estado'];
-  const lines=[head.join(',')].concat(_emp.map(e=>[e.nombre,e.cedula,e.cargo,e.salario,e.unidad,e.salario_mensual,e.fecha_ingreso,e.antiguedad_anos,e.activo?'activo':'inactivo'].map(x=>'"'+(''+(x==null?'':x)).replace(/"/g,'""')+'"').join(',')));
-  const b=new Blob(['﻿'+lines.join('\n')],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='planilla.csv';a.click();
+function abrirForm(){document.getElementById('mTit').textContent='Nuevo empleado';['f_id','f_nombre','f_cedula','f_nac','f_cargo','f_salario','f_ingreso','f_nacim','f_func','f_dom','f_dep','f_rep','f_email','f_tel'].forEach(i=>document.getElementById(i).value='');document.getElementById('f_tipo').value='indefinido';document.getElementById('f_frec').value='mensual';document.getElementById('f_estado').value='activo';document.getElementById('mErr').textContent='';document.getElementById('modal').classList.add('show');}
+function cerrarForm(){document.getElementById('modal').classList.remove('show');}
+function editar(id){const e=_emp.find(x=>x.id===id);if(!e)return;document.getElementById('mTit').textContent='Editar empleado';
+  const set=(i,v)=>document.getElementById(i).value=(v==null?'':v);
+  set('f_id',e.id);set('f_nombre',e.nombre);set('f_cedula',e.cedula);set('f_nac',e.nacionalidad);set('f_cargo',e.cargo);set('f_salario',e.salario);set('f_ingreso',e.fecha_ingreso);set('f_nacim',e.fecha_nacimiento);set('f_func',e.funciones);set('f_dom',e.domicilio);set('f_dep',e.dependientes);set('f_rep',e.representante);set('f_email',e.email);set('f_tel',e.telefono);
+  document.getElementById('f_tipo').value=e.tipo_contrato||'indefinido';document.getElementById('f_frec').value=e.frecuencia_pago||'mensual';document.getElementById('f_estado').value=e.estado||'activo';
+  document.getElementById('mErr').textContent='';document.getElementById('modal').classList.add('show');}
+async function guardar(){
+  const g=(i)=>document.getElementById(i).value;
+  const empleado={id:g('f_id')||null,nombre:g('f_nombre'),cedula:g('f_cedula'),nacionalidad:g('f_nac'),cargo:g('f_cargo'),tipo_contrato:g('f_tipo'),salario:g('f_salario'),frecuencia_pago:g('f_frec'),fecha_ingreso:g('f_ingreso'),fecha_nacimiento:g('f_nacim'),funciones:g('f_func'),domicilio:g('f_dom'),dependientes:g('f_dep'),representante:g('f_rep'),estado:g('f_estado'),email:g('f_email'),telefono:g('f_tel')};
+  if(!empleado.nombre){document.getElementById('mErr').textContent='Pon al menos el nombre.';return;}
+  const d=await api({accion:'guardar',empleado});
+  if(!d.ok){document.getElementById('mErr').textContent=d.error||'error';return;}
+  cerrarForm();cargar();
+}
+async function eliminar(id){if(!confirm('¿Eliminar este empleado?'))return;const d=await api({accion:'eliminar',id});if(d.ok)cargar();else alert(d.error||'error');}
+async function contrato(id){
+  const e=_emp.find(x=>x.id===id);
+  try{
+    const r=await fetch('/.netlify/functions/contrato-pdf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL,id})});
+    const d=await r.json();
+    if(!d.ok){alert('No se pudo generar el contrato: '+(d.error||'error'));return;}
+    const bin=atob(d.pdf);const arr=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);
+    const blob=new Blob([arr],{type:'application/pdf'});const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=d.filename||'contrato.pdf';a.click();
+    setTimeout(()=>window.open(url,'_blank'),200);
+  }catch(e){alert('Error al generar el contrato.');}
 }
 </script>
 </body></html>
