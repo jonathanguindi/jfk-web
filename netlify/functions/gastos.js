@@ -33,7 +33,8 @@ exports.handler = async (event) => {
       const g = body.gasto || {};
       const fila = {
         fecha: g.fecha || null, categoria: g.categoria || null, descripcion: g.descripcion || null,
-        monto: num(g.monto), proveedor: g.proveedor || null, moneda: g.moneda || 'USD',
+        monto: num(g.monto), proveedor: g.proveedor || null, proveedor_codigo: g.proveedor_codigo || null,
+        cuenta_gasto: g.cuenta_gasto || null, moneda: g.moneda || 'USD',
         estado: g.estado || 'registrado', creado_por: email
       };
       let res;

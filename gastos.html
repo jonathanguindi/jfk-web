@@ -73,7 +73,21 @@ th{font-size:.66rem;text-transform:uppercase;letter-spacing:.04em;color:var(--te
   </div>
   <div class="fld"><label>Categoría</label><input id="f_cat" list="cats" placeholder="Alquiler, Servicios, Sueldos, Transporte…"><datalist id="cats"><option>Alquiler</option><option>Servicios (luz/agua/internet)</option><option>Transporte/Flete</option><option>Mantenimiento</option><option>Suministros de oficina</option><option>Honorarios</option><option>Impuestos</option><option>Comisiones</option><option>Otros</option></datalist></div>
   <div class="fld"><label>Descripción</label><input id="f_desc" placeholder="Detalle del gasto"></div>
-  <div class="fld"><label>Proveedor</label><input id="f_prov" placeholder="opcional"></div>
+  <div class="fld"><label>Cuenta de gasto (SAP)</label><select id="f_cuenta"><option value="">— cargando cuentas… —</option></select></div>
+  <div class="fld"><label>Proveedor (SAP)</label>
+    <div style="display:flex;gap:6px"><input id="f_provq" placeholder="Buscar proveedor en SAP…" onkeydown="if(event.key==='Enter'){event.preventDefault();buscarProv();}"><button type="button" class="act" onclick="buscarProv()">Buscar</button></div>
+    <div id="provRes" style="max-height:130px;overflow:auto;margin-top:4px"></div>
+    <div id="provSel" style="font-size:.8rem;margin-top:4px;color:var(--green);font-weight:700"></div>
+    <button type="button" class="act" style="margin-top:6px" onclick="toggleCrear()">➕ Crear proveedor nuevo</button>
+    <div id="crearProv" style="display:none;border:1px solid var(--border);border-radius:9px;padding:10px;margin-top:6px">
+      <div class="fld" style="margin-top:0"><label>Nombre *</label><input id="cp_nombre"></div>
+      <div class="grid2"><div class="fld"><label>RUC</label><input id="cp_ruc"></div><div class="fld"><label>Teléfono</label><input id="cp_tel"></div></div>
+      <div class="fld"><label>Email</label><input id="cp_email"></div>
+      <button type="button" class="btn btn-cta btn-sm" style="margin-top:8px" onclick="crearProvSAP()">Crear en SAP</button>
+      <span id="cpMsg" style="font-size:.78rem;margin-left:8px"></span>
+    </div>
+    <input type="hidden" id="f_prov"><input type="hidden" id="f_prov_code">
+  </div>
   <div id="mErr" style="color:var(--red);font-size:.8rem;margin-top:8px"></div>
   <div style="display:flex;gap:8px;margin-top:14px"><button class="btn btn-cta" style="flex:1;justify-content:center" onclick="guardar()">Guardar</button><button class="btn" style="background:var(--bg-sunken);color:var(--text)" onclick="cerrarForm()">Cancelar</button></div>
 </div></div>
@@ -107,15 +121,49 @@ async function cargar(){
   </tr>`).join('')||'<tr><td colspan="6" class="loading">Aún no hay gastos. Agrega el primero con "➕ Nuevo gasto".</td></tr>';
 }
 function hoyISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-function abrirForm(){document.getElementById('mTit').textContent='Nuevo gasto';['f_id','f_monto','f_cat','f_desc','f_prov'].forEach(i=>document.getElementById(i).value='');document.getElementById('f_fecha').value=hoyISO();document.getElementById('mErr').textContent='';document.getElementById('modal').classList.add('show');}
+function resetProv(){['f_provq','f_prov','f_prov_code','cp_nombre','cp_ruc','cp_tel','cp_email'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});document.getElementById('provRes').innerHTML='';document.getElementById('provSel').textContent='';document.getElementById('crearProv').style.display='none';document.getElementById('cpMsg').textContent='';}
+function abrirForm(){document.getElementById('mTit').textContent='Nuevo gasto';['f_id','f_monto','f_cat','f_desc'].forEach(i=>document.getElementById(i).value='');document.getElementById('f_fecha').value=hoyISO();resetProv();document.getElementById('f_cuenta').value='';document.getElementById('mErr').textContent='';document.getElementById('modal').classList.add('show');cargarCuentas();}
+// ---- Cuentas de gasto (SAP) ----
+let _cuentas=null;
+async function cargarCuentas(){
+  const sel=document.getElementById('f_cuenta');
+  if(_cuentas){ pintarCuentas(); return; }
+  sel.innerHTML='<option value="">— cargando cuentas… —</option>';
+  try{ const r=await fetch('/.netlify/functions/cuentas-gasto',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL})}); const d=await r.json();
+    _cuentas=d.ok?(d.cuentas||[]):[]; pintarCuentas();
+  }catch(e){ sel.innerHTML='<option value="">(no se pudieron cargar)</option>'; }
+}
+function pintarCuentas(){ const sel=document.getElementById('f_cuenta'); sel.innerHTML='<option value="">— elegir cuenta —</option>'+_cuentas.map(c=>`<option value="${c.code}">${c.code} · ${esc(c.name)}</option>`).join(''); }
+// ---- Proveedor (buscar / crear en SAP) ----
+async function provApi(extra){const r=await fetch('/.netlify/functions/proveedores',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL,...extra})});return r.json();}
+async function buscarProv(){
+  const q=document.getElementById('f_provq').value.trim();
+  document.getElementById('provRes').innerHTML='<div style="font-size:.78rem;color:var(--text-muted);padding:4px">Buscando…</div>';
+  const d=await provApi({accion:'buscar',q});
+  if(!d.ok){document.getElementById('provRes').innerHTML='<div style="font-size:.78rem;color:var(--red)">'+esc(d.error||'error')+'</div>';return;}
+  document.getElementById('provRes').innerHTML=(d.proveedores||[]).map(p=>`<div class="act" style="display:block;text-align:left;width:100%;margin:2px 0;cursor:pointer" onclick="pickProv('${(p.card_code||'').replace(/'/g,'')}','${(p.nombre||'').replace(/'/g,'\\'')}')">${esc(p.nombre)} <span style="color:var(--text-muted)">· ${esc(p.card_code)}</span></div>`).join('')||'<div style="font-size:.78rem;color:var(--text-muted)">Sin resultados. Usa "Crear proveedor nuevo".</div>';
+}
+function pickProv(code,nombre){document.getElementById('f_prov_code').value=code;document.getElementById('f_prov').value=nombre;document.getElementById('provSel').textContent='✓ '+nombre+' ('+code+')';document.getElementById('provRes').innerHTML='';document.getElementById('crearProv').style.display='none';}
+function toggleCrear(){const c=document.getElementById('crearProv');c.style.display=c.style.display==='none'?'block':'none';}
+async function crearProvSAP(){
+  const msg=document.getElementById('cpMsg');const nombre=document.getElementById('cp_nombre').value.trim();
+  if(!nombre){msg.style.color='var(--red)';msg.textContent='Pon el nombre.';return;}
+  msg.style.color='var(--text-muted)';msg.textContent='Creando en SAP…';
+  const d=await provApi({accion:'crear',proveedor:{nombre,ruc:document.getElementById('cp_ruc').value.trim(),telefono:document.getElementById('cp_tel').value.trim(),email:document.getElementById('cp_email').value.trim()}});
+  if(!d.ok){msg.style.color='var(--red)';msg.textContent=d.error||'error';return;}
+  msg.style.color='var(--green)';msg.textContent='✓ Creado: '+d.card_code;
+  pickProv(d.card_code,d.nombre||nombre);
+}
 function cerrarForm(){document.getElementById('modal').classList.remove('show');}
 function editar(id){const g=_g.find(x=>x.id===id);if(!g)return;document.getElementById('mTit').textContent='Editar gasto';
   const set=(i,v)=>document.getElementById(i).value=(v==null?'':v);
-  set('f_id',g.id);set('f_fecha',g.fecha);set('f_monto',g.monto);set('f_cat',g.categoria);set('f_desc',g.descripcion);set('f_prov',g.proveedor);
+  set('f_id',g.id);set('f_fecha',g.fecha);set('f_monto',g.monto);set('f_cat',g.categoria);set('f_desc',g.descripcion);
+  resetProv(); if(g.proveedor_codigo){pickProv(g.proveedor_codigo,g.proveedor||g.proveedor_codigo);} else if(g.proveedor){document.getElementById('f_prov').value=g.proveedor;document.getElementById('provSel').textContent=g.proveedor;}
+  cargarCuentas(); setTimeout(()=>{document.getElementById('f_cuenta').value=g.cuenta_gasto||'';},300);
   document.getElementById('mErr').textContent='';document.getElementById('modal').classList.add('show');}
 async function guardar(){
   const g=(i)=>document.getElementById(i).value;
-  const gasto={id:g('f_id')||null,fecha:g('f_fecha'),monto:g('f_monto'),categoria:g('f_cat'),descripcion:g('f_desc'),proveedor:g('f_prov')};
+  const gasto={id:g('f_id')||null,fecha:g('f_fecha'),monto:g('f_monto'),categoria:g('f_cat'),descripcion:g('f_desc'),proveedor:g('f_prov'),proveedor_codigo:g('f_prov_code'),cuenta_gasto:g('f_cuenta')};
   if(!gasto.fecha||!gasto.monto){document.getElementById('mErr').textContent='Pon al menos fecha y monto.';return;}
   const d=await api({accion:'guardar',gasto});
   if(!d.ok){document.getElementById('mErr').textContent=d.error||'error';return;}
