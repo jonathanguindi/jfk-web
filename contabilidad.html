@@ -208,13 +208,37 @@ function render(){
     <table><thead><tr><th id="dimcol">Detalle</th><th>Ventas</th><th>Costo</th><th>Utilidad</th><th>Margen</th></tr></thead><tbody>${rows||'<tr><td colspan="5" class="muted">Sin datos</td></tr>'}</tbody></table>
   </div>`;
 
-  // Cuentas por pagar (placeholder hasta sincronizar SAP)
-  const ap=`<div class="card"><h2>Cuentas por pagar</h2><div class="h-sub">Lo que JFK debe a proveedores</div>
-    <div class="soon">🔧 <b>Próximo paso:</b> sincronizar las facturas de proveedores de SAP para mostrar aquí lo que se debe, vencimientos y pagos. (Es solo lectura, no necesita permisos especiales.)</div></div>`;
+  // Cuentas por pagar — se lee de SAP en vivo a demanda (botón).
+  const ap=`<div class="card"><h2>Cuentas por pagar</h2><div class="h-sub">Facturas de compra abiertas — lo que se debe a proveedores (directo de SAP)</div>
+    <div id="ap-box">${_apData?renderApHTML(_apData):`<button class="preset" onclick="cargarPorPagar()">📥 Cargar de SAP</button> <span class="muted" style="font-size:.78rem">Toma unos segundos: lee las facturas de compra directo de SAP.</span>`}</div></div>`;
 
   document.getElementById('content').innerHTML=kpis+bars+desglose+arCard+ap;
 }
 function setTab(k){ _tab=k; render(); }
+
+let _apData=null;
+async function cargarPorPagar(){
+  const box=document.getElementById('ap-box'); if(box) box.innerHTML='<div class="loading">Leyendo facturas de compra de SAP…</div>';
+  try{
+    const r=await fetch('/.netlify/functions/cuentas-por-pagar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL})});
+    const d=await r.json();
+    if(!d.ok){ if(box) box.innerHTML='<div class="soon">No se pudo leer de SAP: '+esc(d.error||'error')+'</div>'; return; }
+    _apData=d; if(box) box.innerHTML=renderApHTML(d);
+  }catch(e){ if(box) box.innerHTML='<div class="soon">Error de conexión con SAP.</div>'; }
+}
+function renderApHTML(d){
+  const ag=d.aging||{};
+  const prov=(d.proveedores||[]).map((p,i)=>`<tr><td>${i+1}. ${esc(p.name)}</td><td class="num">${p.facturas}</td><td class="num" style="color:var(--red)">${p.vencido>0?fmt2(p.vencido):'—'}</td><td class="num">${fmt2(p.saldo)}</td></tr>`).join('');
+  return `<div class="kpis" style="margin-top:0">
+      <div class="kpi accent"><div class="lbl">Por pagar (vigente)</div><div class="val num">${fmt(d.total_por_pagar)}</div><div class="sub">últimos ${d.meses_vigente} meses · ${d.num_facturas} facturas</div></div>
+      <div class="kpi warn"><div class="lbl">Vencido</div><div class="val num">${fmt(d.vencido)}</div><div class="sub">ya pasó la fecha de pago</div></div>
+      <div class="kpi"><div class="lbl">Por vencer</div><div class="val num">${fmt(d.por_vencer)}</div><div class="sub">aún a tiempo</div></div>
+      <div class="kpi"><div class="lbl">Proveedores</div><div class="val num">${d.num_proveedores}</div><div class="sub">con saldo</div></div>
+    </div>
+    <div class="h-sub" style="margin:14px 0 4px"><b>Antigüedad del vencido:</b> 0-30d ${fmt(ag.d0_30)} · 31-60d ${fmt(ag.d31_60)} · 61-90d ${fmt(ag.d61_90)} · +90d ${fmt(ag.d90)}</div>
+    <table style="margin-top:6px"><thead><tr><th>Proveedor</th><th>Facturas</th><th>Vencido</th><th>Saldo</th></tr></thead><tbody>${prov||'<tr><td colspan="4" class="muted">Sin cuentas por pagar vigentes</td></tr>'}</tbody></table>
+    <div class="soon" style="margin-top:14px">📚 <b>Histórico total en SAP:</b> ${fmt(d.historico.total)} en ${d.historico.num_facturas} facturas abiertas — incluye documentos muy antiguos (desde 2006) y posible deuda intercompañía. Conviene revisar/limpiar en SAP.</div>`;
+}
 </script>
 </body>
 </html>
