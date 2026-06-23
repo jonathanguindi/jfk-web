@@ -45,6 +45,22 @@ exports.handler = async (event) => {
       const a = await getOne(cookie, "ChartOfAccounts?$filter=AccountType eq 'at_Expenses'&$top=20&$select=Code,Name,Balance,ActiveAccount", 9000);
       out.gastos = a.error ? { error: a.error } : { cuentas: a.value, con_saldo: a.value.filter(x => Number(x.Balance) !== 0).length };
     }
+    if (recurso === 'asientos') {
+      const a = await getOne(cookie, 'JournalEntries?$orderby=JdtNum desc&$top=3', 9000);
+      if (a.error) out.asientos = { error: a.error };
+      else out.asientos = (a.value || []).map(j => ({
+        num: j.JdtNum, fecha: (j.ReferenceDate || '').slice(0, 10), memo: j.Memo,
+        lineas: (j.JournalEntryLines || []).slice(0, 6).map(l => ({ cuenta: l.AccountCode, debe: l.Debit, haber: l.Credit, detalle: l.LineMemo }))
+      }));
+    }
+    if (recurso === 'compras_servicio') {
+      const a = await getOne(cookie, "PurchaseInvoices?$filter=DocType eq 'dDocument_Service'&$orderby=DocEntry desc&$top=3&$select=DocEntry,DocNum,CardName,DocDate,DocTotal,DocumentLines", 9000);
+      if (a.error) out.compras_servicio = { error: a.error };
+      else out.compras_servicio = (a.value || []).map(d => ({
+        doc: d.DocNum, proveedor: d.CardName, fecha: (d.DocDate || '').slice(0, 10), total: d.DocTotal,
+        lineas: (d.DocumentLines || []).slice(0, 5).map(l => ({ cuenta: l.AccountCode, desc: l.ItemDescription || l.FreeText, monto: l.LineTotal }))
+      }));
+    }
     if (recurso === 'journal') {
       const j = await getOne(cookie, 'JournalEntries?$top=1');
       out.journal = j.error ? { error: j.error } : { campos: j.value[0] ? Object.keys(j.value[0]) : [], ejemplo: j.value[0] || null };
