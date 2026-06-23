@@ -45,6 +45,14 @@ exports.handler = async (event) => {
       const a = await getOne(cookie, "ChartOfAccounts?$filter=AccountType eq 'at_Expenses'&$top=20&$select=Code,Name,Balance,ActiveAccount", 9000);
       out.gastos = a.error ? { error: a.error } : { cuentas: a.value, con_saldo: a.value.filter(x => Number(x.Balance) !== 0).length };
     }
+    if (recurso === 'proveedores') {
+      const a = await getOne(cookie, "BusinessPartners?$filter=CardType eq 'cSupplier'&$orderby=CardCode desc&$top=6&$select=CardCode,CardName,FederalTaxID,Phone1,EmailAddress,Currency,Series,GroupCode", 9000);
+      out.proveedores = a.error ? { error: a.error } : (a.value || []);
+    }
+    if (recurso === 'series') {
+      const a = await getOne(cookie, "SeriesService_GetDocumentSeries", 9000);
+      out.series = a.error ? { error: a.error } : a.value;
+    }
     if (recurso === 'cuentas_gasto') {
       const a = await getOne(cookie, "ChartOfAccounts?$filter=startswith(Code,'610')&$top=60&$select=Code,Name,ActiveAccount", 9000);
       out.cuentas_gasto = a.error ? { error: a.error } : (a.value || []).map(x => ({ code: x.Code, name: x.Name, activa: x.ActiveAccount }));
