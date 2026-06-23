@@ -75,6 +75,18 @@ exports.handler = async (event) => {
       return reply(200, { ok: true, card_code: creado.CardCode, nombre: creado.CardName, ruc: creado.FederalTaxID || '' });
     }
 
+    if (accion === 'eliminar') {
+      const code = (body.card_code || '').trim();
+      if (!code) return reply(200, { ok: false, error: 'card_code requerido' });
+      const ac = new AbortController(); const t = setTimeout(() => ac.abort(), 12000);
+      try {
+        const r = await fetch(`${SAP_URL}/BusinessPartners('${encodeURIComponent(code)}')`, { method: 'DELETE', headers: { Cookie: cookie }, signal: ac.signal });
+        if (r.ok || r.status === 204) return reply(200, { ok: true });
+        const txt = await r.text();
+        return reply(200, { ok: false, error: ('HTTP ' + r.status + ' ' + txt).slice(0, 250) });
+      } finally { clearTimeout(t); }
+    }
+
     return reply(200, { ok: false, error: 'acción no válida' });
   } catch (e) {
     return reply(200, { ok: false, error: e.message || String(e) });
