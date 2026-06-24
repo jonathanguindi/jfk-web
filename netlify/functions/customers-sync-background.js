@@ -35,7 +35,7 @@ exports.handler = async (event) => {
         sap_card_code: b.CardCode,
         name: b.CardName || b.CardCode,
         tax_id: b.FederalTaxID || null,
-        email: b.EmailAddress || null,
+        email: b.EmailAddress ? String(b.EmailAddress).trim().toLowerCase() : null,
         phone: b.Phone1 || null,
         mobile: b.Cellular || null,
         city: b.City || null,

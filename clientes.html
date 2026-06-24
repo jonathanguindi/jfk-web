@@ -2016,10 +2016,11 @@ async function iniciarSesion() {
   if (pin.length < 4) { setError('El PIN debe tener al menos 4 dígitos'); return; }
 
   try {
+    const elike = email.replace(/[%_\\]/g, '\\$&');   // correo exacto, sin distinguir mayúsculas
     const { data: user, error } = await supa
       .from('customer_users')
       .select('*')
-      .eq('email', email)
+      .ilike('email', elike)
       .eq('active', true)
       .maybeSingle();
 
@@ -2050,10 +2051,11 @@ async function registrarPin() {
 
   try {
     // Verificar que el correo esté en la tabla customers (clientes reales JFK)
+    const elike = email.replace(/[%_\\]/g, '\\$&');   // correo exacto, sin distinguir mayúsculas
     const { data: cust, error: e1 } = await supa
       .from('customers')
       .select('sap_card_code, name, email')
-      .eq('email', email)
+      .ilike('email', elike)
       .eq('active', true)
       .maybeSingle();
 
@@ -2067,7 +2069,7 @@ async function registrarPin() {
     const { data: existing } = await supa
       .from('customer_users')
       .select('id')
-      .eq('email', email)
+      .ilike('email', elike)
       .maybeSingle();
     if (existing) { setError('Ya existe un PIN para este correo. Inicia sesión.'); cambiarVista('login'); return; }
 
