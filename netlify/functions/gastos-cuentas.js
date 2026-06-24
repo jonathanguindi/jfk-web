@@ -9,7 +9,7 @@ const reply = (c, o) => ({ statusCode: c, headers: { 'Content-Type': 'applicatio
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
 // Palabras que identifican cuentas de PLANILLA / personal.
-const PLANILLA_KW = ['SALARIO', 'SUELDO', 'SEGURO SOCIAL', 'SEGURO EDUCATIVO', 'VACACION', 'BONIFICAC', 'PRIMA DE ANT', 'PRIMA DE PROD', 'DECIMO', 'DÉCIMO', 'COMISION EN VENTA', 'GASTO DE PERSONAL', 'PLANILLA'];
+const PLANILLA_KW = ['SALARIO', 'SUELDO', 'SEGURO SOCIAL', 'SEGURO EDUCATIVO', 'VACACION', 'BONIFICAC', 'PRIMA DE ANT', 'PRIMA DE PROD', 'DECIMO', 'DÉCIMO', 'XIII', 'XIII MES', 'COMISION EN VENTA', 'GASTO DE PERSONAL', 'PLANILLA', 'RIESGO PROFESION'];
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return reply(200, { ok: true });

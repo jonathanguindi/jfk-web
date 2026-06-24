@@ -53,7 +53,7 @@ th{font-size:.66rem;text-transform:uppercase;color:var(--text-muted);font-weight
   <button class="btn btn-ghost btn-sm" onclick="location.href='contabilidad.html'">🧮 Contabilidad</button>
   <button class="btn btn-cta btn-sm" id="btnSync" onclick="sincronizar()">🔄 Actualizar desde SAP</button>
 </div></div>
-<div id="app" class="wrap" style="display:none"><div id="content"><div class="loading">Cargando…</div></div></div>
+<div id="app" class="wrap" style="display:none"><div id="reales"></div><div id="content"><div class="loading">Cargando…</div></div></div>
 <div id="gate" class="gate" style="display:none"><h2 style="margin-top:0">Acceso restringido</h2><p style="color:var(--text-muted)">Entra primero a Contabilidad JFK.</p><a class="btn btn-sm btn-cta" href="contabilidad.html">Ir a Contabilidad JFK →</a></div>
 <script>
 const SESSION_KEY='jfk_vendor_session';
@@ -64,7 +64,20 @@ const ES_ADMIN=!!(sesion&&sesion.role==='admin');
 const fmt=(n)=>'$'+(Number(n)||0).toLocaleString('en-US',{maximumFractionDigits:0});
 const esc=(s)=>(''+(s==null?'':s)).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
 if(!ES_ADMIN){document.getElementById('gate').style.display='block';}
-else{document.getElementById('app').style.display='block';cargar();}
+else{document.getElementById('app').style.display='block';cargarReales();cargar();}
+async function cargarReales(){
+  try{
+    const r=await fetch('/.netlify/functions/gastos-cuentas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL})});
+    const d=await r.json(); if(!d.ok)return;
+    const top=(d.cuentas||[]).slice(0,12); const maxv=Math.max(1,...top.map(c=>c.saldo));
+    const rows=top.map(c=>`<div class="row"><div class="l" style="width:40%">${esc(c.nombre)}<div style="font-size:.7rem;color:var(--text-muted)">${esc(c.code)}</div></div><div class="track"><div class="fill" style="width:${Math.round(c.saldo/maxv*100)}%"></div></div><div class="num" style="width:95px;text-align:right;font-weight:700">${fmt(c.saldo)}</div></div>`).join('');
+    document.getElementById('reales').innerHTML=`<div class="kpis">
+      <div class="kpi accent"><div class="lbl">Gastos reales del año</div><div class="val num">${fmt(d.total_gastos)}</div><div class="sub" style="color:rgba(255,255,255,.85)">contabilidad SAP — todo</div></div>
+      <div class="kpi"><div class="lbl">de eso, Planilla</div><div class="val num">${fmt(d.planilla_total)}</div><div class="sub">sueldos + cargas sociales</div></div>
+    </div>
+    <div class="card"><h2>💼 Gastos reales del año (contabilidad SAP)</h2><div class="h-sub">Saldo de cada cuenta de gasto — incluye planilla, seguros, alquiler, todo (no solo facturas de proveedor)</div>${rows}</div>`;
+  }catch(e){}
+}
 async function cargar(){
   document.getElementById('content').innerHTML='<div class="loading">Cargando análisis…</div>';
   try{
@@ -85,6 +98,7 @@ function render(d){
   const bajaron=d.bajaron.length?d.bajaron.map(c=>`<div class="row"><div class="l" style="flex:1">${esc(c.nombre)}</div><div class="num down" style="width:120px;text-align:right">${fmt(c.delta)} <span style="font-size:.72rem">(${c.pct}%)</span></div></div>`).join(''):'<div class="h-sub">—</div>';
   const provs=(d.top_proveedores||[]).map((p,i)=>`<tr><td class="l">${i+1}. ${esc(p.nombre)}</td><td class="num">${fmt(p.actual)}</td></tr>`).join('');
   document.getElementById('content').innerHTML=`
+    <div class="h-sub" style="margin-top:18px">📑 <b>Detalle de gastos a proveedores (facturas)</b> — tendencia y comparativo histórico. El total real de arriba ☝️ incluye además la planilla y todo gasto contable.</div>
     <div class="kpis">
       <div class="kpi accent"><div class="lbl">Gastos ${d.anio_actual}</div><div class="val num">${fmt(d.total_actual)}</div><div class="sub" style="color:rgba(255,255,255,.85)">ene–hoy (mismo período)</div></div>
       <div class="kpi"><div class="lbl">Mismo período ${d.anio_actual-1}</div><div class="val num">${fmt(d.total_anterior)}</div><div class="sub">ene–misma fecha</div></div>

@@ -210,16 +210,16 @@ function render(){
     <div class="kpi"><div class="lbl">Clientes activos</div><div class="val num">${k.num_clientes||0}</div><div class="sub">${k.num_paises||0} países</div></div>
   </div>`;
 
-  // Ganancia neta (utilidad bruta − gastos − planilla del periodo)
+  // Ganancia neta — usa los GASTOS REALES de SAP (cuentas contables, incluye planilla). Año en curso.
   const n=d.neto||{};
-  const netoHTML=`<div class="card"><h2>Ganancia neta</h2><div class="h-sub">Utilidad bruta menos gastos y planilla del periodo</div>
+  const netoHTML=`<div class="card"><h2>Ganancia neta (año)</h2><div class="h-sub">Utilidad bruta del año menos los gastos reales de SAP (incluye planilla)</div>
     <div class="kpis" style="margin-top:0">
-      <div class="kpi good"><div class="lbl">Utilidad bruta</div><div class="val num">${fmt(n.utilidad_bruta)}</div></div>
-      <div class="kpi"><div class="lbl">− Gastos</div><div class="val num">${fmt(n.gastos_periodo)}</div></div>
-      <div class="kpi"><div class="lbl">− Planilla (${n.meses_periodo||1}m)</div><div class="val num">${fmt(n.planilla_periodo)}</div><div class="sub">${fmt(n.planilla_mensual)}/mes</div></div>
-      <div class="kpi accent"><div class="lbl">Ganancia NETA</div><div class="val num">${fmt(n.utilidad_neta)}</div><div class="sub">${(Number(n.utilidad_bruta)||0)>0?Math.round((Number(n.utilidad_neta)||0)/(Number(n.utilidad_bruta)||1)*100):0}% de la bruta</div></div>
+      <div class="kpi good"><div class="lbl">Utilidad bruta (año)</div><div class="val num" id="neto-bruta">${fmt(n.utilidad_bruta)}</div></div>
+      <div class="kpi"><div class="lbl">− Gastos reales</div><div class="val num" id="neto-gastos">…</div><div class="sub" id="neto-gastos-sub">leyendo de SAP…</div></div>
+      <div class="kpi"><div class="lbl">de eso, Planilla</div><div class="val num" id="neto-planilla">…</div><div class="sub">sueldos+cargas</div></div>
+      <div class="kpi accent"><div class="lbl">Ganancia NETA</div><div class="val num" id="neto-neta">…</div><div class="sub" id="neto-neta-sub"></div></div>
     </div>
-    <div class="h-sub" style="margin-top:8px">Carga tus <a href="gastos.html" style="color:var(--cta);font-weight:700">Gastos</a> y <a href="planilla.html" style="color:var(--cta);font-weight:700">Planilla</a> para que la neta sea exacta.</div></div>`;
+    <div class="h-sub" style="margin-top:8px">Gastos leídos de las cuentas contables de SAP (año fiscal). Detalle en <a href="gastos-analisis.html" style="color:var(--cta);font-weight:700">📊 Análisis de gastos</a>.</div></div>`;
 
   // Tendencia mensual
   const tend=(d.pnl.tendencia||[]);
@@ -255,8 +255,32 @@ function render(){
     <div id="ap-box">${_apData?renderApHTML(_apData):`<button class="preset" onclick="cargarPorPagar()">📥 Cargar de SAP</button> <span class="muted" style="font-size:.78rem">Toma unos segundos: lee las facturas de compra directo de SAP.</span>`}</div></div>`;
 
   document.getElementById('content').innerHTML=kpis+netoHTML+bars+desglose+arCard+ap;
+  actualizarNetoReal();
 }
 function setTab(k){ _tab=k; render(); }
+
+// Lee los GASTOS REALES de SAP (cuentas contables, incluye planilla) y calcula la ganancia neta del año.
+let _gastosRealAno=null;
+async function actualizarNetoReal(){
+  const set=(id,v)=>{const el=document.getElementById(id); if(el)el.textContent=v;};
+  try{
+    let bruta = (_data && _data.periodo==='ano') ? Number(_data.pnl?.kpis?.margen_total)||0 : null;
+    if(bruta===null){
+      const r=await fetch('/.netlify/functions/contabilidad-resumen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL,periodo:'ano'})});
+      const rd=await r.json(); bruta=Number(rd.pnl?.kpis?.margen_total)||0;
+    }
+    if(!_gastosRealAno){
+      const gr=await fetch('/.netlify/functions/gastos-cuentas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL})});
+      _gastosRealAno=await gr.json();
+    }
+    const g=_gastosRealAno;
+    if(!g||!g.ok){ set('neto-gastos','—'); set('neto-gastos-sub','no se pudo leer SAP'); return; }
+    const gastos=Number(g.total_gastos)||0, planilla=Number(g.planilla_total)||0, neta=bruta-gastos;
+    set('neto-bruta',fmt(bruta)); set('neto-gastos',fmt(gastos)); set('neto-gastos-sub','de SAP (incl. planilla)');
+    set('neto-planilla',fmt(planilla)); set('neto-neta',fmt(neta));
+    set('neto-neta-sub',(bruta>0?Math.round(neta/bruta*100):0)+'% de la bruta');
+  }catch(e){ set('neto-gastos','—'); set('neto-gastos-sub','error'); }
+}
 
 let _apData=null;
 async function cargarPorPagar(){
