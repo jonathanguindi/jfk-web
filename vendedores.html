@@ -4041,6 +4041,9 @@ function renderCustomersInModal(customers) {
         <div class="modal-account-row__name">${escapeHtml(c.name)}</div>
         <div class="modal-account-row__code">${escapeHtml(c.sap_card_code)}</div>
       </div>
+      <button class="modal-account-row__estado" onclick='openClienteFicha(${JSON.stringify(c).replace(/'/g,"&apos;")})' title="Ficha del cliente (datos + correo + compras)">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+      </button>
       <button class="modal-account-row__estado" onclick='openEstadoCuenta(${JSON.stringify(c).replace(/'/g,"&apos;")})' title="Estado de cuenta">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
       </button>
@@ -4058,6 +4061,79 @@ function renderCustomersInModal(customers) {
     </div>`;
   }
   list.innerHTML = html;
+}
+
+// ===== FICHA DEL CLIENTE (datos + correo editable + compras) =====
+function openClienteFicha(c){
+  window.__fichaCliente = c; window.__fichaComprasLoaded = false;
+  let ov = document.getElementById('cli-ficha-modal');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'cli-ficha-modal'; ov.style.cssText = 'position:fixed;inset:0;z-index:100002;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;padding:0'; ov.addEventListener('click', e => { if (e.target === ov) cerrarClienteFicha(); }); document.body.appendChild(ov); }
+  ov.style.display = 'flex';
+  const A = FICHA_BRAND.accentHex;
+  const dir = [c.city].filter(Boolean).join(', ') || '—';
+  const tel = c.phone || c.mobile || '—';
+  ov.innerHTML = `<div style="background:var(--bg-elevated,#fff);color:var(--text,#0E1016);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:18px 18px calc(18px + var(--safe-bottom,0px))">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid ${A};padding-bottom:12px;margin-bottom:12px">
+      <div style="min-width:0"><div style="font-size:.62rem;letter-spacing:.14em;color:var(--text-muted);font-weight:800">FICHA DEL CLIENTE</div>
+        <div style="font-size:1.2rem;font-weight:900;line-height:1.1;margin-top:3px">${escapeHtml(c.name||'')}</div>
+        <div style="color:var(--text-muted);font-size:.85rem">Código ${escapeHtml(c.sap_card_code||'')}${c.tax_id?' · RUC '+escapeHtml(c.tax_id):''}</div>
+      </div>
+      <button onclick="cerrarClienteFicha()" style="background:var(--bg-sunken,#eee);border:none;width:34px;height:34px;border-radius:50%;font-size:18px;cursor:pointer;color:var(--text);flex:0 0 auto">✕</button>
+    </div>
+    <div style="display:flex;gap:4px;border-bottom:1px solid var(--border-soft);margin-bottom:12px">
+      <button id="clitab-datos" onclick="cliTab('datos')" style="flex:1;background:none;border:none;border-bottom:2px solid ${A};padding:10px;font-weight:800;font-size:.85rem;color:var(--text);cursor:pointer">Datos</button>
+      <button id="clitab-compras" onclick="cliTab('compras')" style="flex:1;background:none;border:none;border-bottom:2px solid transparent;padding:10px;font-weight:800;font-size:.85rem;color:var(--text-muted);cursor:pointer">Compras</button>
+    </div>
+    <div id="cli-sec-datos">
+      <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border-soft)"><span style="color:var(--text-muted)">Dirección</span><span style="font-weight:600;text-align:right">${escapeHtml(dir)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border-soft)"><span style="color:var(--text-muted)">Teléfono</span><span style="font-weight:600">${escapeHtml(tel)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border-soft)"><span style="color:var(--text-muted)">Saldo</span><span style="font-weight:700">${fmt(c.current_balance||0)}</span></div>
+      <div style="margin-top:14px">
+        <label style="font-size:.75rem;color:var(--text-muted);font-weight:700">Correo electrónico</label>
+        <div style="display:flex;gap:8px;margin-top:5px">
+          <input id="cli-email-input" type="email" value="${escapeHtml(c.email||'')}" placeholder="correo@cliente.com" style="flex:1;padding:11px 12px;border:1px solid var(--border-soft);border-radius:10px;background:var(--bg-sunken,#f5f6f8);color:var(--text);font-size:.95rem">
+          <button onclick="guardarEmailCliente()" style="background:var(--punch);color:#fff;border:none;border-radius:10px;padding:0 16px;font-weight:800;cursor:pointer">Guardar</button>
+        </div>
+        <div id="cli-email-msg" style="font-size:.78rem;margin-top:6px;color:var(--text-muted)">📧 Con este correo el cliente entra a su portal. Se guarda en SAP y en el sistema.</div>
+      </div>
+      <button onclick="cerrarClienteFicha(); selectCustomer(window.__fichaCliente);" style="margin-top:16px;width:100%;background:var(--punch);color:#fff;border:none;border-radius:14px;padding:14px;font-weight:800;font-size:14px;cursor:pointer">🛒 Hacer pedido a este cliente</button>
+    </div>
+    <div id="cli-sec-compras" style="display:none"><div style="text-align:center;color:var(--text-muted);padding:24px">Cargando compras…</div></div>
+  </div>`;
+}
+function cerrarClienteFicha(){ const ov = document.getElementById('cli-ficha-modal'); if (ov) ov.style.display = 'none'; }
+function cliTab(t){
+  const A = FICHA_BRAND.accentHex;
+  document.getElementById('cli-sec-datos').style.display = t === 'datos' ? 'block' : 'none';
+  document.getElementById('cli-sec-compras').style.display = t === 'compras' ? 'block' : 'none';
+  const td = document.getElementById('clitab-datos'), tc = document.getElementById('clitab-compras');
+  td.style.borderBottomColor = t === 'datos' ? A : 'transparent'; td.style.color = t === 'datos' ? 'var(--text)' : 'var(--text-muted)';
+  tc.style.borderBottomColor = t === 'compras' ? A : 'transparent'; tc.style.color = t === 'compras' ? 'var(--text)' : 'var(--text-muted)';
+  if (t === 'compras' && !window.__fichaComprasLoaded) { window.__fichaComprasLoaded = true; cargarComprasFicha(); }
+}
+async function cargarComprasFicha(){
+  const cont = document.getElementById('cli-sec-compras'); const c = window.__fichaCliente;
+  try {
+    const r = await fetch('/.netlify/functions/historial-cliente', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cardCode: c.sap_card_code }) });
+    const d = await r.json();
+    if (!d.ok || !(d.productos || []).length) { cont.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:24px">Sin compras registradas.</div>'; return; }
+    cont.innerHTML = `<div style="font-size:.8rem;color:var(--text-muted);margin-bottom:8px">${d.productos.length} productos en su historial</div>` +
+      d.productos.slice(0, 150).map(p => `<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-soft)"><div style="min-width:0"><div style="font-weight:700;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(p.item_description || p.item_code)}</div><div style="color:var(--text-muted);font-size:.72rem">${escapeHtml(p.item_code)} · ${p.veces_comprado}× · última ${(p.fecha_ultima || '').slice(0, 10)}</div></div><div style="text-align:right;flex:0 0 auto"><div style="font-weight:700;font-size:.82rem">${p.qty_total} uds</div><div style="color:var(--text-muted);font-size:.72rem">${fmt(p.precio_ultimo)}</div></div></div>`).join('');
+  } catch (e) { cont.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:24px">No se pudo cargar.</div>'; }
+}
+async function guardarEmailCliente(){
+  const c = window.__fichaCliente;
+  const val = (document.getElementById('cli-email-input').value || '').trim();
+  const msg = document.getElementById('cli-email-msg');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) { msg.style.color = '#E5484D'; msg.textContent = 'Correo inválido.'; return; }
+  msg.style.color = 'var(--text-muted)'; msg.textContent = 'Guardando…';
+  try {
+    const r = await fetch('/.netlify/functions/cliente-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: (currentVendor && currentVendor.email) || '', cardCode: c.sap_card_code, nuevoEmail: val }) });
+    const d = await r.json();
+    if (!d.ok) { msg.style.color = '#E5484D'; msg.textContent = d.error || 'No se pudo guardar'; return; }
+    msg.style.color = '#1FA971'; msg.textContent = '✓ Guardado. El cliente ya puede entrar a su portal con este correo.' + (d.sap ? '' : ' (SAP pendiente)');
+    c.email = val; const idx = (allCustomers || []).findIndex(x => x.sap_card_code === c.sap_card_code); if (idx >= 0) allCustomers[idx].email = val;
+  } catch (e) { msg.style.color = '#E5484D'; msg.textContent = 'Error de conexión.'; }
 }
 
 document.getElementById('modal-search-input').addEventListener('input', (e) => {
