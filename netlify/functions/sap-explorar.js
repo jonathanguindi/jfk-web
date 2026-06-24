@@ -54,6 +54,10 @@ exports.handler = async (event) => {
       const a = await sapGetAll(cookie, `ChartOfAccounts?$filter=contains(Name,'${q}')&$select=Code,Name,Balance,ActiveAccount`);
       out.cuentas_buscar = { q, cuentas: (a || []).map(c => ({ code: c.Code, name: c.Name, balance: c.Balance, activa: c.ActiveAccount })) };
     }
+    if (recurso === 'pedidos_abiertos') {
+      const a = await getOne(cookie, "Orders?$filter=DocumentStatus eq 'bost_Open'&$orderby=DocEntry desc&$top=8&$select=DocNum,DocEntry,CardCode,CardName,DocTotal,DocumentStatus,Cancelled,NTSApproved,AuthorizationStatus,NTSApprovedNumber,DocDate", 9000);
+      out.pedidos_abiertos = a.error ? { error: a.error } : (a.value || []);
+    }
     if (recurso === 'pedido') {
       // Un pedido reciente completo, para ver campos de autorización y de costo/margen.
       const a = await getOne(cookie, 'Orders?$orderby=DocEntry desc&$top=1', 9000);
