@@ -40,12 +40,23 @@
 .loading{padding:36px;text-align:center;color:var(--text-muted)}
 .empty{padding:46px 20px;text-align:center;color:var(--text-muted);background:var(--bg-elevated);border:1px dashed var(--border);border-radius:14px}
 /* detalle */
-.ov{position:fixed;inset:0;background:rgba(8,10,15,.55);z-index:40;display:none;align-items:flex-start;justify-content:center;padding:18px;overflow:auto}
+.ov{position:fixed;inset:0;background:rgba(8,10,15,.55);z-index:40;display:none;align-items:center;justify-content:center;padding:16px}
 .ov.show{display:flex}
-.sheet{background:var(--bg);border-radius:18px;max-width:780px;width:100%;box-shadow:0 30px 80px rgba(0,0,0,.4);overflow:hidden;margin:auto}
-.sheet .hd{background:var(--navy);color:#fff;padding:16px 18px;display:flex;align-items:center;gap:10px}
+.sheet{background:var(--bg);border-radius:18px;max-width:780px;width:100%;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 30px 80px rgba(0,0,0,.4);overflow:hidden}
+.sheet .hd{background:var(--navy);color:#fff;padding:16px 18px;display:flex;align-items:center;gap:10px;flex:0 0 auto}
 .sheet .hd .x{margin-left:auto;background:rgba(255,255,255,.12);border:none;color:#fff;width:34px;height:34px;border-radius:9px;font-size:1.1rem;cursor:pointer}
-.sheet .bd{padding:16px 18px}
+.sheet .bd{padding:16px 18px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+/* productos como tarjetas (se ven completos en el cel) */
+.plist{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.pcard{background:var(--bg-elevated);border:1px solid var(--border-soft);border-radius:12px;padding:11px 13px}
+.pcard .pname{font-weight:800;font-size:.92rem;word-break:break-word}
+.pcard .pdesc{font-size:.74rem;color:var(--text-muted);margin-top:1px}
+.pstats{display:flex;flex-wrap:wrap;gap:9px 18px;margin-top:9px}
+.pstats > div{min-width:56px}
+.pstats .l{display:block;font-size:.57rem;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);font-weight:800}
+.pstats b{font-size:.92rem;font-variant-numeric:tabular-nums}
+.pstats .m{display:none}
+.plist.show-m .pstats .m{display:block}
 .kv{display:flex;flex-wrap:wrap;gap:14px 26px;margin-bottom:10px}
 .kv div .l{font-size:.62rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-weight:800}.kv div .v{font-weight:700}
 .tbl-scroll{overflow-x:auto;border:1px solid var(--border-soft);border-radius:12px;margin-top:8px}
@@ -62,7 +73,11 @@ tfoot td{font-weight:800;border-top:2px solid var(--border)}
 .msg{margin-top:10px;padding:10px 12px;border-radius:10px;font-weight:600;font-size:.85rem;display:none}
 .msg.ok{display:block;background:rgba(31,169,113,.14);color:var(--green)}.msg.err{display:block;background:rgba(229,72,77,.14);color:var(--red)}
 .gate{max-width:440px;margin:80px auto;text-align:center;background:var(--bg-elevated);border:1px solid var(--border-soft);border-radius:16px;padding:34px}
-@media(max-width:600px){.logo small{display:none}}
+@media(max-width:600px){.logo small{display:none}
+.ov{padding:0}
+.sheet{max-width:100%;width:100%;height:100%;max-height:100%;border-radius:0}
+.sheet .hd{padding-top:calc(14px + env(safe-area-inset-top))}
+.acts .btn{min-width:0}}
 </style></head>
 <body>
 <div class="topbar"><div class="inner">
@@ -142,15 +157,18 @@ function mostrarDetalle(p){
   document.getElementById('ov').classList.add('show');
   document.getElementById('ovTitle').textContent='Pedido #'+p.doc_num;
   const estadoTxt=p.cancelado?'<span class="pill" style="background:rgba(229,72,77,.15);color:var(--red)">cancelado</span>':(p.autorizado?'<span class="pill" style="background:rgba(31,169,113,.15);color:var(--green)">autorizado</span>':'<span class="pill">por aprobar</span>');
-  const filas=p.lineas.map(l=>`<tr>
-    <td class="l"><b>${esc(l.item)}</b><div class="meta" style="font-size:.72rem;color:var(--text-muted)">${esc(l.desc||'')}</div></td>
-    <td class="num">${l.qty}</td>
-    <td class="num">${fmt(l.precio_venta)}</td>
-    <td class="num">${fmt(l.venta)}</td>
-    <td class="num col-m">${fmt(l.costo_unit)}</td>
-    <td class="num col-m">${fmt(l.ganancia)}</td>
-    <td class="num col-m"><b style="color:${l.margen_pct>=30?'var(--green)':l.margen_pct>=15?'var(--amber)':'var(--red)'}">${l.margen_pct}%</b></td>
-  </tr>`).join('');
+  const filas=p.lineas.map(l=>`<div class="pcard">
+    <div class="pname">${esc(l.item)}</div>
+    <div class="pdesc">${esc(l.desc||'')}</div>
+    <div class="pstats">
+      <div><span class="l">Cant.</span><b>${l.qty}</b></div>
+      <div><span class="l">P. venta</span><b>${fmt(l.precio_venta)}</b></div>
+      <div><span class="l">Venta</span><b>${fmt(l.venta)}</b></div>
+      <div class="m"><span class="l">Costo u.</span><b>${fmt(l.costo_unit)}</b></div>
+      <div class="m"><span class="l">Ganancia</span><b style="color:var(--green)">${fmt(l.ganancia)}</b></div>
+      <div class="m"><span class="l">Margen</span><b style="color:${l.margen_pct>=30?'var(--green)':l.margen_pct>=15?'var(--amber)':'var(--red)'}">${l.margen_pct}%</b></div>
+    </div>
+  </div>`).join('');
   document.getElementById('ovBody').innerHTML=`
     <div class="kv">
       <div><div class="l">Cliente</div><div class="v">${esc(p.cliente)}</div></div>
@@ -158,12 +176,9 @@ function mostrarDetalle(p){
       <div><div class="l">Total</div><div class="v num">${fmt(p.total)}</div></div>
       <div><div class="l">Estado</div><div class="v">${estadoTxt}</div></div>
     </div>
-    <button class="btn btn-outline btn-sm" id="btnMargen" onclick="toggleMargen()">💰 Ver margen / ganancia</button>
-    <div id="tblWrap" class="tbl-scroll"><table>
-      <thead><tr><th class="l">Producto</th><th>Cant.</th><th>P. venta</th><th>Venta</th><th class="col-m">Costo u.</th><th class="col-m">Ganancia</th><th class="col-m">Margen</th></tr></thead>
-      <tbody>${filas}</tbody>
-    </table></div>
-    <div class="totline" id="totMargen" style="display:none">
+    <button class="btn btn-outline btn-sm" id="btnMargen" onclick="toggleMargen()">🙈 Ocultar margen</button>
+    <div id="tblWrap" class="plist show-m">${filas}</div>
+    <div class="totline" id="totMargen" style="display:flex">
       <div class="tcard blue"><div class="l">Venta total</div><div class="v num">${fmt(p.venta_total)}</div></div>
       <div class="tcard"><div class="l">Costo total</div><div class="v num">${fmt(p.costo_total)}</div></div>
       <div class="tcard green"><div class="l">Ganancia</div><div class="v num">${fmt(p.ganancia_total)}</div></div>
