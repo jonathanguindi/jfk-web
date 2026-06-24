@@ -54,6 +54,22 @@ exports.handler = async (event) => {
       const a = await sapGetAll(cookie, `ChartOfAccounts?$filter=contains(Name,'${q}')&$select=Code,Name,Balance,ActiveAccount`);
       out.cuentas_buscar = { q, cuentas: (a || []).map(c => ({ code: c.Code, name: c.Name, balance: c.Balance, activa: c.ActiveAccount })) };
     }
+    if (recurso === 'pedido') {
+      // Un pedido reciente completo, para ver campos de autorización y de costo/margen.
+      const a = await getOne(cookie, 'Orders?$orderby=DocEntry desc&$top=1', 9000);
+      const o = (a.value && a.value[0]) || null;
+      if (!o) { out.pedido = { error: a.error || 'sin pedidos' }; }
+      else {
+        const ln = (o.DocumentLines && o.DocumentLines[0]) || {};
+        out.pedido = {
+          campos_doc: Object.keys(o),
+          udf: Object.fromEntries(Object.keys(o).filter(k => k.startsWith('U_')).map(k => [k, o[k]])),
+          DocEntry: o.DocEntry, DocNum: o.DocNum, DocumentStatus: o.DocumentStatus, Cancelled: o.Cancelled,
+          campos_linea: Object.keys(ln),
+          linea_costo: { ItemCode: ln.ItemCode, Quantity: ln.Quantity, UnitPrice: ln.UnitPrice, Price: ln.Price, LineTotal: ln.LineTotal, StockPrice: ln.StockPrice, GrossProfit: ln.GrossProfit, GrossBuyPrice: ln.GrossBuyPrice }
+        };
+      }
+    }
     if (recurso === 'proveedores') {
       const a = await getOne(cookie, "BusinessPartners?$filter=CardType eq 'cSupplier'&$orderby=CardCode desc&$top=6&$select=CardCode,CardName,FederalTaxID,Phone1,EmailAddress,Currency,Series,GroupCode", 9000);
       out.proveedores = a.error ? { error: a.error } : (a.value || []);
