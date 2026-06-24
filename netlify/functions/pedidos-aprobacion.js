@@ -1,6 +1,6 @@
 // pedidos-aprobacion.js · Aprobación de pedidos (Orders) desde el portal.
 // acciones: listar (no autorizados) | detalle (margen por producto) | buscar | autorizar | cancelar.
-// "No autorizado" = NTSApproved='tNO'. Autorizar => NTSApproved='tYES' (lo que permite trabajarlo en bodega).
+// "No autorizado" = Confirmed='tNO' (checkbox "Autorizado" de Logística). Autorizar => Confirmed='tYES' (permite trabajarlo en bodega).
 // Margen por línea: UnitPrice (venta), GrossBuyPrice (costo), GrossProfit (ganancia) — vienen de SAP.
 const { getEmpresa } = require('./lib/empresa-config');
 const { getSupabase } = require('./lib/supabase');
@@ -59,7 +59,7 @@ exports.handler = async (event) => {
     const cookie = await sapLogin();
 
     if (accion === 'listar') {
-      const rows = await sapGetAll(cookie, "Orders?$filter=DocumentStatus eq 'bost_Open' and Cancelled eq 'tNO' and NTSApproved eq 'tNO'&$orderby=DocEntry desc&$select=DocEntry,DocNum,CardCode,CardName,DocTotal,DocDate,Comments");
+      const rows = await sapGetAll(cookie, "Orders?$filter=DocumentStatus eq 'bost_Open' and Cancelled eq 'tNO' and Confirmed eq 'tNO'&$orderby=DocEntry desc&$select=DocEntry,DocNum,CardCode,CardName,DocTotal,DocDate,Comments");
       return reply(200, { ok: true, pedidos: (rows || []).map(o => ({ doc_entry: o.DocEntry, doc_num: o.DocNum, card_code: o.CardCode, cliente: o.CardName, total: r2(o.DocTotal), fecha: (o.DocDate || '').slice(0, 10) })) });
     }
 
@@ -79,7 +79,7 @@ exports.handler = async (event) => {
         pedido: {
           doc_entry: o.DocEntry, doc_num: o.DocNum, cliente: o.CardName, card_code: o.CardCode,
           fecha: (o.DocDate || '').slice(0, 10), total: r2(o.DocTotal),
-          estado: o.DocumentStatus, autorizado: o.NTSApproved === 'tYES', cancelado: o.Cancelled === 'tYES',
+          estado: o.DocumentStatus, autorizado: o.Confirmed === 'tYES', cancelado: o.Cancelled === 'tYES',
           comentarios: o.Comments || '', ...margenDeOrden(o)
         }
       });
@@ -88,7 +88,7 @@ exports.handler = async (event) => {
     if (accion === 'autorizar') {
       if (!esAdmin) return reply(403, { ok: false, error: 'Solo el administrador puede autorizar' });
       const de = Number(body.doc_entry); if (!Number.isFinite(de)) return reply(200, { ok: false, error: 'doc_entry requerido' });
-      const res = await sap(cookie, `Orders(${de})`, 'PATCH', { NTSApproved: 'tYES' });
+      const res = await sap(cookie, `Orders(${de})`, 'PATCH', { Confirmed: 'tYES' });
       if (!res.ok) return reply(200, { ok: false, error: sapErr(res) });
       return reply(200, { ok: true, autorizado: true });
     }
