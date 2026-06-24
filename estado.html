@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Contabilidad JFK · Estado de la empresa</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta name="theme-color" content="#0B1F3A">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<script>(function(){var p=localStorage.getItem('jfk-theme-pref')||'auto';if(p==='dark'||(p==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.setAttribute('data-theme','dark');})();</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
+<style>
+:root{--ink-900:#0E1016;--ink-800:#1A1D22;--ink-500:#6E7178;--ink-400:#98999B;
+--punch:#009FE3;--punch-hover:#0085C0;--electric:#009FE3;--green:#1FA971;--amber:#E8A317;--red:#E5484D;
+--font-sans:'Hanken Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;--font-mono:'Space Grotesk',ui-monospace,Menlo,monospace;
+--bg:#EEF1F5;--bg-elevated:#FFFFFF;--bg-sunken:#F3F5F8;--text:var(--ink-900);--text-muted:var(--ink-500);--border:#DFE3E9;--border-soft:#EAEDF1;
+--cta:var(--punch);--shadow-soft:0 1px 2px rgba(14,16,22,.04),0 8px 24px rgba(14,16,22,.05);--navy:#0B1F3A;}
+[data-theme="dark"]{--bg:var(--ink-900);--bg-elevated:var(--ink-800);--bg-sunken:#07080B;--text:#F4F5F7;--text-muted:var(--ink-400);--border:var(--ink-800);--border-soft:#232730;--shadow-soft:0 10px 30px rgba(0,0,0,.4);}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:920px;margin:0 auto;padding:0 16px calc(60px + env(safe-area-inset-bottom))}
+.topbar{position:sticky;top:0;z-index:20;background:var(--navy);color:#fff;padding-top:env(safe-area-inset-top)}
+.topbar .inner{max-width:920px;margin:0 auto;padding:14px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{font-size:1.2rem;font-weight:700;display:flex;align-items:center;gap:2px}.logo img{height:22px}.logo .reg{color:var(--electric);font-size:9px;font-weight:700;margin-top:1px}
+.logo small{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--electric);margin-left:10px}
+.spacer{flex:1}.btn{font-weight:600;font-size:.82rem;border:none;border-radius:8px;padding:9px 14px;cursor:pointer}
+.btn-ghost{background:rgba(255,255,255,.1);color:#fff}.btn-sm{padding:6px 10px;font-size:.74rem}
+#whoAmI{font-size:.78rem;color:#cdd6e0;font-weight:600}
+.nav{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0 4px}
+.nav a{background:var(--bg-elevated);border:1px solid var(--border);border-radius:999px;padding:7px 13px;font-weight:600;font-size:.78rem;color:var(--text);text-decoration:none}
+.nav a.cur{background:var(--cta);color:#fff;border-color:var(--cta)}
+h2.sec{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);font-weight:800;margin:22px 2px 8px}
+.card{background:var(--bg-elevated);border:1px solid var(--border-soft);border-radius:16px;box-shadow:var(--shadow-soft);padding:6px 18px;margin-top:8px}
+.pl{display:flex;justify-content:space-between;align-items:baseline;padding:13px 0;border-bottom:1px solid var(--border-soft)}
+.pl:last-child{border-bottom:none}
+.pl .lbl{font-size:.95rem}.pl .lbl small{display:block;color:var(--text-muted);font-size:.72rem;font-weight:600}
+.pl .val{font-size:1.05rem;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pl.neg .val{color:var(--red)} .pl.tot{background:var(--bg-sunken);margin:0 -18px;padding:14px 18px;border-radius:0}
+.pl.tot .lbl{font-weight:800}.pl.tot .val{font-size:1.3rem;font-weight:900}
+.pl.grand{background:linear-gradient(135deg,var(--cta),#0072b8);color:#fff;margin:0 -18px;padding:18px;border-radius:0 0 16px 16px}
+.pl.grand .lbl{font-weight:800}.pl.grand .val{font-size:1.5rem;font-weight:900}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:8px}
+.kpi{background:var(--bg-elevated);border:1px solid var(--border-soft);border-radius:14px;padding:15px;box-shadow:var(--shadow-soft)}
+.kpi .lbl{font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);font-weight:800}
+.kpi .val{font-size:1.4rem;font-weight:800;margin-top:5px;font-variant-numeric:tabular-nums}
+.kpi .sub{font-size:.72rem;color:var(--text-muted);margin-top:3px}
+.kpi.red .val{color:var(--red)}.kpi.amber .val{color:var(--amber)}.kpi.green .val{color:var(--green)}
+.row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border-soft);font-size:.86rem}
+.row:last-child{border-bottom:none}.row .l{flex:1}.row .v{font-weight:700;font-variant-numeric:tabular-nums}
+.muted{color:var(--text-muted)}.mini{font-size:.72rem;color:var(--text-muted)}
+.loading{padding:16px;text-align:center;color:var(--text-muted);font-size:.85rem}
+.gate{max-width:440px;margin:80px auto;text-align:center;background:var(--bg-elevated);border:1px solid var(--border-soft);border-radius:16px;padding:34px}
+.gate input{width:100%;margin-top:10px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--bg-sunken);color:var(--text);font-size:.95rem}
+@media(max-width:600px){.logo small{display:none}}
+</style></head>
+<body>
+<div class="topbar"><div class="inner">
+  <div class="logo"><img src="jfk-logo.png" alt="JFK"><sup class="reg">&reg;</sup><small>Estado de la empresa</small></div>
+  <span id="whoAmI"></span><span class="spacer"></span>
+  <button class="btn btn-ghost btn-sm" onclick="toggleTheme()">◐</button>
+  <button class="btn btn-ghost btn-sm" id="btnSalir" style="display:none" onclick="salir()">Salir</button>
+</div></div>
+
+<div id="app" class="wrap" style="display:none">
+  <div class="nav">
+    <a href="estado.html" class="cur">📋 Estado</a>
+    <a href="contabilidad.html">📊 Detalle P&L</a>
+    <a href="gastos-analisis.html">📈 Gastos</a>
+    <a href="planilla.html">👥 Planilla</a>
+    <a href="cxp-revision.html">🧾 Por pagar</a>
+    <a href="prestamos.html">🏦 Préstamos</a>
+  </div>
+  <div id="who" class="mini" style="margin:0 2px 6px"></div>
+
+  <h2 class="sec">Estado de resultados — año en curso</h2>
+  <div class="card" id="pl"><div class="loading">Cargando de SAP…</div></div>
+
+  <h2 class="sec">Situación financiera</h2>
+  <div class="grid3" id="situacion"><div class="loading">Cargando…</div></div>
+
+  <h2 class="sec">Planilla (de SAP)</h2>
+  <div class="card" id="planilla"><div class="loading">Cargando…</div></div>
+
+  <h2 class="sec">En qué se va la plata — top gastos del año</h2>
+  <div class="card" id="gastos"><div class="loading">Cargando…</div></div>
+</div>
+
+<div id="login" class="gate" style="display:none">
+  <div style="font-size:1.4rem;font-weight:900">Contabilidad <span style="color:var(--cta)">JFK</span></div>
+  <p class="muted" style="margin-top:4px">Acceso solo para administración</p>
+  <input id="loginEmail" type="email" placeholder="Correo" autocomplete="username">
+  <input id="loginPin" type="password" inputmode="numeric" placeholder="PIN" onkeydown="if(event.key==='Enter')loginConta()">
+  <button class="btn" style="width:100%;margin-top:14px;background:var(--cta);color:#fff;justify-content:center;padding:12px" onclick="loginConta()">Entrar</button>
+  <div id="loginErr" style="color:var(--red);font-size:.82rem;margin-top:10px;min-height:18px"></div>
+</div>
+
+<script>
+const SESSION_KEY='jfk_vendor_session';
+const SUPA_URL='https://gpighopguwafnxouejfb.supabase.co';
+const SUPA_KEY='sb_publishable_FfCiha0_CJT0rJts1ifzqg_tmFzo0DC';
+let supa=null; try{supa=window.supabase.createClient(SUPA_URL,SUPA_KEY);}catch(e){}
+let sesion=null;try{sesion=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');}catch(e){}
+let EMAIL='';
+function toggleTheme(){var c=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',c);localStorage.setItem('jfk-theme-pref',c);}
+function salir(){localStorage.removeItem(SESSION_KEY);location.reload();}
+const fmt=(n)=>'$'+(Number(n)||0).toLocaleString('en-US',{maximumFractionDigits:0});
+const fmt2=(n)=>'$'+(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc=(s)=>(''+(s==null?'':s)).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+async function api(fn,body){const r=await fetch('/.netlify/functions/'+fn,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL,...body})});return r.json();}
+
+function mostrar(email){
+  EMAIL=(email||'').trim().toLowerCase();
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('btnSalir').style.display='';
+  document.getElementById('whoAmI').textContent=EMAIL;
+  cargar();
+}
+async function loginConta(){
+  const err=document.getElementById('loginErr');err.textContent='';
+  const email=(document.getElementById('loginEmail').value||'').trim().toLowerCase();
+  const pin=(document.getElementById('loginPin').value||'').trim();
+  if(!email||!pin){err.textContent='Pon correo y PIN.';return;}
+  if(!supa){err.textContent='Sin conexión.';return;}
+  try{
+    const {data,error}=await supa.from('sellers').select('id,name,email,pin_hash,role,active').eq('email',email).maybeSingle();
+    if(error||!data){err.textContent='Correo no encontrado.';return;}
+    if(data.active===false){err.textContent='Usuario inactivo.';return;}
+    if(data.role!=='admin'){err.textContent='Solo administración.';return;}
+    if(!dcodeIO.bcrypt.compareSync(pin,data.pin_hash||'')){err.textContent='PIN incorrecto.';return;}
+    localStorage.setItem(SESSION_KEY,JSON.stringify({id:data.id,name:data.name,email:data.email,role:data.role}));
+    mostrar(data.email);
+  }catch(e){err.textContent='Error al entrar.';}
+}
+if(sesion && sesion.email && sesion.role==='admin'){ mostrar(sesion.email); }
+else { document.getElementById('login').style.display='block'; }
+
+async function cargar(){
+  // 1) Estado de resultados: ventas/costo/margen (rápido) + gastos reales (SAP) + neta
+  const res=await api('contabilidad-resumen',{periodo:'ano'});
+  const k=(res.pnl&&res.pnl.kpis)||{};
+  const ventas=Number(k.ventas_total)||0, costo=Number(k.costo_total)||0, bruta=Number(k.margen_total)||0, mpct=Number(k.margen_pct)||0;
+  document.getElementById('who').textContent=(res.empresa||'')+' · año en curso';
+  // P&L con gastos pendientes
+  const plEl=document.getElementById('pl');
+  const linea=(l,v,cls,sub)=>`<div class="pl ${cls||''}"><div class="lbl">${l}${sub?`<small>${sub}</small>`:''}</div><div class="val">${v}</div></div>`;
+  plEl.innerHTML=linea('Ventas (sin imp.)',fmt(ventas),'',`${k.num_facturas||0} facturas`)
+    +linea('Costo de ventas','− '+fmt(costo),'neg')
+    +linea('Utilidad bruta',fmt(bruta),'tot',`margen ${mpct}%`)
+    +linea('Gastos operativos','leyendo…','neg','incluye planilla')
+    +`<div class="pl grand"><div class="lbl">UTILIDAD NETA</div><div class="val" id="pl-neta">…</div></div>`;
+  // 2) Gastos reales de SAP
+  const g=await api('gastos-cuentas',{});
+  if(g.ok){
+    const gastos=Number(g.total_gastos)||0, neta=bruta-gastos;
+    plEl.querySelectorAll('.pl')[3].querySelector('.val').textContent='− '+fmt(gastos);
+    document.getElementById('pl-neta').textContent=fmt(neta)+'  ('+(ventas>0?Math.round(neta/ventas*100):0)+'% s/ventas)';
+    // Planilla
+    const pl=g.planilla_cuentas||[];
+    document.getElementById('planilla').innerHTML=
+      `<div class="pl tot" style="border-radius:12px 12px 0 0"><div class="lbl">Planilla total (año)</div><div class="val">${fmt2(g.planilla_total)}</div></div>`
+      +(pl.length?pl.map(c=>`<div class="row"><div class="l">${esc(c.nombre)} <span class="mini">${esc(c.code)}</span></div><div class="v">${fmt2(c.saldo)}</div></div>`).join(''):'<div class="loading">Sin cuentas de planilla en esta empresa (se maneja centralizada en JFK).</div>');
+    // Gastos top
+    const top=(g.cuentas||[]).slice(0,12); const maxv=Math.max(1,...top.map(c=>c.saldo));
+    document.getElementById('gastos').innerHTML=`<div style="padding:10px 0">`+top.map(c=>`<div class="row"><div class="l">${esc(c.nombre)}</div><div style="width:46%;height:8px;background:var(--bg-sunken);border-radius:99px;overflow:hidden;margin:0 8px"><div style="height:100%;width:${Math.round(c.saldo/maxv*100)}%;background:var(--cta);border-radius:99px"></div></div><div class="v" style="width:90px;text-align:right">${fmt(c.saldo)}</div></div>`).join('')+`</div>`;
+  } else { document.getElementById('planilla').innerHTML='<div class="loading">No se pudo leer SAP.</div>'; document.getElementById('gastos').innerHTML=''; }
+  // 3) Situación financiera
+  const ar=res.cuentas_por_cobrar||{};
+  const [cp,pr]=await Promise.all([api('cuentas-por-pagar',{}).catch(()=>({})), api('prestamos',{accion:'listar'}).catch(()=>({}))]);
+  document.getElementById('situacion').innerHTML=
+    `<div class="kpi amber"><div class="lbl">Por cobrar</div><div class="val">${fmt(ar.total)}</div><div class="sub">${ar.num_deudores||0} clientes con saldo</div></div>`
+   +`<div class="kpi red"><div class="lbl">Por pagar (vigente)</div><div class="val">${fmt(cp.total_por_pagar||0)}</div><div class="sub">vencido ${fmt(cp.vencido||0)}</div></div>`
+   +`<div class="kpi"><div class="lbl">Deuda bancaria</div><div class="val">${fmt((pr.resumen&&pr.resumen.deuda_total)||0)}</div><div class="sub">${(pr.resumen&&pr.resumen.num_activos)||0} préstamos</div></div>`;
+}
+</script>
+</body></html>
