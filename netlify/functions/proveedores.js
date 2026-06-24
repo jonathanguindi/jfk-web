@@ -65,7 +65,21 @@ exports.handler = async (event) => {
       // Si el cliente fuerza un CardCode manual, lo respetamos; si no, SAP lo asigna por la serie.
       if (p.card_code) bp.CardCode = p.card_code;
 
-      const res = await sapPost(cookie, 'BusinessPartners', bp);
+      // Si la empresa NO auto-numera por serie (ej. BDB), generamos el siguiente código con el
+      // prefijo/relleno configurado (env SAP_PROV_PREFIX / SAP_PROV_PAD), buscando el máximo actual.
+      const prefix = process.env.SAP_PROV_PREFIX || '';
+      const pad = Number(process.env.SAP_PROV_PAD || 0);
+      if (prefix && !bp.CardCode) {
+        try {
+          const rows = await sapGetAll(cookie, `BusinessPartners?$filter=CardType eq 'cSupplier' and startswith(CardCode,'${prefix}')&$select=CardCode&$orderby=CardCode desc&$top=400`);
+          let maxn = 0; const re = new RegExp('^' + prefix.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&') + '(\\d+)$');
+          for (const r of (rows || [])) { const m = String(r.CardCode || '').match(re); if (m) { const n = parseInt(m[1], 10); if (n > maxn) maxn = n; } }
+          const nn = maxn + 1;
+          bp.CardCode = prefix + (pad ? String(nn).padStart(pad, '0') : String(nn));
+        } catch (e) { /* si falla, dejamos que SAP intente por serie */ }
+      }
+
+      let res = await sapPost(cookie, 'BusinessPartners', bp);
       if (!res.ok) {
         // Mensaje de error legible de SAP
         const msg = (res.json && res.json.error && (res.json.error.message?.value || res.json.error.message)) || res.text || ('HTTP ' + res.status);
