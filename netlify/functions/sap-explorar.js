@@ -54,6 +54,18 @@ exports.handler = async (event) => {
       const a = await sapGetAll(cookie, `ChartOfAccounts?$filter=contains(Name,'${q}')&$select=Code,Name,Balance,ActiveAccount`);
       out.cuentas_buscar = { q, cuentas: (a || []).map(c => ({ code: c.Code, name: c.Name, balance: c.Balance, activa: c.ActiveAccount })) };
     }
+    if (recurso === 'pedido_dump') {
+      // Vuelca TODOS los campos escalares + U_ de un pedido por DocNum (para diff manual).
+      const dn = Number(body.doc_num);
+      const a = await getOne(cookie, `Orders?$filter=DocNum eq ${dn}&$top=1`, 9000);
+      const o = (a.value && a.value[0]) || null;
+      if (!o) { out.pedido_dump = { error: a.error || 'no encontrado', doc_num: dn }; }
+      else {
+        const flat = {};
+        for (const k of Object.keys(o)) { if (o[k] !== null && typeof o[k] !== 'object') flat[k] = o[k]; }
+        out.pedido_dump = { doc_num: o.DocNum, doc_entry: o.DocEntry, status: o.DocumentStatus, campos: flat };
+      }
+    }
     if (recurso === 'aprob_diff') {
       // Compara un pedido AUTORIZADO vs uno NO autorizado: qué campos difieren (para saber cómo se autoriza).
       const aut = await getOne(cookie, "Orders?$filter=NTSApproved eq 'tYES' and DocumentStatus eq 'bost_Open'&$orderby=DocEntry desc&$top=1", 9000);
