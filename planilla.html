@@ -54,6 +54,7 @@ tr.inact{opacity:.5}.pill{display:inline-block;padding:2px 9px;border-radius:999
   <button class="btn btn-cta btn-sm" onclick="abrirForm()">➕ Nuevo empleado</button>
 </div></div>
 <div id="app" class="wrap" style="display:none">
+  <div id="sapPlanilla"></div>
   <div id="kpis" class="kpis"></div>
   <div class="bar"><strong style="font-size:.95rem">Empleados</strong></div>
   <div class="card"><div class="tbl-scroll"><table>
@@ -100,7 +101,20 @@ const fmt=(n)=>'$'+(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:
 const esc=(s)=>(''+(s==null?'':s)).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
 let _emp=[];
 if(!ES_ADMIN){document.getElementById('gate').style.display='block';}
-else{document.getElementById('app').style.display='block';cargar();}
+else{document.getElementById('app').style.display='block';cargarSAPplanilla();cargar();}
+async function cargarSAPplanilla(){
+  try{
+    const r=await fetch('/.netlify/functions/gastos-cuentas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL})});
+    const d=await r.json(); if(!d.ok)return;
+    const pl=d.planilla_cuentas||[];
+    document.getElementById('sapPlanilla').innerHTML=
+      `<div class="kpis"><div class="kpi accent"><div class="lbl">Planilla del año (de SAP)</div><div class="val num">${fmt(d.planilla_total)}</div><div class="sub" style="color:rgba(255,255,255,.85)">de tu contabilidad real</div></div></div>`
+      +`<div class="card" style="margin-top:8px"><div class="tbl-scroll"><table><thead><tr><th class="l">Concepto de planilla (SAP)</th><th>Monto del año</th></tr></thead><tbody>`
+      +(pl.length?pl.map(c=>`<tr><td class="l">${esc(c.nombre)} <span style="font-size:.7rem;color:var(--text-muted)">${esc(c.code)}</span></td><td class="num">${fmt(c.saldo)}</td></tr>`).join(''):'<tr><td colspan="2" class="loading">Esta empresa no lleva planilla en sus libros (se maneja centralizada en JFK).</td></tr>')
+      +`</tbody></table></div></div>`
+      +`<div style="font-size:.8rem;color:var(--text-muted);margin:14px 2px 0">👇 Abajo puedes <b>cargar empleados con nombre</b> para generar sus contratos. La planilla de arriba sale sola de SAP.</div>`;
+  }catch(e){}
+}
 async function api(extra){const r=await fetch('/.netlify/functions/empleados',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL,...extra})});return r.json();}
 async function cargar(){
   document.getElementById('tbody').innerHTML='<tr><td colspan="7" class="loading">Cargando…</td></tr>';

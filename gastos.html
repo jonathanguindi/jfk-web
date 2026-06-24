@@ -55,6 +55,7 @@ th{font-size:.66rem;text-transform:uppercase;letter-spacing:.04em;color:var(--te
   <button class="btn btn-cta btn-sm" onclick="abrirForm()">➕ Nuevo gasto</button>
 </div></div>
 <div id="app" class="wrap" style="display:none">
+  <div id="sapGastos"></div>
   <div id="kpis" class="kpis"></div>
   <div id="chips" class="chips"></div>
   <div class="bar"><strong style="font-size:.95rem">Gastos registrados</strong></div>
@@ -103,7 +104,20 @@ const fmt=(n)=>'$'+(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:
 const esc=(s)=>(''+(s==null?'':s)).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
 let _g=[];
 if(!ES_ADMIN){document.getElementById('gate').style.display='block';}
-else{document.getElementById('app').style.display='block';cargar();}
+else{document.getElementById('app').style.display='block';cargarSAPgastos();cargar();}
+async function cargarSAPgastos(){
+  try{
+    const r=await fetch('/.netlify/functions/gastos-cuentas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL})});
+    const d=await r.json(); if(!d.ok)return;
+    const top=(d.cuentas||[]).slice(0,15);
+    document.getElementById('sapGastos').innerHTML=
+      `<div class="kpis"><div class="kpi accent"><div class="lbl">Gastos del año (de SAP)</div><div class="val num">${fmt(d.total_gastos)}</div><div class="sub" style="color:rgba(255,255,255,.85)">contabilidad real — incluye planilla</div></div><div class="kpi"><div class="lbl">de eso, planilla</div><div class="val num">${fmt(d.planilla_total)}</div></div></div>`
+      +`<div class="card" style="margin-top:8px"><div class="tbl-scroll"><table><thead><tr><th class="l">Cuenta de gasto (SAP)</th><th>Monto del año</th></tr></thead><tbody>`
+      +top.map(c=>`<tr><td class="l">${esc(c.nombre)} <span style="font-size:.7rem;color:var(--text-muted)">${esc(c.code)}</span></td><td class="num">${fmt(c.saldo)}</td></tr>`).join('')
+      +`</tbody></table></div></div>`
+      +`<div style="font-size:.8rem;color:var(--text-muted);margin:14px 2px 0">👆 Esto es lo REAL de tu contabilidad. 👇 Abajo puedes <b>registrar un gasto nuevo</b> y postearlo a SAP.</div>`;
+  }catch(e){}
+}
 async function api(extra){const r=await fetch('/.netlify/functions/gastos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:EMAIL,...extra})});return r.json();}
 async function cargar(){
   document.getElementById('tbody').innerHTML='<tr><td colspan="7" class="loading">Cargando…</td></tr>';
