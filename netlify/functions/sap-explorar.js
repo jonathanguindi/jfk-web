@@ -54,6 +54,24 @@ exports.handler = async (event) => {
       const a = await sapGetAll(cookie, `ChartOfAccounts?$filter=contains(Name,'${q}')&$select=Code,Name,Balance,ActiveAccount`);
       out.cuentas_buscar = { q, cuentas: (a || []).map(c => ({ code: c.Code, name: c.Name, balance: c.Balance, activa: c.ActiveAccount })) };
     }
+    if (recurso === 'aprob_diff') {
+      // Compara un pedido AUTORIZADO vs uno NO autorizado: qué campos difieren (para saber cómo se autoriza).
+      const aut = await getOne(cookie, "Orders?$filter=NTSApproved eq 'tYES' and DocumentStatus eq 'bost_Open'&$orderby=DocEntry desc&$top=1", 9000);
+      const noaut = await getOne(cookie, "Orders?$filter=NTSApproved eq 'tNO' and DocumentStatus eq 'bost_Open'&$orderby=DocEntry desc&$top=1", 9000);
+      const A = (aut.value && aut.value[0]) || null, B = (noaut.value && noaut.value[0]) || null;
+      if (!A || !B) { out.aprob_diff = { error: 'falta muestra', hay_aut: !!A, hay_noaut: !!B, errA: aut.error, errB: noaut.error }; }
+      else {
+        const skip = new Set(['DocEntry', 'DocNum', 'CardCode', 'CardName', 'DocDate', 'DocDueDate', 'DocTotal', 'DocumentLines', 'NumAtCard', 'TaxDate', 'CreationDate', 'UpdateDate', 'DocTime', 'Comments', 'DocTotalFc', 'DocTotalSys', 'VatSum', 'VatSumFc', 'VatSumSys', 'DocObjectCode', 'DocCurrency', 'DocRate']);
+        const dif = [];
+        for (const k of Object.keys(A)) {
+          if (skip.has(k)) continue;
+          const va = A[k], vb = B[k];
+          if (typeof va === 'object') continue;
+          if (va !== vb) dif.push({ campo: k, autorizado: va, no_autorizado: vb });
+        }
+        out.aprob_diff = { doc_aut: A.DocNum, doc_noaut: B.DocNum, NTSApprovedNumber_aut: A.NTSApprovedNumber, diferencias: dif };
+      }
+    }
     if (recurso === 'pedidos_abiertos') {
       const a = await getOne(cookie, "Orders?$filter=DocumentStatus eq 'bost_Open'&$orderby=DocEntry desc&$top=8&$select=DocNum,DocEntry,CardCode,CardName,DocTotal,DocumentStatus,Cancelled,NTSApproved,AuthorizationStatus,NTSApprovedNumber,DocDate", 9000);
       out.pedidos_abiertos = a.error ? { error: a.error } : (a.value || []);
