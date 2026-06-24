@@ -16,9 +16,13 @@ const { computeEstadoCuenta } = require('./sap-estado');
 const { getEmpresa } = require('./empresa-config');
 const { getSupabase } = require('./supabase');
 const { fmt } = require('./estado-pdf');
+const { enviarEstadoCuenta } = require('./enviar-core');
 
 const DAY = 86400000;
 const MAX_CLIENTS = parseInt(process.env.COBRANZA_MAX_CLIENTES || '120', 10);
+// AUTO-ENVÍO: si está en 'true', el job ENVÍA los correos al cliente solo (sin aprobación).
+// Si no, mantiene el comportamiento anterior (encola para aprobar en el portal).
+const AUTO = (process.env.COBRANZA_AUTO_SEND || '').toLowerCase() === 'true';
 
 function tocaEnviar(cadencia, lastSent, hoy) {
   if (!lastSent) return true;
@@ -44,7 +48,12 @@ async function runCobranzasJob(hoy = new Date()) {
   if (cErr) return { ok: false, error: 'Error leyendo customers: ' + cErr.message };
   if (!clientes || !clientes.length) return { ok: true, revisados: 0, encolados: 0, candidatos: [], mensaje: 'Sin clientes en lista automática' };
 
-  // Pendientes existentes (para no duplicar)
+  // En AUTO: descartar los pendientes viejos de auto (ya no se aprueban, se envían solos).
+  if (AUTO) {
+    try { await sb.from('cobranza_envios').update({ status: 'descartado' }).eq('status', 'pendiente').eq('tipo', 'auto'); } catch (e) {}
+  }
+
+  // Pendientes existentes (para no duplicar — solo aplica al modo aprobación)
   const { data: pend } = await sb
     .from('cobranza_envios')
     .select('sap_card_code')
@@ -53,7 +62,8 @@ async function runCobranzasJob(hoy = new Date()) {
 
   const candidatos = [];
   const errores = [];
-  let revisados = 0;
+  const enviadosList = [];
+  let revisados = 0, enviados = 0, sinCorreo = 0;
 
   // 2-4) Revisar cada cliente (secuencial para no saturar SAP)
   for (const cli of clientes) {
@@ -66,20 +76,28 @@ async function runCobranzasJob(hoy = new Date()) {
       // Cadencia: la que eligió el administrador (manual); si no hay, según el atraso.
       const cadencia = cli.cobranza_cadencia || (atraso > 30 ? 'diario' : 'semanal');
       if (!tocaEnviar(cadencia, cli.cobranza_last_sent, hoy)) continue;  // aún no toca reenviar
-      if (yaPendiente.has(cli.sap_card_code)) continue;    // ya hay uno esperando aprobación
+      if (!AUTO && yaPendiente.has(cli.sap_card_code)) continue;    // ya hay uno esperando aprobación
 
-      candidatos.push({
-        sap_card_code: cli.sap_card_code,
-        customer_name: data.cliente.nombre || cli.name,
-        email: (cli.email || data.cliente.email || '').trim() || null,
-        empresa: empresa.id,
-        saldo: data.cliente.saldoActual,
-        vencido,
-        atraso_dias: atraso,
-        cadencia,
-        tipo: 'auto',
-        status: 'pendiente'
-      });
+      if (AUTO) {
+        // ENVÍO AUTOMÁTICO: manda el estado de cuenta al cliente directo (sin aprobación).
+        const r = await enviarEstadoCuenta({ cardCode: cli.sap_card_code, tipo: 'auto', cadencia });
+        if (r.ok) { enviados++; enviadosList.push({ customer_name: data.cliente.nombre || cli.name, vencido, atraso_dias: atraso, cadencia }); }
+        else if (r.sinCorreo) sinCorreo++;
+        else errores.push({ cardCode: cli.sap_card_code, error: r.error });
+      } else {
+        candidatos.push({
+          sap_card_code: cli.sap_card_code,
+          customer_name: data.cliente.nombre || cli.name,
+          email: (cli.email || data.cliente.email || '').trim() || null,
+          empresa: empresa.id,
+          saldo: data.cliente.saldoActual,
+          vencido,
+          atraso_dias: atraso,
+          cadencia,
+          tipo: 'auto',
+          status: 'pendiente'
+        });
+      }
     } catch (e) {
       errores.push({ cardCode: cli.sap_card_code, error: e.message });
     }
@@ -133,7 +151,26 @@ async function runCobranzasJob(hoy = new Date()) {
     }
   }
 
-  return { ok: true, empresa: empresa.id, revisados, encolados, avisoAdmin, errores, candidatos };
+  // Resumen al admin en modo AUTO (best-effort): qué se envió solo hoy.
+  if (AUTO && (enviados > 0 || sinCorreo > 0) && process.env.RESEND_API_KEY && empresa.admin) {
+    try {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const rows = enviadosList.map(c => `<tr><td style="padding:6px 10px;border-bottom:1px solid #eee">${c.customer_name}</td><td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:600">${fmt(c.vencido)}</td><td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:center">${c.atraso_dias} d (${c.cadencia})</td></tr>`).join('');
+      await resend.emails.send({
+        from: empresa.from, to: [empresa.admin],
+        subject: `Cobranzas ${empresa.nombreCorto} — ${enviados} estado(s) de cuenta enviados automáticamente`,
+        html: `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:680px;margin:0 auto;color:#111">
+          <h2 style="margin:0 0 6px">Cobranzas automáticas — ${hasta}</h2>
+          <p style="color:#555;margin:0 0 16px">Se enviaron <b>${enviados}</b> estado(s) de cuenta a clientes en mora automáticamente.${sinCorreo ? ` <b>${sinCorreo}</b> no se enviaron por falta de correo.` : ''}</p>
+          <table style="border-collapse:collapse;width:100%;font-size:13px"><thead><tr style="background:#0E1016;color:#fff"><th style="padding:8px 10px;text-align:left">Cliente</th><th style="padding:8px 10px;text-align:right">Vencido</th><th style="padding:8px 10px;text-align:center">Atraso</th></tr></thead><tbody>${rows}</tbody></table>
+          <p style="color:#999;font-size:12px;margin-top:14px">Envío automático (sin aprobación). Para desactivarlo, quita la variable COBRANZA_AUTO_SEND.</p>
+        </div>`
+      });
+      avisoAdmin = true;
+    } catch (e) { console.error('Resumen auto al admin falló:', e.message); }
+  }
+
+  return { ok: true, empresa: empresa.id, modo: AUTO ? 'auto' : 'aprobacion', revisados, enviados, sin_correo: sinCorreo, encolados, avisoAdmin, errores };
 }
 
 module.exports = { runCobranzasJob };

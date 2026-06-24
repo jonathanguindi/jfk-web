@@ -187,7 +187,7 @@ async function resolverEmailsVendedor(empresa, vendedor, destinatario) {
 
 // opts: { cardCode, desde?, hasta?, toOverride?, tipo?, envioId?, aprobadoPor?, incluirFacturas? }
 async function enviarEstadoCuenta(opts = {}) {
-  const { cardCode, desde, hasta, toOverride, tipo = 'manual', envioId = null, aprobadoPor = null, incluirFacturas = false, soloFacturas = false, ccVendedor = true } = opts;
+  const { cardCode, desde, hasta, toOverride, tipo = 'manual', envioId = null, aprobadoPor = null, incluirFacturas = false, soloFacturas = false, ccVendedor = true, cadencia = null } = opts;
   if (!cardCode) return { ok: false, error: 'Falta cardCode' };
 
   const empresa = getEmpresa();
@@ -199,7 +199,7 @@ async function enviarEstadoCuenta(opts = {}) {
   // 2) Destinatario
   const to = (toOverride && EMAIL_RE.test(toOverride)) ? toOverride : (data.cliente.email || '').trim();
   if (!EMAIL_RE.test(to)) {
-    await registrar(empresa, { envioId, cardCode, data, tipo, status: 'error', error: 'Cliente sin correo válido', to, aprobadoPor });
+    await registrar(empresa, { envioId, cardCode, data, tipo, status: 'error', error: 'Cliente sin correo válido', to, aprobadoPor, cadencia });
     return { ok: false, error: 'El cliente no tiene un correo válido registrado en SAP', sinCorreo: true };
   }
 
@@ -214,7 +214,7 @@ async function enviarEstadoCuenta(opts = {}) {
   if (soloFacturas) {
     const facturas = await fetchFacturasConLineas({ cardCode, desde: data.rango.desde, hasta: data.rango.hasta, max: 40 });
     if (!facturas.length) {
-      await registrar(empresa, { envioId, cardCode, data, tipo, status: 'error', error: 'Sin facturas en el período', to, aprobadoPor });
+      await registrar(empresa, { envioId, cardCode, data, tipo, status: 'error', error: 'Sin facturas en el período', to, aprobadoPor, cadencia });
       return { ok: false, error: 'El cliente no tiene facturas en el período' };
     }
     attachments = [{ filename: facName, content: await buildFacturasPDF(facturas, empresa, lang) }];
@@ -255,12 +255,12 @@ async function enviarEstadoCuenta(opts = {}) {
   });
 
   if (sendErr) {
-    await registrar(empresa, { envioId, cardCode, data, tipo, status: 'error', error: sendErr.message || String(sendErr), to, aprobadoPor });
+    await registrar(empresa, { envioId, cardCode, data, tipo, status: 'error', error: sendErr.message || String(sendErr), to, aprobadoPor, cadencia });
     return { ok: false, error: sendErr.message || 'Error al enviar con Resend' };
   }
 
   // 5) Registro (best-effort)
-  await registrar(empresa, { envioId, cardCode, data, tipo, status: 'enviado', to, aprobadoPor, messageId: sent && sent.id });
+  await registrar(empresa, { envioId, cardCode, data, tipo, status: 'enviado', to, aprobadoPor, cadencia, messageId: sent && sent.id });
 
   return { ok: true, to, saldo: data.cliente.saldoActual, vencido: data.vencido, messageId: sent && sent.id };
 }
@@ -270,7 +270,7 @@ async function registrar(empresa, info) {
   try {
     const sb = getSupabase(empresa);
     if (!sb) return;
-    const { envioId, cardCode, data, tipo, status, error, to, aprobadoPor, messageId } = info;
+    const { envioId, cardCode, data, tipo, status, error, to, aprobadoPor, cadencia, messageId } = info;
     const row = {
       sap_card_code: cardCode,
       customer_name: data && data.cliente ? data.cliente.nombre : null,
@@ -279,6 +279,7 @@ async function registrar(empresa, info) {
       saldo: data ? data.cliente.saldoActual : null,
       vencido: data ? data.vencido : null,
       atraso_dias: data ? data.maxAtraso : null,
+      cadencia: cadencia || null,
       tipo,
       status,
       error: error || null,
