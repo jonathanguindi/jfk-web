@@ -1,7 +1,7 @@
 // sap-explorar.js · Sonda LIGERA de SOLO LECTURA (una página por recurso) para ver qué expone SAP.
 // Diagnóstico, SOLO ADMIN. No escribe nada.
 const { getEmpresa } = require('./lib/empresa-config');
-const { SAP_URL, sapLogin } = require('./lib/sap-ventas');
+const { SAP_URL, sapLogin, sapGetAll } = require('./lib/sap-ventas');
 
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 const reply = (c, o) => ({ statusCode: c, headers: { 'Content-Type': 'application/json', ...cors }, body: JSON.stringify(o) });
