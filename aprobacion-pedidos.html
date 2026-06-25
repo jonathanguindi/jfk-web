@@ -168,7 +168,7 @@ function mostrarDetalle(p){
   const estadoTxt=p.cancelado?'<span class="pill" style="background:rgba(229,72,77,.15);color:var(--red)">cancelado</span>':(p.autorizado?'<span class="pill" style="background:rgba(31,169,113,.15);color:var(--green)">autorizado</span>':'<span class="pill">por aprobar</span>');
   const filas=p.lineas.map(l=>`<div class="pcard">
     <div class="phead">
-      <img class="pimg" src="${THUMB_IMG_BASE}/${encodeURIComponent(l.item)}.jpg" loading="lazy" onclick="openLightbox('${PRODUCT_IMG_BASE}/${encodeURIComponent(l.item)}.jpg')" onerror="if(!this.dataset.f){this.dataset.f='1';this.src='${PRODUCT_IMG_BASE}/${encodeURIComponent(l.item)}.jpg';}else{this.classList.add('noimg');this.removeAttribute('onclick');}">
+      <img class="pimg" width="54" height="54" loading="lazy" decoding="async" src="${THUMB_IMG_BASE}/${encodeURIComponent(l.item)}.jpg" onclick="openLightbox('${PRODUCT_IMG_BASE}/${encodeURIComponent(l.item)}.jpg')" onerror="this.classList.add('noimg');this.removeAttribute('onclick')">
       <div style="min-width:0"><div class="pname">${esc(l.item)}</div><div class="pdesc">${esc(l.desc||'')}</div></div>
     </div>
     <div class="pstats">

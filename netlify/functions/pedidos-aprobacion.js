@@ -73,12 +73,14 @@ exports.handler = async (event) => {
     }
 
     if (accion === 'detalle' || accion === 'buscar') {
+      // Solo los campos necesarios (sin esto SAP devuelve TODO el documento + ~100 campos por línea => lentísimo).
+      const Q = "?$select=DocEntry,DocNum,CardName,CardCode,DocDate,DocTotal,DocumentStatus,Confirmed,Cancelled,Comments,SalesPersonCode&$expand=DocumentLines($select=ItemCode,ItemDescription,Quantity,UnitPrice,GrossProfit,GrossBuyPrice)";
       let path;
-      if (body.doc_entry) path = `Orders(${Number(body.doc_entry)})`;
+      if (body.doc_entry) path = `Orders(${Number(body.doc_entry)})${Q}`;
       else if (body.doc_num) {
         const f = await sapGetAll(cookie, `Orders?$filter=DocNum eq ${Number(body.doc_num)}&$select=DocEntry`);
         if (!f || !f.length) return reply(200, { ok: false, error: 'No se encontró el pedido ' + body.doc_num });
-        path = `Orders(${f[0].DocEntry})`;
+        path = `Orders(${f[0].DocEntry})${Q}`;
       } else return reply(200, { ok: false, error: 'Falta doc_entry o doc_num' });
       const [res, vm] = await Promise.all([sap(cookie, path, 'GET'), vendMap(cookie)]);
       if (!res.ok || !res.json) return reply(200, { ok: false, error: sapErr(res) });
