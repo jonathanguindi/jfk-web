@@ -36,11 +36,22 @@ exports.handler = async (event) => {
     cookie = await sapLogin();
     const items = await sapGetAll(cookie, 'Items?$select=ItemCode,QuantityOnStock').catch(() => []);
     await sapLogout(cookie); cookie = null;
+    const sapMap = new Map();
+    (items || []).forEach(it => { if (it && it.ItemCode) sapMap.set(it.ItemCode, Math.round(Number(it.QuantityOnStock) || 0)); });
 
-    // 3) Filtrar a los que existen y armar filas {sap_item_code, stock}.
-    const rows = (items || [])
-      .filter(it => it && it.ItemCode && existentes.has(it.ItemCode))
-      .map(it => ({ sap_item_code: it.ItemCode, stock: Math.round(Number(it.QuantityOnStock) || 0) }));
+    // 3) Armar filas {sap_item_code, stock} para los productos del catálogo.
+    //    Los códigos "espejo" terminados en /VD están en 0 (o ni existen) en SAP; su inventario
+    //    real vive en el código BASE (sin /VD). Para esos, leemos el stock del código base.
+    const rows = [];
+    let viaBase = 0;
+    for (const code of existentes) {
+      let cand = code;
+      if (code.endsWith('/VD')) {
+        const base = code.slice(0, -3);
+        if (sapMap.has(base)) { cand = base; viaBase++; }
+      }
+      if (sapMap.has(cand)) rows.push({ sap_item_code: code, stock: sapMap.get(cand) });
+    }
 
     // 4) Upsert por lotes (solo actualiza la columna stock de filas existentes).
     let actualizados = 0;
@@ -50,7 +61,7 @@ exports.handler = async (event) => {
       if (error) return { statusCode: 200, body: JSON.stringify({ ok: false, error: error.message, actualizados }) };
       actualizados += chunk.length;
     }
-    return { statusCode: 200, body: JSON.stringify({ ok: true, itemsSAP: (items || []).length, productosExistentes: existentes.size, actualizados }) };
+    return { statusCode: 200, body: JSON.stringify({ ok: true, itemsSAP: (items || []).length, productosExistentes: existentes.size, actualizados, via_codigo_base: viaBase }) };
   } catch (e) {
     if (cookie) { try { await sapLogout(cookie); } catch (_) {} }
     return { statusCode: 500, body: JSON.stringify({ ok: false, error: e.message }) };
