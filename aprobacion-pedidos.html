@@ -76,6 +76,8 @@ tfoot td{font-weight:800;border-top:2px solid var(--border)}
 .msg{margin-top:10px;padding:10px 12px;border-radius:10px;font-weight:600;font-size:.85rem;display:none}
 .msg.ok{display:block;background:rgba(31,169,113,.14);color:var(--green)}.msg.err{display:block;background:rgba(229,72,77,.14);color:var(--red)}
 .gate{max-width:440px;margin:80px auto;text-align:center;background:var(--bg-elevated);border:1px solid var(--border-soft);border-radius:16px;padding:34px}
+#toast{position:fixed;left:50%;bottom:calc(26px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:var(--green);color:#fff;font-weight:700;font-size:.9rem;padding:12px 20px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.3);z-index:70;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;max-width:90vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 @media(max-width:600px){.logo small{display:none}
 .ov{padding:0}
 .sheet{max-width:100%;width:100%;height:100%;max-height:100%;border-radius:0}
@@ -161,6 +163,8 @@ async function abrir(de){
 }
 function cerrar(){document.getElementById('ov').classList.remove('show');_abierto=null;}
 function openLightbox(url){const lb=document.getElementById('lightbox');document.getElementById('lightbox-img').src=url;lb.style.display='flex';}
+let _toastT=null;
+function toast(txt){let t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t);}t.textContent=txt;t.classList.add('show');clearTimeout(_toastT);_toastT=setTimeout(()=>t.classList.remove('show'),2600);}
 function mostrarDetalle(p){
   _abierto=p;
   document.getElementById('ov').classList.add('show');
@@ -213,16 +217,18 @@ async function autorizar(){
   if(!_abierto)return;
   if(!confirm('¿Autorizar el pedido #'+_abierto.doc_num+'? Después de autorizarlo, bodega lo puede trabajar.'))return;
   const b=document.getElementById('btnAuth');b.disabled=true;b.textContent='Autorizando…';
+  const num=_abierto.doc_num;
   const d=await api('autorizar',{doc_entry:_abierto.doc_entry});
-  if(d.ok){setMsg('✓ Pedido autorizado en SAP. Ya lo pueden trabajar en bodega.',true);document.querySelector('.acts').style.display='none';cargar();}
+  if(d.ok){setMsg('✓ Pedido autorizado en SAP. Ya lo pueden trabajar en bodega.',true);document.querySelector('.acts').style.display='none';toast('✓ Pedido #'+num+' autorizado');setTimeout(()=>{cerrar();cargar();},700);}
   else{setMsg('No se pudo autorizar: '+(d.error||'error'),false);b.disabled=false;b.textContent='✓ Autorizar pedido';}
 }
 async function cancelar(){
   if(!_abierto)return;
   if(!confirm('¿CANCELAR el pedido #'+_abierto.doc_num+' en SAP? Esto no se puede deshacer.'))return;
   const b=document.getElementById('btnCanc');b.disabled=true;b.textContent='Cancelando…';
+  const num=_abierto.doc_num;
   const d=await api('cancelar',{doc_entry:_abierto.doc_entry});
-  if(d.ok){setMsg('Pedido cancelado en SAP.',true);document.querySelector('.acts').style.display='none';cargar();}
+  if(d.ok){setMsg('Pedido cancelado en SAP.',true);document.querySelector('.acts').style.display='none';toast('Pedido #'+num+' cancelado');setTimeout(()=>{cerrar();cargar();},700);}
   else{setMsg('No se pudo cancelar: '+(d.error||'error'),false);b.disabled=false;b.textContent='✕ Cancelar pedido';}
 }
 </script>
