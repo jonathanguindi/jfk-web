@@ -49,6 +49,9 @@
 /* productos como tarjetas (se ven completos en el cel) */
 .plist{display:flex;flex-direction:column;gap:8px;margin-top:10px}
 .pcard{background:var(--bg-elevated);border:1px solid var(--border-soft);border-radius:12px;padding:11px 13px}
+.phead{display:flex;gap:11px;align-items:flex-start}
+.pimg{width:54px;height:54px;flex:0 0 auto;object-fit:contain;background:#fff;border:1px solid var(--border-soft);border-radius:9px;cursor:zoom-in}
+.pimg.noimg{visibility:hidden}
 .pcard .pname{font-weight:800;font-size:.92rem;word-break:break-word}
 .pcard .pdesc{font-size:.74rem;color:var(--text-muted);margin-top:1px}
 .pstats{display:flex;flex-wrap:wrap;gap:9px 18px;margin-top:9px}
@@ -104,10 +107,15 @@ tfoot td{font-weight:800;border-top:2px solid var(--border)}
   </div>
 </div>
 
+<div id="lightbox" onclick="this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:60;align-items:center;justify-content:center;padding:20px;cursor:zoom-out"><img id="lightbox-img" style="max-width:95%;max-height:90%;object-fit:contain;background:#fff;border-radius:12px"></div>
+
 <div id="gate" class="gate" style="display:none"><h2 style="margin-top:0">Acceso restringido</h2><p style="color:var(--text-muted)">Inicia sesión en el portal de vendedores como administrador.</p><a class="btn btn-sm btn-cta" href="vendedores.html">Ir al portal →</a></div>
 
 <script>
 const SESSION_KEY='jfk_vendor_session';
+const SUPABASE_URL='https://gpighopguwafnxouejfb.supabase.co';
+const THUMB_IMG_BASE=`${SUPABASE_URL}/storage/v1/object/public/productos-thumb`;
+const PRODUCT_IMG_BASE=`${SUPABASE_URL}/storage/v1/object/public/productos`;
 let sesion=null;try{sesion=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');}catch(e){}
 const EMAIL=(sesion&&sesion.email||'').trim().toLowerCase();
 const ES_ADMIN=!!(sesion&&sesion.role==='admin');
@@ -133,7 +141,7 @@ function render(peds){
   if(!peds.length){document.getElementById('lista').innerHTML='<div class="empty">🎉 No hay pedidos pendientes por aprobar.</div>';return;}
   document.getElementById('lista').innerHTML=peds.map(p=>`<div class="row" onclick="abrir(${p.doc_entry})">
     <div><div class="docn">#${esc(p.doc_num)}</div><span class="pill">por aprobar</span></div>
-    <div style="min-width:0"><div class="cli">${esc(p.cliente)}</div><div class="meta">${esc(p.fecha)} · ${esc(p.card_code||'')}</div></div>
+    <div style="min-width:0"><div class="cli">${esc(p.cliente)}</div><div class="meta">${esc(p.fecha)}${p.vendedor?' · 👤 '+esc(p.vendedor):''}</div></div>
     <div class="tot num">${fmt(p.total)}</div>
   </div>`).join('');
 }
@@ -152,14 +160,17 @@ async function abrir(de){
   mostrarDetalle(d.pedido);
 }
 function cerrar(){document.getElementById('ov').classList.remove('show');_abierto=null;}
+function openLightbox(url){const lb=document.getElementById('lightbox');document.getElementById('lightbox-img').src=url;lb.style.display='flex';}
 function mostrarDetalle(p){
   _abierto=p;
   document.getElementById('ov').classList.add('show');
   document.getElementById('ovTitle').textContent='Pedido #'+p.doc_num;
   const estadoTxt=p.cancelado?'<span class="pill" style="background:rgba(229,72,77,.15);color:var(--red)">cancelado</span>':(p.autorizado?'<span class="pill" style="background:rgba(31,169,113,.15);color:var(--green)">autorizado</span>':'<span class="pill">por aprobar</span>');
   const filas=p.lineas.map(l=>`<div class="pcard">
-    <div class="pname">${esc(l.item)}</div>
-    <div class="pdesc">${esc(l.desc||'')}</div>
+    <div class="phead">
+      <img class="pimg" src="${THUMB_IMG_BASE}/${encodeURIComponent(l.item)}.jpg" loading="lazy" onclick="openLightbox('${PRODUCT_IMG_BASE}/${encodeURIComponent(l.item)}.jpg')" onerror="if(!this.dataset.f){this.dataset.f='1';this.src='${PRODUCT_IMG_BASE}/${encodeURIComponent(l.item)}.jpg';}else{this.classList.add('noimg');this.removeAttribute('onclick');}">
+      <div style="min-width:0"><div class="pname">${esc(l.item)}</div><div class="pdesc">${esc(l.desc||'')}</div></div>
+    </div>
     <div class="pstats">
       <div><span class="l">Cant.</span><b>${l.qty}</b></div>
       <div><span class="l">P. venta</span><b>${fmt(l.precio_venta)}</b></div>
@@ -172,6 +183,7 @@ function mostrarDetalle(p){
   document.getElementById('ovBody').innerHTML=`
     <div class="kv">
       <div><div class="l">Cliente</div><div class="v">${esc(p.cliente)}</div></div>
+      <div><div class="l">Vendedor</div><div class="v">${p.vendedor?'👤 '+esc(p.vendedor):'—'}</div></div>
       <div><div class="l">Fecha</div><div class="v">${esc(p.fecha)}</div></div>
       <div><div class="l">Total</div><div class="v num">${fmt(p.total)}</div></div>
       <div><div class="l">Estado</div><div class="v">${estadoTxt}</div></div>

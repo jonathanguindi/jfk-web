@@ -20,6 +20,12 @@ async function sap(cookie, path, method, bodyObj) {
 }
 const sapErr = (res) => String((res.json && res.json.error && (res.json.error.message?.value || res.json.error.message)) || res.text || ('HTTP ' + res.status)).slice(0, 250);
 
+async function vendMap(cookie) {
+  const v = await sapGetAll(cookie, 'SalesPersons?$select=SalesEmployeeCode,SalesEmployeeName').catch(() => []);
+  const m = new Map(); (v || []).forEach(x => m.set(x.SalesEmployeeCode, x.SalesEmployeeName)); return m;
+}
+const nombreVend = (m, code) => (code != null && code > 0) ? (m.get(code) || '') : '';
+
 function margenDeOrden(o) {
   const lineas = (o.DocumentLines || []).map(l => {
     const qty = Number(l.Quantity) || 0;
@@ -59,8 +65,11 @@ exports.handler = async (event) => {
     const cookie = await sapLogin();
 
     if (accion === 'listar') {
-      const rows = await sapGetAll(cookie, "Orders?$filter=DocumentStatus eq 'bost_Open' and Cancelled eq 'tNO' and Confirmed eq 'tNO'&$orderby=DocEntry desc&$select=DocEntry,DocNum,CardCode,CardName,DocTotal,DocDate,Comments");
-      return reply(200, { ok: true, pedidos: (rows || []).map(o => ({ doc_entry: o.DocEntry, doc_num: o.DocNum, card_code: o.CardCode, cliente: o.CardName, total: r2(o.DocTotal), fecha: (o.DocDate || '').slice(0, 10) })) });
+      const [rows, vm] = await Promise.all([
+        sapGetAll(cookie, "Orders?$filter=DocumentStatus eq 'bost_Open' and Cancelled eq 'tNO' and Confirmed eq 'tNO'&$orderby=DocEntry desc&$select=DocEntry,DocNum,CardCode,CardName,DocTotal,DocDate,Comments,SalesPersonCode"),
+        vendMap(cookie)
+      ]);
+      return reply(200, { ok: true, pedidos: (rows || []).map(o => ({ doc_entry: o.DocEntry, doc_num: o.DocNum, card_code: o.CardCode, cliente: o.CardName, total: r2(o.DocTotal), fecha: (o.DocDate || '').slice(0, 10), vendedor: nombreVend(vm, o.SalesPersonCode) })) });
     }
 
     if (accion === 'detalle' || accion === 'buscar') {
@@ -71,13 +80,14 @@ exports.handler = async (event) => {
         if (!f || !f.length) return reply(200, { ok: false, error: 'No se encontró el pedido ' + body.doc_num });
         path = `Orders(${f[0].DocEntry})`;
       } else return reply(200, { ok: false, error: 'Falta doc_entry o doc_num' });
-      const res = await sap(cookie, path, 'GET');
+      const [res, vm] = await Promise.all([sap(cookie, path, 'GET'), vendMap(cookie)]);
       if (!res.ok || !res.json) return reply(200, { ok: false, error: sapErr(res) });
       const o = res.json;
       return reply(200, {
         ok: true,
         pedido: {
           doc_entry: o.DocEntry, doc_num: o.DocNum, cliente: o.CardName, card_code: o.CardCode,
+          vendedor: nombreVend(vm, o.SalesPersonCode),
           fecha: (o.DocDate || '').slice(0, 10), total: r2(o.DocTotal),
           estado: o.DocumentStatus, autorizado: o.Confirmed === 'tYES', cancelado: o.Cancelled === 'tYES',
           comentarios: o.Comments || '', ...margenDeOrden(o)
