@@ -55,17 +55,12 @@ exports.handler = async (event) => {
       out.cuentas_buscar = { q, cuentas: (a || []).map(c => ({ code: c.Code, name: c.Name, balance: c.Balance, activa: c.ActiveAccount })) };
     }
     if (recurso === 'item') {
-      // Stock real en SAP de un código (o prefijo): total OnHand + por bodega.
+      // Stock real en SAP de un código (o prefijo): total OnHand. Usa sapGetAll (sin tope de 3).
       const code = (body.q || '').replace(/'/g, "''");
       const filtro = code.length >= 8 ? `ItemCode eq '${code}'` : `startswith(ItemCode,'${code}')`;
-      const a = await getOne(cookie, `Items?$filter=${filtro}&$top=40&$select=ItemCode,ItemName,QuantityOnStock,QuantityOrderedByCustomers,QuantityOrderedFromVendors,Valid,Frozen,ItemWarehouseInfoCollection`, 9000);
-      if (a.error) out.item = { error: a.error };
-      else out.item = (a.value || []).map(it => ({
-        code: it.ItemCode, name: it.ItemName, onHand: it.QuantityOnStock,
-        comprometido: it.QuantityOrderedByCustomers, pedidoAProv: it.QuantityOrderedFromVendors,
-        valido: it.Valid, congelado: it.Frozen,
-        bodegas: (it.ItemWarehouseInfoCollection || []).filter(w => Number(w.InStock) !== 0 || Number(w.Committed) !== 0).map(w => ({ bod: w.WarehouseCode, enStock: w.InStock, comprometido: w.Committed }))
-      }));
+      const v = await sapGetAll(cookie, `Items?$filter=${filtro}&$select=ItemCode,ItemName,QuantityOnStock,Valid,Frozen`).catch(e => ({ __e: String(e) }));
+      if (v && v.__e) out.item = { error: v.__e };
+      else out.item = (v || []).map(it => ({ code: it.ItemCode, name: it.ItemName, onHand: it.QuantityOnStock, valido: it.Valid, congelado: it.Frozen }));
     }
     if (recurso === 'pedido_dump') {
       // Vuelca TODOS los campos escalares + U_ de un pedido por DocNum (para diff manual).
