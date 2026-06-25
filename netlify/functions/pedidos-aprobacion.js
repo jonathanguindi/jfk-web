@@ -26,6 +26,20 @@ async function vendMap(cookie) {
 }
 const nombreVend = (m, code) => (code != null && code > 0) ? (m.get(code) || '') : '';
 
+// --- Cachés a nivel de instancia (sobreviven entre invocaciones "tibias" del mismo Lambda) ---
+// SAP es lento: cada login y cada lectura de vendedores es un viaje de ~3-4s. Reusarlos hace que
+// abrir un pedido pase de ~9s a ~3s. La sesión de SAP dura ~30 min; usamos TTL menores y reintento.
+let _cookie = null, _cookieAt = 0;
+let _vm = null, _vmAt = 0;
+const COOKIE_TTL = 20 * 60 * 1000, VM_TTL = 30 * 60 * 1000;
+async function freshCookie() { _cookie = await sapLogin(); _cookieAt = Date.now(); return _cookie; }
+async function getCookie() { return (_cookie && (Date.now() - _cookieAt) < COOKIE_TTL) ? _cookie : freshCookie(); }
+async function getVendMap(cookie) {
+  if (_vm && (Date.now() - _vmAt) < VM_TTL) return _vm;
+  _vm = await vendMap(cookie); _vmAt = Date.now(); return _vm;
+}
+const esAuthFail = (res) => res && (res.status === 401 || res.status === 403 && /session|login|invalid/i.test(res.text || ''));
+
 function margenDeOrden(o) {
   const lineas = (o.DocumentLines || []).map(l => {
     const qty = Number(l.Quantity) || 0;
@@ -62,27 +76,31 @@ exports.handler = async (event) => {
     const accion = body.accion || 'listar';
     const esAdmin = seller.role === 'admin';
 
-    const cookie = await sapLogin();
+    let cookie = await getCookie();
+    // Reintenta un GET/PATCH/POST una vez si la sesión cacheada expiró.
+    const sapR = async (path, method, b) => {
+      let res = await sap(cookie, path, method, b);
+      if (esAuthFail(res)) { cookie = await freshCookie(); _vm = null; res = await sap(cookie, path, method, b); }
+      return res;
+    };
 
     if (accion === 'listar') {
       const [rows, vm] = await Promise.all([
         sapGetAll(cookie, "Orders?$filter=DocumentStatus eq 'bost_Open' and Cancelled eq 'tNO' and Confirmed eq 'tNO'&$orderby=DocEntry desc&$select=DocEntry,DocNum,CardCode,CardName,DocTotal,DocDate,Comments,SalesPersonCode"),
-        vendMap(cookie)
+        getVendMap(cookie)
       ]);
       return reply(200, { ok: true, pedidos: (rows || []).map(o => ({ doc_entry: o.DocEntry, doc_num: o.DocNum, card_code: o.CardCode, cliente: o.CardName, total: r2(o.DocTotal), fecha: (o.DocDate || '').slice(0, 10), vendedor: nombreVend(vm, o.SalesPersonCode) })) });
     }
 
     if (accion === 'detalle' || accion === 'buscar') {
-      // Solo los campos necesarios (sin esto SAP devuelve TODO el documento + ~100 campos por línea => lentísimo).
-      const Q = "?$select=DocEntry,DocNum,CardName,CardCode,DocDate,DocTotal,DocumentStatus,Confirmed,Cancelled,Comments,SalesPersonCode&$expand=DocumentLines($select=ItemCode,ItemDescription,Quantity,UnitPrice,GrossProfit,GrossBuyPrice)";
       let path;
-      if (body.doc_entry) path = `Orders(${Number(body.doc_entry)})${Q}`;
+      if (body.doc_entry) path = `Orders(${Number(body.doc_entry)})`;
       else if (body.doc_num) {
         const f = await sapGetAll(cookie, `Orders?$filter=DocNum eq ${Number(body.doc_num)}&$select=DocEntry`);
         if (!f || !f.length) return reply(200, { ok: false, error: 'No se encontró el pedido ' + body.doc_num });
-        path = `Orders(${f[0].DocEntry})${Q}`;
+        path = `Orders(${f[0].DocEntry})`;
       } else return reply(200, { ok: false, error: 'Falta doc_entry o doc_num' });
-      const [res, vm] = await Promise.all([sap(cookie, path, 'GET'), vendMap(cookie)]);
+      const [res, vm] = await Promise.all([sapR(path, 'GET'), getVendMap(cookie)]);
       if (!res.ok || !res.json) return reply(200, { ok: false, error: sapErr(res) });
       const o = res.json;
       return reply(200, {
@@ -100,7 +118,7 @@ exports.handler = async (event) => {
     if (accion === 'autorizar') {
       if (!esAdmin) return reply(403, { ok: false, error: 'Solo el administrador puede autorizar' });
       const de = Number(body.doc_entry); if (!Number.isFinite(de)) return reply(200, { ok: false, error: 'doc_entry requerido' });
-      const res = await sap(cookie, `Orders(${de})`, 'PATCH', { Confirmed: 'tYES' });
+      const res = await sapR(`Orders(${de})`, 'PATCH', { Confirmed: 'tYES' });
       if (!res.ok) return reply(200, { ok: false, error: sapErr(res) });
       return reply(200, { ok: true, autorizado: true });
     }
@@ -108,7 +126,7 @@ exports.handler = async (event) => {
     if (accion === 'cancelar') {
       if (!esAdmin) return reply(403, { ok: false, error: 'Solo el administrador puede cancelar' });
       const de = Number(body.doc_entry); if (!Number.isFinite(de)) return reply(200, { ok: false, error: 'doc_entry requerido' });
-      const res = await sap(cookie, `Orders(${de})/Cancel`, 'POST');
+      const res = await sapR(`Orders(${de})/Cancel`, 'POST');
       if (!res.ok) return reply(200, { ok: false, error: sapErr(res) });
       return reply(200, { ok: true, cancelado: true });
     }
