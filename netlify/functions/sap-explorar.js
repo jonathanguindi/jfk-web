@@ -54,6 +54,21 @@ exports.handler = async (event) => {
       const a = await sapGetAll(cookie, `ChartOfAccounts?$filter=contains(Name,'${q}')&$select=Code,Name,Balance,ActiveAccount`);
       out.cuentas_buscar = { q, cuentas: (a || []).map(c => ({ code: c.Code, name: c.Name, balance: c.Balance, activa: c.ActiveAccount })) };
     }
+    if (recurso === 'orden_lineas') {
+      // Inspecciona líneas (precio/descuento) de pedidos recientes de un cliente (q = fragmento de nombre).
+      const q = (body.q || '').replace(/'/g, "''");
+      const a = await getOne(cookie, `Orders?$filter=contains(CardName,'${q}')&$orderby=DocEntry desc&$top=3&$select=DocNum,DocEntry,CardName,DocDate,DocTotal,Confirmed,DocumentLines`, 9000);
+      if (a.error) out.orden_lineas = { error: a.error };
+      else out.orden_lineas = (a.value || []).map(o => ({
+        doc: o.DocNum, fecha: (o.DocDate || '').slice(0, 10), cliente: o.CardName, total: o.DocTotal, confirmado: o.Confirmed,
+        lineas: (o.DocumentLines || []).map(l => ({
+          item: l.ItemCode, qty: l.Quantity,
+          unitPrice: l.UnitPrice, price: l.Price, priceList: l.PriceList,
+          descPct: l.DiscountPercent, lineTotal: l.LineTotal,
+          priceBefDisc: l.GrossPriceBeforeDiscount, priceSource: l.PriceSource
+        }))
+      }));
+    }
     if (recurso === 'item') {
       // Stock real en SAP de un código (o prefijo): total OnHand. Usa sapGetAll (sin tope de 3).
       const code = (body.q || '').replace(/'/g, "''");
