@@ -2407,6 +2407,7 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
       <button class="home-grid__item" onclick="openAccountModal()"><svg class="home-grid__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Pedido</button>
       <button class="home-grid__item" onclick="openQuoteScreen()"><svg class="home-grid__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>Cotización</button>
       <button class="home-grid__item" onclick="startOfferFlow()" style="color:#FF6B35;"><svg class="home-grid__icon" viewBox="0 0 24 24" fill="none" stroke="#FF6B35" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>Oferta</button>
+      <button class="home-grid__item" onclick="openOfertasHechas()"><svg class="home-grid__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>Ofertas enviadas</button>
       <button class="home-grid__item" onclick="openActividades()"><svg class="home-grid__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Actividades</button>
       <button class="home-grid__item" onclick="openPortalImagenes()"><svg class="home-grid__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Portal Imágenes</button>
       <button class="home-grid__item" onclick="openPedidosRecibidos()" style="position:relative;"><svg class="home-grid__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>Pedidos recibidos<span id="ped-badge" style="display:none;position:absolute;top:8px;right:14px;background:#FF6B35;color:#fff;font-size:11px;font-weight:800;min-width:18px;height:18px;line-height:18px;border-radius:999px;text-align:center;padding:0 4px"></span></button>
@@ -3111,6 +3112,40 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
   <div class="estado-body">
     <div id="pedidos-recibidos-list">
       <div class="estado-placeholder">Cargando...</div>
+    </div>
+  </div>
+</div>
+
+<div id="screen-ofertas-hechas" class="screen">
+  <div class="estado-header">
+    <div class="estado-header__top">
+      <button class="pedido-header__back-btn" onclick="goToScreen('home')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <span class="pedido-header__tag">Ofertas enviadas</span>
+    </div>
+    <div class="estado-header__client">Ofertas que ya hiciste</div>
+    <div style="font-size:0.8rem;color:rgba(255,255,255,0.6);">Toca una oferta para ver los productos · puedes reenviarla a otro cliente</div>
+  </div>
+  <div class="estado-body">
+    <input id="ofertas-buscar" type="text" placeholder="Buscar por cliente o título…" oninput="filtrarOfertasHechas(this.value)" style="width:100%;padding:0.7rem 0.9rem;border:1px solid var(--border,#ddd);border-radius:10px;margin-bottom:0.8rem;font-size:0.9rem;box-sizing:border-box;background:var(--bg-elevated,#fff);color:inherit;">
+    <div id="ofertas-hechas-list">
+      <div class="estado-placeholder">Cargando...</div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: reenviar oferta a otro cliente -->
+<div class="scan-modal" id="resend-modal">
+  <div class="scan-modal__box" style="max-width:520px;">
+    <div class="scan-modal__header">
+      <span class="scan-modal__title">Reenviar oferta a otro cliente</span>
+      <button class="scan-modal__close" onclick="closeResend()" aria-label="Cerrar">✕</button>
+    </div>
+    <div style="padding:14px 16px;">
+      <div id="resend-info" style="font-size:0.8rem;color:#888;margin-bottom:0.6rem;"></div>
+      <input id="resend-buscar" type="text" placeholder="Buscar cliente…" oninput="renderResendClientes(this.value)" style="width:100%;padding:0.7rem 0.9rem;border:1px solid #ddd;border-radius:10px;margin-bottom:0.6rem;font-size:0.9rem;box-sizing:border-box;">
+      <div id="resend-clientes" style="max-height:48vh;overflow:auto;"></div>
     </div>
   </div>
 </div>
@@ -5668,6 +5703,111 @@ async function confirmSendOffer() {
     showToast('Error al enviar la oferta: ' + (e.message || e), true);
   } finally {
     btn.disabled = false; btn.textContent = old;
+  }
+}
+
+// ===== Historial de ofertas enviadas + reenviar a otro cliente =====
+let _ofertasHechas = [];
+let _resendOffer = null;
+async function openOfertasHechas() {
+  goToScreen('ofertas-hechas');
+  const cont = document.getElementById('ofertas-hechas-list');
+  cont.innerHTML = '<div class="estado-placeholder">Cargando...</div>';
+  const buscar = document.getElementById('ofertas-buscar'); if (buscar) buscar.value = '';
+  try {
+    const { data, error } = await supa.from('client_offers')
+      .select('id,sap_card_code,client_name,created_by,title,cart_data,total_amount,total_items,total_units,status,created_at,expires_at')
+      .order('created_at', { ascending: false }).limit(200);
+    if (error) throw error;
+    _ofertasHechas = data || [];
+    renderOfertasHechas(_ofertasHechas);
+  } catch (e) {
+    cont.innerHTML = '<div class="estado-placeholder">Error: ' + escapeHtml(e.message || ('' + e)) + '</div>';
+  }
+}
+function filtrarOfertasHechas(term) {
+  const t = (term || '').trim().toLowerCase();
+  const list = !t ? _ofertasHechas : _ofertasHechas.filter(o =>
+    (o.client_name || '').toLowerCase().includes(t) || (o.title || '').toLowerCase().includes(t));
+  renderOfertasHechas(list);
+}
+function _estadoOfertaBadge(o) {
+  if (o.status === 'ordered') return '<span style="background:#dbeafe;color:#1e40af;font-size:.62rem;font-weight:800;padding:2px 8px;border-radius:999px;">CONVERTIDA EN PEDIDO</span>';
+  const vigente = o.status === 'active' && new Date(o.expires_at) > new Date();
+  if (vigente) {
+    const hrs = Math.max(1, Math.round((new Date(o.expires_at) - new Date()) / 3600000));
+    return '<span style="background:#dcfce7;color:#166534;font-size:.62rem;font-weight:800;padding:2px 8px;border-radius:999px;">ACTIVA · ' + hrs + 'h</span>';
+  }
+  return '<span style="background:#f1f5f9;color:#64748b;font-size:.62rem;font-weight:800;padding:2px 8px;border-radius:999px;">VENCIDA</span>';
+}
+function renderOfertasHechas(list) {
+  const cont = document.getElementById('ofertas-hechas-list');
+  if (!list || !list.length) { cont.innerHTML = '<div class="estado-placeholder">No hay ofertas todavía.</div>'; return; }
+  cont.innerHTML = list.map(o => {
+    const items = (o.cart_data && o.cart_data.items) || [];
+    const fecha = (o.created_at || '').slice(0, 10);
+    const prods = items.map(it => `<tr><td style="padding:4px 6px;">${escapeHtml(it.name || it.code)}</td><td style="padding:4px 6px;text-align:center;color:var(--text-muted);">${it.qty}</td><td style="padding:4px 6px;text-align:right;font-weight:700;">$${Number(it.offer_price || 0).toFixed(2)}</td></tr>`).join('');
+    return `<div style="background:var(--bg-elevated,#fff);border:1px solid var(--border-soft,#eee);border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(14,16,22,.05);">
+      <div style="display:flex;align-items:center;gap:8px;justify-content:space-between;">
+        <div style="font-weight:800;min-width:0;">${escapeHtml(o.client_name || o.sap_card_code)}</div>
+        ${_estadoOfertaBadge(o)}
+      </div>
+      <div style="font-size:.78rem;color:var(--text-muted);margin-top:2px;">${escapeHtml(o.title || 'Oferta')} · ${fecha}${o.created_by ? ' · por ' + escapeHtml(o.created_by) : ''}</div>
+      <div style="font-size:.9rem;margin-top:6px;"><b>$${Number(o.total_amount || 0).toFixed(2)}</b> · ${o.total_items || items.length} productos · ${o.total_units || ''} und</div>
+      <details style="margin-top:8px;"><summary style="cursor:pointer;font-size:.8rem;color:var(--punch,#009FE3);font-weight:700;">Ver productos</summary>
+        <table style="width:100%;border-collapse:collapse;font-size:.8rem;margin-top:6px;"><thead><tr style="color:var(--text-muted);font-size:.65rem;text-transform:uppercase;"><th style="text-align:left;padding:4px 6px;">Producto</th><th style="padding:4px 6px;">Cant</th><th style="text-align:right;padding:4px 6px;">P. oferta</th></tr></thead><tbody>${prods}</tbody></table>
+      </details>
+      <button onclick="openResend('${o.id}')" style="margin-top:10px;width:100%;background:#FF6B35;color:#fff;border:none;border-radius:10px;padding:11px;font-weight:800;font-size:.88rem;cursor:pointer;">📤 Reenviar a otro cliente</button>
+    </div>`;
+  }).join('');
+}
+async function openResend(offerId) {
+  _resendOffer = _ofertasHechas.find(o => String(o.id) === String(offerId));
+  if (!_resendOffer) { showToast('Oferta no encontrada', true); return; }
+  document.getElementById('resend-info').innerHTML = 'Vas a reenviar <b>' + escapeHtml(_resendOffer.title || 'la oferta') + '</b> (' + ((_resendOffer.cart_data && _resendOffer.cart_data.items || []).length) + ' productos, $' + Number(_resendOffer.total_amount || 0).toFixed(2) + '). Elige el cliente:';
+  document.getElementById('resend-buscar').value = '';
+  document.getElementById('resend-modal').classList.add('show');
+  document.getElementById('resend-clientes').innerHTML = '<div style="padding:14px;color:#888;">Cargando clientes…</div>';
+  if (!allCustomers.length) { try { await loadCustomers(); } catch (e) {} }
+  renderResendClientes('');
+}
+function closeResend() { document.getElementById('resend-modal').classList.remove('show'); _resendOffer = null; }
+function renderResendClientes(term) {
+  const t = (term || '').trim().toLowerCase();
+  let list = allCustomers;
+  if (t) list = allCustomers.filter(c => (c.name || '').toLowerCase().includes(t) || (c.sap_card_code || '').toLowerCase().includes(t));
+  list = list.slice(0, 60);
+  const cont = document.getElementById('resend-clientes');
+  if (!list.length) { cont.innerHTML = '<div style="padding:14px;color:#888;">Sin resultados.</div>'; return; }
+  cont.innerHTML = list.map(c =>
+    `<div onclick="doResend('${(c.sap_card_code || '').replace(/'/g, "\\'")}')" style="padding:11px 12px;border:1px solid var(--border-soft,#eee);border-radius:10px;margin-bottom:6px;cursor:pointer;">
+      <div style="font-weight:700;">${escapeHtml(c.name || c.sap_card_code)}</div>
+      <div style="font-size:.74rem;color:var(--text-muted);">${escapeHtml(c.sap_card_code || '')}</div>
+    </div>`).join('');
+}
+async function doResend(cardCode) {
+  const o = _resendOffer; if (!o) return;
+  const c = allCustomers.find(x => x.sap_card_code === cardCode);
+  const name = c ? c.name : cardCode;
+  if (cardCode === o.sap_card_code && !confirm('Esa oferta ya es de ' + name + '. ¿Reenviarla igual (renueva 36h)?')) return;
+  const cont = document.getElementById('resend-clientes');
+  cont.style.opacity = '.5';
+  try {
+    await supa.from('client_offers').update({ status: 'expired' }).eq('sap_card_code', cardCode).eq('status', 'active');
+    const { error } = await supa.from('client_offers').insert({
+      sap_card_code: cardCode, client_name: name,
+      created_by: currentVendor ? currentVendor.name : null,
+      title: o.title, cart_data: o.cart_data,
+      total_amount: o.total_amount, total_items: o.total_items, total_units: o.total_units,
+      status: 'active', expires_at: new Date(Date.now() + 36 * 60 * 60 * 1000).toISOString()
+    });
+    if (error) throw error;
+    closeResend();
+    showToast('✅ Oferta reenviada a ' + name + ' · vence en 36h');
+    openOfertasHechas();
+  } catch (e) {
+    cont.style.opacity = '1';
+    showToast('Error al reenviar: ' + (e.message || e), true);
   }
 }
 
