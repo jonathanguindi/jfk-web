@@ -1735,23 +1735,29 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
    ocultamos columnas de bajo valor (selección, referencia, inventario, precio lista, %, cajas).
    La referencia "Lista $X · antes $Y" se muestra bajo la descripción en su lugar. */
 @media (max-width: 600px) {
-  .cart-table { min-width: 0; width: 100%; font-size: 0.72rem; }
-  .cart-table th, .cart-table td { padding: 0.4rem 0.25rem; }
-  /* Oculta: check(1), imagen(2), referencia(3), Inv(6), Precio Lista(7), Cajas(11).
-     Deja visibles: Descripción, Cant, % y Precio (para negociar cómodo en el cel). */
-  .cart-table th:nth-child(1), .cart-table td:nth-child(1),
-  .cart-table th:nth-child(2), .cart-table td:nth-child(2),
-  .cart-table th:nth-child(3), .cart-table td:nth-child(3),
-  .cart-table th:nth-child(6), .cart-table td:nth-child(6),
-  .cart-table th:nth-child(7), .cart-table td:nth-child(7),
-  .cart-table th:nth-child(11), .cart-table td:nth-child(11) { display: none; }
-  .cart-table td.desc-cell { white-space: normal; max-width: none; }
-  .cart-table td.total-cell { padding-right: 0.4rem; }
-  /* Inputs cómodos en el cel: font 16px evita el zoom molesto de iOS al enfocar. */
-  .cart-table input.cell-input { width: 64px; font-size: 16px; padding: 0.55rem 0.25rem; }
-  .cart-table input.cell-input.qty-cell-input { width: 54px; }
-  .cart-table input.cell-input.disc-cell-input { width: 54px; }
-  .cart-cell-meta { display: block; }
+  /* En el cel el carrito se ve como TARJETAS (la tabla apretada no sirve en pantalla chica).
+     Cada producto: título arriba, y abajo Cant / % / Precio en campos grandes, luego Total. */
+  .cart-table-wrap { overflow: visible; }
+  .cart-table { display: block; width: 100%; min-width: 0; border: none; }
+  .cart-table thead { display: none; }
+  .cart-table tbody { display: block; width: 100%; }
+  .cart-table tr {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+    align-items: end; position: relative;
+    background: var(--bg-elevated); border: 1px solid var(--border-soft);
+    border-radius: 14px; padding: 12px 12px 14px; margin-bottom: 12px;
+  }
+  .cart-table td { display: block; padding: 0; border: none; text-align: left; }
+  .cart-table td.check-cell, .cart-table td.img-cell, .cart-table td.code-cell,
+  .cart-table td:nth-child(6), .cart-table td:nth-child(7), .cart-table td:nth-child(11) { display: none; }
+  .cart-table td.desc-cell { grid-column: 1 / -1; white-space: normal; max-width: none; font-weight: 700; font-size: 0.92rem; padding-right: 34px; }
+  .cart-cell-meta { display: block; font-weight: 500; color: var(--text-muted); margin-top: 2px; }
+  .cart-table td[data-label]::before { content: attr(data-label); display: block; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-muted); font-weight: 800; margin-bottom: 4px; }
+  .cart-table input.cell-input { width: 100%; font-size: 16px; padding: 0.6rem 0.5rem; box-sizing: border-box; text-align: center; }
+  .cart-table td.total-cell { grid-column: 1 / -1; text-align: right; font-size: 1.05rem; border-top: 1px solid var(--border-soft); padding-top: 10px; margin-top: 2px; }
+  .cart-table td.total-cell[data-label]::before { display: inline; margin-right: 8px; font-size: 0.62rem; }
+  .cart-table td:last-child { position: absolute; top: 8px; right: 8px; padding: 0; width: auto; }
+  .cart-table .row-remove { width: 30px; height: 30px; }
   /* Pie del carrito: que NO se salga de la pantalla (se enredaba hacia la derecha). */
   .cart-footer-row { flex-direction: column; gap: 0.6rem; }
   .cart-footer-row .cart-totals, .cart-footer-row .cart-remark { width: 100%; box-sizing: border-box; }
@@ -2047,12 +2053,12 @@ body.ocultar-costos .pedido-card__costs { display: none !important; }
 .cart-table input.cell-input:focus { outline: none; border-color: var(--punch); background: var(--bg-elevated); }
 .cart-table input.cell-input.qty-cell-input { width: 55px; }
 .cart-table input.cell-input.disc-cell-input { width: 48px; }
-/* Mobile: inputs cómodos para negociar precios en el cel (va DESPUÉS de la base para que gane).
+/* Mobile: en modo tarjeta los inputs van a ancho completo (va DESPUÉS de la base para que gane).
    font 16px evita el zoom molesto de iOS al enfocar el campo. */
 @media (max-width: 600px) {
-  .cart-table input.cell-input { width: 66px; font-size: 16px; padding: 0.6rem 0.25rem; }
-  .cart-table input.cell-input.qty-cell-input { width: 56px; }
-  .cart-table input.cell-input.disc-cell-input { width: 56px; }
+  .cart-table input.cell-input,
+  .cart-table input.cell-input.qty-cell-input,
+  .cart-table input.cell-input.disc-cell-input { width: 100%; font-size: 16px; padding: 0.6rem 0.5rem; }
 }
 .cart-table .row-remove {
   color: var(--error);
@@ -5306,12 +5312,12 @@ function renderCart() {
         <td class="img-cell"><div class="img-icon"><img src="${PRODUCT_IMG_BASE}/${encodeURIComponent(product.sap_item_code)}.jpg" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:4px;" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><span style="display:none;width:100%;height:100%;align-items:center;justify-content:center;">${icon}</span></div></td>
         <td class="code-cell">${escapeHtml(product.sap_item_code)}</td>
         <td class="desc-cell">${escapeHtml(product.name || '')}<div class="cart-cell-meta">Lista $${listPrice.toFixed(2)}${(prev && prev.precio_ultimo > 0) ? ` · <span class="prev">antes $${prev.precio_ultimo.toFixed(2)}</span>` : ''}</div></td>
-        <td class="num-cell"><input type="number" inputmode="numeric" class="cell-input qty-cell-input" value="${qty}" min="1" data-field="qty"></td>
+        <td class="num-cell" data-label="Cant"><input type="number" inputmode="numeric" class="cell-input qty-cell-input" value="${qty}" min="1" data-field="qty"></td>
         <td class="num-cell ${stockClass}">${stock}</td>
         <td class="num-cell">$${listPrice.toFixed(2)}${prevHtml}</td>
-        <td class="num-cell"><input type="number" inputmode="decimal" class="cell-input disc-cell-input" value="${discShown}" min="0" max="100" step="0.01" data-field="disc"></td>
-        <td class="num-cell"><input type="number" inputmode="decimal" class="cell-input price-cell-input" value="${priceFinal.toFixed(2)}" min="0" step="0.01" data-field="price"></td>
-        <td class="total-cell">$${lineTotal.toFixed(2)}</td>
+        <td class="num-cell" data-label="% Desc"><input type="number" inputmode="decimal" class="cell-input disc-cell-input" value="${discShown}" min="0" max="100" step="0.01" data-field="disc"></td>
+        <td class="num-cell" data-label="Precio"><input type="number" inputmode="decimal" class="cell-input price-cell-input" value="${priceFinal.toFixed(2)}" min="0" step="0.01" data-field="price"></td>
+        <td class="total-cell" data-label="Total">$${lineTotal.toFixed(2)}</td>
         <td class="num-cell">${boxes}</td>
         <td class="num-cell"><button class="row-remove" data-field="remove">×</button></td>
       </tr>
