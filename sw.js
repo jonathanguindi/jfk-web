@@ -4,7 +4,7 @@
    - Estáticos propios + librerías CDN + fuentes: cache-first con actualización en segundo plano.
    - Supabase y Netlify Functions: NUNCA se cachean (datos dinámicos; lo offline lo manejan IndexedDB/cola en fases 2-3).
    Sube CACHE_VERSION en cada cambio del shell para forzar actualización. */
-const CACHE_VERSION = 'jfk-portal-v41';
+const CACHE_VERSION = 'jfk-portal-v42';
 const SHELL = [
   '/vendedores.html',
   '/clientes.html',

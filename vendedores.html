@@ -5384,36 +5384,29 @@ function renderCart() {
           autoSaveDraft();
         });
       } else if (field === 'disc') {
-        // Al escribir el %, actualiza el precio al instante (sin re-render).
+        // Al escribir el %, GUARDA el descuento al instante (clave: si el vendedor toca "Enviar"
+        // sin salir del campo, igual queda guardado) y actualiza el precio en pantalla.
         el.addEventListener('input', () => {
           const d = Math.max(0, Math.min(100, parseFloat(el.value) || 0));
+          currentCart[pcode].discount = d;
+          delete currentCart[pcode].fixedPrice;   // el % manda: se quita el precio fijo
           const lp = parseFloat(currentCart[pcode].product.price_kennedy) || 0;
           const priceInp = tr.querySelector('.price-cell-input');
           if (priceInp) priceInp.value = (lp * (1 - d / 100)).toFixed(2);
-        });
-        el.addEventListener('change', () => {
-          let d = parseFloat(el.value) || 0;
-          d = Math.max(0, Math.min(100, d));
-          currentCart[pcode].discount = d;
-          delete currentCart[pcode].fixedPrice;   // el % manda: se quita el precio fijo
-          renderCart();
           autoSaveDraft();
         });
+        el.addEventListener('change', () => { renderCart(); });
       } else if (field === 'price') {
-        // Al escribir el precio, calcula el % al instante (sin re-render).
+        // Al escribir el precio, GUARDA el precio fijo al instante y calcula el % en pantalla.
         el.addEventListener('input', () => {
-          const p = parseFloat(String(el.value).replace(',', '.')) || 0;
+          const p = parseFloat(String(el.value).replace(',', '.'));
+          if (p >= 0 && isFinite(p)) currentCart[pcode].fixedPrice = p;
           const lp = parseFloat(currentCart[pcode].product.price_kennedy) || 0;
           const discInp = tr.querySelector('.disc-cell-input');
           if (discInp && lp > 0) discInp.value = (100 * (1 - p / lp)).toFixed(2);
-        });
-        el.addEventListener('change', () => {
-          // Precio FIJO absoluto: puede estar arriba o abajo de la lista.
-          const newPrice = parseFloat(String(el.value).replace(',', '.'));
-          if (newPrice >= 0 && isFinite(newPrice)) currentCart[pcode].fixedPrice = newPrice;
-          renderCart();
           autoSaveDraft();
         });
+        el.addEventListener('change', () => { renderCart(); });
       } else if (field === 'remove') {
         el.addEventListener('click', () => {
           if (confirm('¿Eliminar este producto del pedido?')) {
@@ -5865,6 +5858,8 @@ async function getVendorSapCode() {
   return code;
 }
 async function confirmSubmitOrder() {
+  // Seguro: si quedó un precio/% escrito sin "salir" del campo, forzamos que se guarde antes de leer el carrito.
+  try { if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur(); } catch (e) {}
   if (!navigator.onLine && typeof OFFLINE !== 'undefined') { try { closeConfirmModal(); } catch (e) {} return OFFLINE.queueCurrentOrder(); }
   closeConfirmModal();
   const items = Object.values(currentCart);
