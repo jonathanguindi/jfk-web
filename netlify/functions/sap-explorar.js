@@ -54,6 +54,15 @@ exports.handler = async (event) => {
       const a = await sapGetAll(cookie, `ChartOfAccounts?$filter=contains(Name,'${q}')&$select=Code,Name,Balance,ActiveAccount`);
       out.cuentas_buscar = { q, cuentas: (a || []).map(c => ({ code: c.Code, name: c.Name, balance: c.Balance, activa: c.ActiveAccount })) };
     }
+    if (recurso === 'orden_portal') {
+      // Pedidos creados por el PORTAL (NumAtCard empieza con 'PED-') y sus precios de línea.
+      const a = await getOne(cookie, `Orders?$filter=startswith(NumAtCard,'PED-')&$orderby=DocEntry desc&$top=5&$select=DocNum,DocEntry,CardName,NumAtCard,DocDate,DocTotal,Confirmed,DocumentLines`, 9000);
+      if (a.error) out.orden_portal = { error: a.error };
+      else out.orden_portal = (a.value || []).map(o => ({
+        doc: o.DocNum, ref: o.NumAtCard, fecha: (o.DocDate || '').slice(0, 10), cliente: o.CardName, total: o.DocTotal, confirmado: o.Confirmed,
+        lineas: (o.DocumentLines || []).map(l => ({ item: l.ItemCode, qty: l.Quantity, unitPrice: l.UnitPrice, price: l.Price, descPct: l.DiscountPercent, lineTotal: l.LineTotal, fuente: l.PriceSource }))
+      }));
+    }
     if (recurso === 'orden_lineas') {
       // Inspecciona líneas (precio/descuento) de pedidos recientes de un cliente (q = fragmento de nombre).
       const q = (body.q || '').replace(/'/g, "''");
