@@ -55,10 +55,13 @@ exports.handler = async (event) => {
       out.cuentas_buscar = { q, cuentas: (a || []).map(c => ({ code: c.Code, name: c.Name, balance: c.Balance, activa: c.ActiveAccount })) };
     }
     if (recurso === 'orden_portal') {
-      // Pedidos creados por el PORTAL (NumAtCard empieza con 'PED-') y sus precios de línea.
-      const a = await getOne(cookie, `Orders?$filter=startswith(NumAtCard,'PED-')&$orderby=DocEntry desc&$top=5&$select=DocNum,DocEntry,CardName,NumAtCard,DocDate,DocTotal,Confirmed,DocumentLines`, 9000);
-      if (a.error) out.orden_portal = { error: a.error };
-      else out.orden_portal = (a.value || []).map(o => ({
+      // Pedidos creados por el PORTAL (NumAtCard 'PED-') y sus precios de línea. top configurable.
+      const top = Math.min(Math.max(Number(body.top) || 8, 1), 40);
+      const r = await fetch(`${SAP_URL}/Orders?$filter=startswith(NumAtCard,'PED-')&$orderby=DocEntry desc&$top=${top}&$select=DocNum,DocEntry,CardName,NumAtCard,DocDate,DocTotal,Confirmed,DocumentLines`, {
+        headers: { Cookie: cookie, 'Content-Type': 'application/json', Prefer: `odata.maxpagesize=${top}` }
+      }).then(x => x.json()).catch(e => ({ error: String(e) }));
+      if (r.error) out.orden_portal = { error: r.error };
+      else out.orden_portal = (r.value || []).map(o => ({
         doc: o.DocNum, ref: o.NumAtCard, fecha: (o.DocDate || '').slice(0, 10), cliente: o.CardName, total: o.DocTotal, confirmado: o.Confirmed,
         lineas: (o.DocumentLines || []).map(l => ({ item: l.ItemCode, qty: l.Quantity, unitPrice: l.UnitPrice, price: l.Price, descPct: l.DiscountPercent, lineTotal: l.LineTotal, fuente: l.PriceSource }))
       }));
